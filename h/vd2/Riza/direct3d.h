@@ -168,6 +168,8 @@ public:
 	bool		AdjustTextureSize(int& w, int& h, bool nonPow2OK = false);
 	bool		IsTextureFormatAvailable(D3DFORMAT format);
 
+	bool		CheckResourceFormat(DWORD usage, D3DRESOURCETYPE rtype, D3DFORMAT checkFormat) const;
+
 	void		ClearRenderTarget(IDirect3DTexture9 *pTexture);
 
 	void		ResetBuffers();

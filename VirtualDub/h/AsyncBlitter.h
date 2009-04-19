@@ -38,6 +38,7 @@ public:
 	virtual void setPulseCallback(PulseCallback fn, void *context) = 0;
 	virtual void pulse(int delta) = 0;
 	virtual void setPulseClock(uint32 clk) = 0;
+	virtual uint32 getPulseClock() const = 0;
 	virtual bool lock(uint32, sint32 timeout = -1) = 0;
 	virtual void unlock(uint32) = 0;
 	virtual void nextFrame(long adv=1) = 0;

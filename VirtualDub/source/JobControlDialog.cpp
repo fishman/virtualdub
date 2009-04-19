@@ -23,6 +23,7 @@ namespace {
 }
 
 static const char g_szRegKeyShutdownWhenFinished[] = "Shutdown after jobs finish";
+static const char g_szRegKeyShutdownMode[] = "Shutdown mode";
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -481,11 +482,37 @@ bool VDUIJobControlDialog::OnMenuHit(uint32 id) {
 				JobProcessDirectory(mhdlg);
 				break;
 
-			case ID_OPTIONS_SHUTDOWNWHENFINISHED:
+			case ID_WHENFINISHED_DONOTHING:
 				{
 					VDRegistryAppKey appKey("");
 
-					appKey.setBool(g_szRegKeyShutdownWhenFinished, !appKey.getBool(g_szRegKeyShutdownWhenFinished));
+					appKey.setBool(g_szRegKeyShutdownWhenFinished, false);
+				}
+				break;
+
+			case ID_WHENFINISHED_SHUTDOWN:
+				{
+					VDRegistryAppKey appKey("");
+
+					appKey.setBool(g_szRegKeyShutdownWhenFinished, true);
+					appKey.setInt(g_szRegKeyShutdownMode, 0);
+				}
+				break;
+
+			case ID_WHENFINISHED_HIBERNATE:
+				{
+					VDRegistryAppKey appKey("");
+
+					appKey.setBool(g_szRegKeyShutdownWhenFinished, true);
+					appKey.setInt(g_szRegKeyShutdownMode, 1);
+				}
+				break;
+			case ID_WHENFINISHED_SLEEP:
+				{
+					VDRegistryAppKey appKey("");
+
+					appKey.setBool(g_szRegKeyShutdownWhenFinished, true);
+					appKey.setInt(g_szRegKeyShutdownMode, 2);
 				}
 				break;
 		}
@@ -636,9 +663,14 @@ VDZINT_PTR VDUIJobControlDialog::DlgProc(VDZUINT msg, VDZWPARAM wParam, VDZLPARA
 	case WM_INITMENU:
 		{
 			HMENU hmenu = (HMENU)wParam;
-			bool bShutdownWhenFinished = VDRegistryAppKey().getBool(g_szRegKeyShutdownWhenFinished);
+			VDRegistryAppKey key;
+			bool bShutdownWhenFinished = key.getBool(g_szRegKeyShutdownWhenFinished);
+			int shutdownMode = key.getInt(g_szRegKeyShutdownMode);
 
-			CheckMenuItem(hmenu, ID_OPTIONS_SHUTDOWNWHENFINISHED, bShutdownWhenFinished ? MF_BYCOMMAND|MF_CHECKED : MF_BYCOMMAND|MF_UNCHECKED);
+			VDCheckRadioMenuItemByCommandW32(hmenu, ID_WHENFINISHED_DONOTHING, !bShutdownWhenFinished);
+			VDCheckRadioMenuItemByCommandW32(hmenu, ID_WHENFINISHED_SHUTDOWN, bShutdownWhenFinished && shutdownMode == 0);
+			VDCheckRadioMenuItemByCommandW32(hmenu, ID_WHENFINISHED_HIBERNATE, bShutdownWhenFinished && shutdownMode == 1);
+			VDCheckRadioMenuItemByCommandW32(hmenu, ID_WHENFINISHED_SLEEP, bShutdownWhenFinished && shutdownMode == 2);
 
 			bool isRemoteQueue = g_VDJobQueue.IsAutoUpdateEnabled();
 			VDCheckRadioMenuItemByCommandW32(hmenu, ID_FILE_USELOCALJOBQUEUE, !isRemoteQueue);

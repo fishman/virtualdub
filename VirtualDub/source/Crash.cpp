@@ -1070,7 +1070,7 @@ LONG __stdcall CrashHandler(EXCEPTION_POINTERS *pExc, bool allowForcedExit) {
 	static char buf[CODE_WINDOW+16];
 	HANDLE hprMe = GetCurrentProcess();
 	void *lpBaseAddress = pExc->ExceptionRecord->ExceptionAddress;
-	char *lpAddr = (char *)((long)lpBaseAddress & -32);
+	char *lpAddr = (char *)((uintptr)lpBaseAddress & -32);
 
 	memset(buf, 0, sizeof buf);
 

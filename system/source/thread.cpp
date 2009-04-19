@@ -229,6 +229,27 @@ int VDSignalBase::wait(VDSignalBase *second, VDSignalBase *third) {
 	return dwRet == WAIT_FAILED ? -1 : dwRet - WAIT_OBJECT_0;
 }
 
+int VDSignalBase::waitMultiple(const VDSignalBase **signals, int count) {
+	VDASSERT(count <= 16);
+
+	HANDLE handles[16];
+	int active = 0;
+
+	for(int i=0; i<count; ++i) {
+		HANDLE h = signals[i]->hEvent;
+
+		if (h)
+			handles[active++] = h;
+	}
+
+	if (!active)
+		return -1;
+
+	DWORD dwRet = WaitForMultipleObjects(active, handles, FALSE, INFINITE);
+
+	return dwRet == WAIT_FAILED ? -1 : dwRet - WAIT_OBJECT_0;
+}
+
 void VDSignalPersistent::unsignal() {
 	ResetEvent(hEvent);
 }

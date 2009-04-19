@@ -254,7 +254,7 @@ void ScanForUnreadableFrames(FrameSubset *pSubset, IVDVideoSource *pVideoSource)
 	pVSS->setDecodeErrorMode(IVDStreamSource::kErrorModeReportAll);
 
 	try {
-		ProgressDialog pd(g_hWnd, "Frame scan", "Scanning for unreadable frames", lLast-lFrame, true);
+		ProgressDialog pd(g_hWnd, "Frame scan", "Scanning for unreadable frames", VDClampToSint32(lLast-lFrame), true);
 		bool bLastValid = true;
 		VDPosition lRangeFirst;
 		long lDeadFrames = 0;
@@ -271,7 +271,7 @@ void ScanForUnreadableFrames(FrameSubset *pSubset, IVDVideoSource *pVideoSource)
 			int err;
 			bool bValid;
 
-			pd.advance(lFrame - lFirst);
+			pd.advance(VDClampToSint32(lFrame - lFirst));
 			pd.check();
 
 			do {

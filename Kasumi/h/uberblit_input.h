@@ -29,12 +29,16 @@ public:
 	void Start() {
 	}
 
-	sint32 GetWidth() const {
+	sint32 GetWidth(int) const {
 		return mWidth;
 	}
 
-	sint32 GetHeight() const {
+	sint32 GetHeight(int) const {
 		return mHeight;
+	}
+
+	bool IsStateful() const {
+		return false;
 	}
 
 	const void *GetRow(sint32 y, uint32 output) {

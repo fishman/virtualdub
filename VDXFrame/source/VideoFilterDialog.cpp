@@ -56,6 +56,13 @@ LRESULT VDXVideoFilterDialog::Show(HINSTANCE hInst, LPCTSTR templName, HWND pare
 	return DialogBoxParam(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
 }
 
+HWND VDXVideoFilterDialog::ShowModeless(HINSTANCE hInst, LPCTSTR templName, HWND parent) {
+	if (!hInst)
+		hInst = GetLocalHInstance();
+
+	return CreateDialogParam(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
+}
+
 INT_PTR CALLBACK VDXVideoFilterDialog::StaticDlgProc(HWND hdlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	VDXVideoFilterDialog *pThis;
 

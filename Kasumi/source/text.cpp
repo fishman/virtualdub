@@ -81,7 +81,7 @@ void VDPixmapConvertTextToPath(VDPixmapPathRasterizer& rast, const VDOutlineFont
 	if (!pFont)
 		pFont = &g_VDDefaultFont_FontInfo;
 
-	vdfastvector<vdint2> points;
+	vdfastfixedvector<vdint2, 256> points;
 
 	float scale = size / ((float)pFont->mEmSquare * 255.0f * 65536.0f);
 	float xscale = (float)(pFont->mMaxX - pFont->mMinX) * scale;

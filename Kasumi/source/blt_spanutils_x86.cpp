@@ -22,31 +22,13 @@
 	#pragma warning(disable: 4799)		// warning C4799: function 'nsVDPixmapSpanUtils::vdasm_horiz_expand2x_coaligned_ISSE' has no EMMS instruction
 #endif
 
+extern "C" void __cdecl vdasm_horiz_expand2x_coaligned_ISSE(void *dst, const void *src, uint32 count);
+extern "C" void __cdecl vdasm_horiz_expand4x_coaligned_MMX(void *dst, const void *src, uint32 count);
+extern "C" void __cdecl vdasm_vert_average_13_ISSE(void *dst, const void *src1, const void *src3, uint32 count);
+extern "C" void __cdecl vdasm_vert_average_17_ISSE(void *dst, const void *src1, const void *src3, uint32 count);
+extern "C" void __cdecl vdasm_vert_average_35_ISSE(void *dst, const void *src1, const void *src3, uint32 count);
+
 namespace nsVDPixmapSpanUtils {
-
-	void __declspec(naked) __cdecl vdasm_horiz_expand2x_coaligned_ISSE(void *dst, const void *src, uint32 count) {
-		__asm {
-			mov		ecx, [esp+8]
-			mov		edx, [esp+4]
-			mov		eax, [esp+12]
-xloop:
-			movq	mm0, [ecx]
-			movq	mm1, mm0
-			pavgb	mm0, [ecx+1]
-			movq	mm2, mm1
-			punpcklbw	mm1, mm0
-			punpckhbw	mm2, mm0
-
-			movq	[edx], mm1
-			movq	[edx+8], mm2
-			add		edx, 16
-			add		ecx, 8
-
-			sub		eax, 16
-			jne		xloop
-			ret
-		}
-	}
 
 	void horiz_expand2x_coaligned_ISSE(uint8 *dst, const uint8 *src, sint32 w) {
 		if (w >= 17) {
@@ -75,50 +57,32 @@ xloop:
 		}
 	}
 
-	void __declspec(naked) __cdecl vdasm_vert_expand2x_centered_ISSE(void *dst, const void *src1, const void *src3, uint32 count) {
-		__asm {
-			push	ebx
-			mov		ebx, [esp+12+4]
-			mov		ecx, [esp+8+4]
-			mov		edx, [esp+4+4]
-			mov		eax, [esp+16+4]
+	void horiz_expand4x_coaligned_MMX(uint8 *dst, const uint8 *src, sint32 w) {
+		if (w >= 17) {
+			uint32 fastcount = (w - 1) >> 4;
 
-			add		ebx, eax
-			add		ecx, eax
-			add		edx, eax
-			neg		eax
+			vdasm_horiz_expand4x_coaligned_MMX(dst, src, fastcount);
+			dst += fastcount << 4;
+			src += fastcount << 2;
+			w -= fastcount << 4;
+		}
 
-			pcmpeqb	mm7, mm7
-xloop:
-			movq	mm0, [ebx+eax]
-			movq	mm1, [ecx+eax]
-			movq	mm2, mm0
+		w = -w;
+		if ((w+=4) < 0) {
+			do {
+				dst[0] = src[0];
+				dst[1] = (uint8)((3*src[0] + src[1] + 2)>>2);
+				dst[2] = (uint8)((src[0] + src[1] + 1)>>1);
+				dst[3] = (uint8)((src[0] + 3*src[1] + 2)>>2);
+				dst += 4;
+				++src;
+			} while((w+=4)<0);
+		}
 
-			movq	mm3, [ebx+eax+8]
-			pxor	mm0, mm7
-			pxor	mm1, mm7
-
-			movq	mm4, [ecx+eax+8]
-			movq	mm5, mm3
-			pxor	mm3, mm7
-
-			pxor	mm4, mm7
-			pavgb	mm0, mm1
-			pavgb	mm3, mm4
-
-			pxor	mm0, mm7
-			pxor	mm3, mm7
-			pavgb	mm0, mm2
-
-			movq	[edx+eax], mm0
-			pavgb	mm3, mm5
-
-			movq	[edx+eax+8], mm3
-			add		eax, 16
-			jne		xloop
-
-			pop		ebx
-			ret
+		w -= 4;
+		while(w < 0) {
+			++w;
+			*dst++ = src[0];
 		}
 	}
 
@@ -132,7 +96,7 @@ xloop:
 		uint32 fastcount = w & ~15;
 
 		if (fastcount) {
-			vdasm_vert_expand2x_centered_ISSE(dst, src1, src3, fastcount);
+			vdasm_vert_average_13_ISSE(dst, src1, src3, fastcount);
 			dst += fastcount;
 			src1 += fastcount;
 			src3 += fastcount;
@@ -143,6 +107,64 @@ xloop:
 			do {
 				*dst++ = (uint8)((*src1++ + 3**src3++ + 2) >> 2);
 			} while(--w);
+		}
+	}
+
+	void vert_average_1_7_ISSE(uint8 *dst, const uint8 *src7, const uint8 *src1, sint32 w) {
+		uint32 fastcount = w & ~7;
+
+		if (fastcount) {
+			vdasm_vert_average_17_ISSE(dst, src1, src7, fastcount);
+			dst += fastcount;
+			src1 += fastcount;
+			src7 += fastcount;
+			w -= fastcount;
+		}
+
+		if (w) {
+			do {
+				*dst++ = (uint8)((*src1++ + 7**src7++ + 4) >> 3);
+			} while(--w);
+		}
+	}
+
+	void vert_average_3_5_ISSE(uint8 *dst, const uint8 *src7, const uint8 *src1, sint32 w) {
+		uint32 fastcount = w & ~7;
+
+		if (fastcount) {
+			vdasm_vert_average_35_ISSE(dst, src1, src7, fastcount);
+			dst += fastcount;
+			src1 += fastcount;
+			src7 += fastcount;
+			w -= fastcount;
+		}
+
+		if (w) {
+			do {
+				*dst++ = (uint8)((3**src1++ + 5**src7++ + 4) >> 3);
+			} while(--w);
+		}
+	}
+
+	void vert_expand4x_centered_ISSE(uint8 *dst, const uint8 *const *srcs, sint32 w, uint8 phase) {
+		const uint8 *src1 = srcs[0];
+		const uint8 *src2 = srcs[1];
+
+		switch(phase & 0xc0) {
+		case 0x00:
+			vert_average_1_7_ISSE(dst, src2, src1, w);
+			break;
+		case 0x40:
+			vert_average_3_5_ISSE(dst, src2, src1, w);
+			break;
+		case 0x80:
+			vert_average_3_5_ISSE(dst, src1, src2, w);
+			break;
+		case 0xc0:
+			vert_average_1_7_ISSE(dst, src1, src2, w);
+			break;
+		default:
+			VDNEVERHERE;
 		}
 	}
 }

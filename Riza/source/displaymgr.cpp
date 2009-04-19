@@ -96,6 +96,7 @@ VDVideoDisplayManager::VDVideoDisplayManager()
 	, mhwnd(NULL)
 	, mbMultithreaded(false)
 	, mbAppActive(false)
+	, mbBackgroundFallbackEnabled(true)
 	, mThreadID(0)
 	, mOutstandingTicks(0)
 {
@@ -152,6 +153,11 @@ void VDVideoDisplayManager::Shutdown() {
 		UnregisterWindowClass();
 		mThreadID = 0;
 	}
+}
+
+void VDVideoDisplayManager::SetBackgroundFallbackEnabled(bool enabled) {
+	if (mhwnd)
+		PostMessage(mhwnd, WM_USER+101, enabled, 0);
 }
 
 void VDVideoDisplayManager::RemoteCall(void (*function)(void *), void *data) {
@@ -492,7 +498,10 @@ void VDVideoDisplayManager::DestroyDitheringPalette() {
 }
 
 void VDVideoDisplayManager::CheckForegroundState() {
-	bool appActive = VDIsForegroundTaskW32();
+	bool appActive = true;
+	
+	if (mbBackgroundFallbackEnabled)
+		appActive = VDIsForegroundTaskW32();
 
 	if (mbAppActive != appActive) {
 		mbAppActive = appActive;
@@ -587,6 +596,18 @@ LRESULT CALLBACK VDVideoDisplayManager::WndProc(HWND hwnd, UINT msg, WPARAM wPar
 					VDVideoDisplayClient *p = *it;
 
 					p->OnForegroundChange(mbAppActive);
+				}
+			}
+			break;
+
+		case WM_USER+101:
+			{
+				bool enabled = wParam != 0;
+
+				if (mbBackgroundFallbackEnabled != enabled) {
+					mbBackgroundFallbackEnabled = enabled;
+
+					CheckForegroundState();
 				}
 			}
 			break;

@@ -101,9 +101,10 @@ public:
 	virtual float GetSyncDelta() const = 0;
 };
 
-void VDVideoDisplaySetFeatures(bool enableDirectX, bool enableOverlays, bool enableTermServ, bool enableOpenGL, bool enableDirect3D, bool enableD3DFX);
+void VDVideoDisplaySetFeatures(bool enableDirectX, bool enableOverlays, bool enableTermServ, bool enableOpenGL, bool enableDirect3D, bool enableD3DFX, bool enableHighPrecision);
 void VDVideoDisplaySetD3DFXFileName(const wchar_t *path);
 void VDVideoDisplaySetDebugInfoEnabled(bool enable);
+void VDVideoDisplaySetBackgroundFallbackEnabled(bool enable);
 
 IVDVideoDisplay *VDGetIVideoDisplay(VDGUIHandle hwnd);
 bool VDRegisterVideoDisplayControl();

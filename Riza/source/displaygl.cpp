@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <vd2/system/profile.h>
 #include <vd2/system/vdstl.h>
 #include <vd2/system/vdalloc.h>
 #include <vd2/system/math.h>
@@ -12,20 +13,38 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include <GL/GL.h>
-#include <vd2/external/glATI.h>			// I feel dirty using this, but I can't figure out the license for the SGI glext.h pointed to by NVIDIA.
+namespace {
+	const char kFPCubic1[]=
+		"!!ARBfp1.0\n"
+#if 1
+		"TEMP pix0;\n"
+		"TEMP pix1;\n"
+		"TEMP pix2;\n"
+		"TEMP filt;\n"
+		"TEMP tcen;\n"
+		"TEMP r0;\n"
+		"PARAM uvscale = program.local[0];\n"
+		"PARAM scale = {-0.1875, 0.375, 0, 0};\n"
+		"TEX filt, fragment.texcoord[3], texture[3], 2D;\n"
+		"MAD tcen, filt.g, uvscale, fragment.texcoord[1];\n"
+		"TEX pix0, fragment.texcoord[0], texture[0], 2D;\n"
+		"TEX pix1, tcen, texture[1], 2D;\n"
+		"TEX pix2, fragment.texcoord[2], texture[2], 2D;\n"
 
-// from OpenGL 1.2 EXT_packed_pixels
-
-#ifndef GL_UNSIGNED_SHORT_5_6_5
-#define GL_UNSIGNED_SHORT_5_6_5 0x8363
+		// (pix0+pix2)*filt.b*0.75/4 + pix1*(filt.b*0.75/2 + 1)
+		"MUL r0, pix0, scale.r;\n"
+		"MAD r0, pix2, scale.r, r0;\n"
+		"MAD r0, pix1, scale.g, r0;\n"
+		"MAD result.color.rgb, r0, filt.r, pix1;\n"
+		"MOV result.color.a, pix1.a;\n"
+#else
+		"PARAM one = {1,1,1,1};\n"
+		"TEMP foo;\n"
+		"TEX foo, fragment.texcoord[3], texture[3], 1D;\n"
+		"ADD result.color, one, -foo;\n"
 #endif
-#ifndef GL_UNSIGNED_SHORT_5_6_5_REV
-#define GL_UNSIGNED_SHORT_5_6_5_REV 0x8364
-#endif
-#ifndef GL_UNSIGNED_SHORT_1_5_5_5_REV
-#define GL_UNSIGNED_SHORT_1_5_5_5_REV 0x8366
-#endif
+		"END\n";
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -34,27 +53,21 @@ public:
 	struct TileInfo {
 		float	mInvU;
 		float	mInvV;
-		int		mSrcX;
-		int		mSrcY;
 		int		mSrcW;
 		int		mSrcH;
-		bool	mbLeft;
-		bool	mbTop;
-		bool	mbRight;
-		bool	mbBottom;
-		GLuint	mTextureID;
 	};
 
-	VDVideoTextureTilePatternOpenGL() : mbPhase(false) {}
+	VDVideoTextureTilePatternOpenGL() : mTexture(0), mbPhase(false) {}
 	void Init(VDOpenGLBinding *pgl, int w, int h, bool bPackedPixelsSupported, bool bEdgeClampSupported);
 	void Shutdown(VDOpenGLBinding *pgl);
 
 	void ReinitFiltering(VDOpenGLBinding *pgl, IVDVideoDisplayMinidriver::FilterMode mode);
 
-	bool IsInited() const { return !mTextures.empty(); }
+	bool IsInited() const { return mTexture != 0; }
 
 	void Flip();
-	void GetTileInfo(TileInfo*& pInfo, int& nTiles);
+	GLuint GetTexture() const { return mTexture; }
+	const TileInfo& GetTileInfo() const { return mTileInfo; }
 
 protected:
 	int			mTextureTilesW;
@@ -65,8 +78,8 @@ protected:
 	int			mTextureLastH;
 	double		mTextureLastWInvPow2;
 	double		mTextureLastHInvPow2;
-	vdfastvector<GLuint>	mTextures;
-	vdfastvector<TileInfo>	mTileInfo;
+	GLuint		mTexture;
+	TileInfo	mTileInfo;
 
 	bool		mbPackedPixelsSupported;
 	bool		mbEdgeClampSupported;
@@ -82,12 +95,12 @@ void VDVideoTextureTilePatternOpenGL::Init(VDOpenGLBinding *pgl, int w, int h, b
 
 	mTextureSize	= maxsize;
 	mTextureSizeInv	= 1.0 / maxsize;
-	mTextureTilesW	= (w  - 1 + (maxsize-2)) / (maxsize - 1);
-	mTextureTilesH	= (h - 1 + (maxsize-2)) / (maxsize - 1);
+	mTextureTilesW	= 1;
+	mTextureTilesH	= 1;
 
-	int ntiles = mTextureTilesW * mTextureTilesH;
-	int xlast = w - (mTextureTilesW - 1)*(maxsize - 1);
-	int ylast = h - (mTextureTilesH - 1)*(maxsize - 1);
+	int ntiles = 1;
+	int xlast = w;
+	int ylast = h;
 	int xlasttex = 1;
 	int ylasttex = 1;
 
@@ -96,21 +109,15 @@ void VDVideoTextureTilePatternOpenGL::Init(VDOpenGLBinding *pgl, int w, int h, b
 	while(ylasttex < ylast)
 		ylasttex += ylasttex;
 
-	int largestW = mTextureSize;
-	int largestH = mTextureSize;
-
-	if (mTextureTilesW == 1)
-		largestW = xlasttex;
-	if (mTextureTilesH == 1)
-		largestH = ylasttex;
+	int largestW = xlasttex;
+	int largestH = ylasttex;
 
 	mTextureLastW = xlast;
 	mTextureLastH = ylast;
 	mTextureLastWInvPow2	= 1.0 / xlasttex;
 	mTextureLastHInvPow2	= 1.0 / ylasttex;
 
-	mTextures.resize(ntiles*2);
-	pgl->glGenTextures(ntiles*2, mTextures.data());
+	pgl->glGenTextures(1, &mTexture);
 
 	vdautoblockptr zerobuffer(malloc(4 * largestW * largestH));
 	memset(zerobuffer, 0, 4 * largestW * largestH);
@@ -120,88 +127,57 @@ void VDVideoTextureTilePatternOpenGL::Init(VDOpenGLBinding *pgl, int w, int h, b
 
 
 	int tile = 0;
-	for(int y = 0; y < mTextureTilesH; ++y) {
-		for(int x = 0; x < mTextureTilesW; ++x, ++tile) {
-			int w = (x==mTextureTilesW-1) ? xlasttex : maxsize;
-			int h = (y==mTextureTilesH-1) ? ylasttex : maxsize;
+	int y = 0;
+	int x = 0;
+	int texw = xlasttex;
+	int texh = ylasttex;
 
-			for(int offset=0; offset<2; ++offset) {
-				pgl->glBindTexture(GL_TEXTURE_2D, mTextures[tile*2+offset]);
+	pgl->glBindTexture(GL_TEXTURE_2D, mTexture);
 
-				if (mbEdgeClampSupported) {
-					pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE_EXT);
-					pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE_EXT);
-				} else {
-					pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-					pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	if (mbEdgeClampSupported) {
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE_EXT);
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE_EXT);
+	} else {
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
-					static const float black[4]={0.f,0.f,0.f,0.f};
-					pgl->glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, black);
-				}
-
-				if (w==maxsize && h==maxsize)
-					pgl->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, w, h, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
-				else
-					pgl->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, w, h, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, zerobuffer.get());
-			}
-
-			TileInfo info;
-
-			info.mInvU	= 1.0f / w;
-			info.mInvV	= 1.0f / h;
-			info.mSrcX	= mTextureSize * x;
-			info.mSrcY	= mTextureSize * y;
-			info.mSrcW	= (x==mTextureTilesW-1) ? xlast : mTextureSize;
-			info.mSrcH	= (y==mTextureTilesH-1) ? ylast : mTextureSize;
-			info.mbLeft		= x<=0;
-			info.mbTop		= y<=0;
-			info.mbRight	= (x==mTextureTilesW-1);
-			info.mbBottom	= (y==mTextureTilesH-1);
-
-			mTileInfo.push_back(info);
-		}
+		static const float black[4]={0.f,0.f,0.f,0.f};
+		pgl->glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, black);
 	}
+
+	pgl->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texw, texh, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+
+	mTileInfo.mInvU		= 1.0f / texw;
+	mTileInfo.mInvV		= 1.0f / texh;
+	mTileInfo.mSrcW		= xlast;
+	mTileInfo.mSrcH		= ylast;
 
 	Flip();
 }
 
 void VDVideoTextureTilePatternOpenGL::Shutdown(VDOpenGLBinding *pgl) {
-	if (mTextures.empty()) {
-		int nTextures = mTextures.size();
-
-		pgl->glDeleteTextures(nTextures, mTextures.data());
-		vdfastvector<GLuint>().swap(mTextures);
+	if (mTexture) {
+		pgl->glDeleteTextures(1, &mTexture);
+		mTexture = 0;
 	}
-	vdfastvector<TileInfo>().swap(mTileInfo);
 }
 
 void VDVideoTextureTilePatternOpenGL::ReinitFiltering(VDOpenGLBinding *pgl, IVDVideoDisplayMinidriver::FilterMode mode) {
-	const size_t nTextures = mTextures.size();
-	for(size_t i=0; i<nTextures; ++i) {
-		pgl->glBindTexture(GL_TEXTURE_2D, mTextures[i]);
+	pgl->glBindTexture(GL_TEXTURE_2D, mTexture);
 
-		if (mode == IVDVideoDisplayMinidriver::kFilterPoint)
-			pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		else
-			pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	if (mode == IVDVideoDisplayMinidriver::kFilterPoint)
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	else
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-		if (mode == IVDVideoDisplayMinidriver::kFilterPoint)
-			pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		else
-			pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	}
+	if (mode == IVDVideoDisplayMinidriver::kFilterPoint)
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	else
+		pgl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
 void VDVideoTextureTilePatternOpenGL::Flip() {
 	mbPhase = !mbPhase;
-	size_t nTiles = mTileInfo.size();
-	for(size_t i=0; i<nTiles; ++i)
-		mTileInfo[i].mTextureID = mTextures[2*i+mbPhase];
-}
-
-void VDVideoTextureTilePatternOpenGL::GetTileInfo(TileInfo*& pInfo, int& nTiles) {
-	pInfo = &mTileInfo[0];
-	nTiles = mTileInfo.size();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -234,18 +210,46 @@ protected:
 	bool OnOpenGLInit();
 	void OnDestroy();
 	void OnPaint();
+	bool InitBicubic();
+	void ShutdownBicubic();
+	void UpdateCubicTextures(uint32 w, uint32 h);
+	void UpdateCubicTexture(uint32 dw, uint32 sw);
 
+	enum {
+		kTimerId_Refresh = 100
+	};
 	
 	HWND		mhwnd;
 	HWND		mhwndOGL;
 	bool		mbValid;
+	bool		mbVsync;
 	bool		mbFirstPresent;
 	bool		mbVerticalFlip;
+	UpdateMode	mRefreshMode;
+	int			mRefreshIdleCount;
+	bool		mbRefreshIdleTimerActive;
+	bool		mbRefreshQueued;
+	bool		mbCubicPossible;
+
+	GLuint		mFPCubic;
+	GLuint		mCubicFramebuffer;
+	GLuint		mCubicFilterTempTex;
+	GLuint		mCubicFilterTempTexWidth;
+	GLuint		mCubicFilterTempTexHeight;
+	GLuint		mCubicFilterH;
+	uint32		mCubicFilterHSize;
+	uint32		mCubicFilterHTexSize;
+	GLuint		mCubicFilterV;
+	uint32		mCubicFilterVSize;
+	uint32		mCubicFilterVTexSize;
+
+	GLuint		mFontBase;
 
 	FilterMode	mPreferredFilter;
 	VDVideoTextureTilePatternOpenGL		mTexPattern[2];
 	VDVideoDisplaySourceInfo			mSource;
 
+	VDRTProfileChannel	mProfChan;
 	VDOpenGLBinding	mGL;
 };
 
@@ -258,8 +262,26 @@ IVDVideoDisplayMinidriver *VDCreateVideoDisplayMinidriverOpenGL() {
 VDVideoDisplayMinidriverOpenGL::VDVideoDisplayMinidriverOpenGL()
 	: mhwndOGL(0)
 	, mbValid(false)
+	, mbVsync(false)
 	, mbFirstPresent(false)
+	, mbVerticalFlip(false)
+	, mRefreshMode(kModeNone)
+	, mRefreshIdleCount(0)
+	, mbRefreshIdleTimerActive(false)
+	, mbRefreshQueued(false)
+	, mFPCubic(0)
+	, mCubicFramebuffer(0)
+	, mCubicFilterTempTex(0)
+	, mCubicFilterTempTexWidth(0)
+	, mCubicFilterTempTexHeight(0)
+	, mCubicFilterH(0)
+	, mCubicFilterHSize(0)
+	, mCubicFilterHTexSize(0)
+	, mCubicFilterV(0)
+	, mCubicFilterVTexSize(0)
+	, mFontBase(0)
 	, mPreferredFilter(kFilterAnySuitable)
+	, mProfChan("GLDisplay")
 {
 	memset(&mSource, 0, sizeof mSource);
 }
@@ -270,6 +292,18 @@ VDVideoDisplayMinidriverOpenGL::~VDVideoDisplayMinidriverOpenGL() {
 bool VDVideoDisplayMinidriverOpenGL::Init(HWND hwnd, const VDVideoDisplaySourceInfo& info) {
 	mSource = info;
 	mhwnd = hwnd;
+
+	// Format check....
+	switch(info.pixmap.format) {
+		case nsVDPixmap::kPixFormat_XRGB1555:
+		case nsVDPixmap::kPixFormat_RGB565:
+		case nsVDPixmap::kPixFormat_RGB888:
+		case nsVDPixmap::kPixFormat_XRGB8888:
+			break;
+
+		default:
+			return false;
+	}
 
 	// OpenGL doesn't allow upside-down texture uploads, so we simply
 	// upload the surface inverted and then reinvert on display.
@@ -294,21 +328,23 @@ bool VDVideoDisplayMinidriverOpenGL::Init(HWND hwnd, const VDVideoDisplaySourceI
 	// OpenGL.
 
 	mhwndOGL = CreateWindowEx(WS_EX_TRANSPARENT, (LPCSTR)wndClass, "", WS_CHILD|WS_VISIBLE|WS_CLIPCHILDREN|WS_CLIPSIBLINGS, 0, 0, r.right, r.bottom, mhwnd, NULL, VDGetLocalModuleHandleW32(), this);
-	if (mhwndOGL) {
-		if (SendMessage(mhwndOGL, MYWM_OGLINIT, 0, 0)) {
-			mbValid = false;
-			mbFirstPresent = true;
-			return true;
-		}
+	if (!mhwndOGL)
+		return false;
 
+	if (!SendMessage(mhwndOGL, MYWM_OGLINIT, 0, 0)) {
 		DestroyWindow(mhwndOGL);
 		mhwndOGL = 0;
+		return false;
 	}
 
-	return false;
+	mbValid = false;
+	mbFirstPresent = true;
+	return true;
 }
 
 void VDVideoDisplayMinidriverOpenGL::Shutdown() {
+	ShutdownBicubic();
+
 	if (mhwndOGL) {
 		DestroyWindow(mhwndOGL);
 		mhwndOGL = NULL;
@@ -316,6 +352,10 @@ void VDVideoDisplayMinidriverOpenGL::Shutdown() {
 
 	mGL.Shutdown();
 	mbValid = false;
+
+	mRefreshIdleCount = 0;
+	mbRefreshIdleTimerActive = false;
+	mbRefreshQueued = false;
 }
 
 bool VDVideoDisplayMinidriverOpenGL::ModifySource(const VDVideoDisplaySourceInfo& info) {
@@ -415,16 +455,24 @@ bool VDVideoDisplayMinidriverOpenGL::Update(UpdateMode mode) {
 	return true;
 }
 
-void VDVideoDisplayMinidriverOpenGL::Refresh(UpdateMode) {
+void VDVideoDisplayMinidriverOpenGL::Refresh(UpdateMode updateMode) {
 	if (mbValid) {
 		InvalidateRect(mhwndOGL, NULL, FALSE);
-		UpdateWindow(mhwndOGL);
+		mRefreshMode = updateMode;
+		mbRefreshQueued = true;
+		mRefreshIdleCount = 0;
+		if (!mbRefreshIdleTimerActive) {
+			mbRefreshIdleTimerActive = true;
+
+			VDVERIFY(SetTimer(mhwndOGL, kTimerId_Refresh, 1000, NULL));
+		}
+
+		PostMessage(mhwndOGL, WM_TIMER, kTimerId_Refresh, 0);
 	}
 }
 
 void VDVideoDisplayMinidriverOpenGL::Upload(const VDPixmap& source, VDVideoTextureTilePatternOpenGL& texPattern) {
-	VDVideoTextureTilePatternOpenGL::TileInfo *pTiles;
-	int nTiles;
+	mProfChan.Begin(0xe0e0e0, "Upload");
 
 	mGL.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	switch(source.format) {
@@ -441,28 +489,27 @@ void VDVideoDisplayMinidriverOpenGL::Upload(const VDPixmap& source, VDVideoTextu
 	}
 
 	texPattern.Flip();
-	texPattern.GetTileInfo(pTiles, nTiles);
 
-	for(int tileno=0; tileno<nTiles; ++tileno) {
-		VDVideoTextureTilePatternOpenGL::TileInfo& tile = *pTiles++;
+	const VDVideoTextureTilePatternOpenGL::TileInfo& tile = texPattern.GetTileInfo();
 
-		mGL.glBindTexture(GL_TEXTURE_2D, tile.mTextureID);
+	mGL.glBindTexture(GL_TEXTURE_2D, texPattern.GetTexture());
 
-		switch(source.format) {
-		case nsVDPixmap::kPixFormat_XRGB1555:
-			mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGRA_EXT, GL_UNSIGNED_SHORT_1_5_5_5_REV, (const char *)source.data + (source.pitch*tile.mSrcY + tile.mSrcX*2));
-			break;
-		case nsVDPixmap::kPixFormat_RGB565:
-			mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGR_EXT, GL_UNSIGNED_SHORT_5_6_5_REV, (const char *)source.data + (source.pitch*tile.mSrcY + tile.mSrcX*2));
-			break;
-		case nsVDPixmap::kPixFormat_RGB888:
-			mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGR_EXT, GL_UNSIGNED_BYTE, (const char *)source.data + (source.pitch*tile.mSrcY + tile.mSrcX*3));
-			break;
-		case nsVDPixmap::kPixFormat_XRGB8888:
-			mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGRA_EXT, GL_UNSIGNED_BYTE, (const char *)source.data + (source.pitch*tile.mSrcY + tile.mSrcX*4));
-			break;
-		}
+	switch(source.format) {
+	case nsVDPixmap::kPixFormat_XRGB1555:
+		mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGRA_EXT, GL_UNSIGNED_SHORT_1_5_5_5_REV, (const char *)source.data);
+		break;
+	case nsVDPixmap::kPixFormat_RGB565:
+		mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGR_EXT, GL_UNSIGNED_SHORT_5_6_5_REV, (const char *)source.data);
+		break;
+	case nsVDPixmap::kPixFormat_RGB888:
+		mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGR_EXT, GL_UNSIGNED_BYTE, (const char *)source.data);
+		break;
+	case nsVDPixmap::kPixFormat_XRGB8888:
+		mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tile.mSrcW, tile.mSrcH, GL_BGRA_EXT, GL_UNSIGNED_BYTE, (const char *)source.data);
+		break;
 	}
+
+	mProfChan.End();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -510,6 +557,19 @@ LRESULT VDVideoDisplayMinidriverOpenGL::WndProc(UINT msg, WPARAM wParam, LPARAM 
 		return 0;
 	case WM_NCHITTEST:
 		return HTTRANSPARENT;
+	case WM_TIMER:
+		if (wParam == kTimerId_Refresh) {
+			if (mbRefreshQueued) {
+				mRefreshIdleCount = 0;
+				mbRefreshQueued = false;
+				UpdateWindow(mhwndOGL);
+			} else if (++mRefreshIdleCount >= 5) {
+				mRefreshIdleCount = 0;
+				mbRefreshIdleTimerActive = false;
+				VDVERIFY(KillTimer(mhwndOGL, kTimerId_Refresh));
+			}
+		}
+		break;
 	}
 
 	return DefWindowProc(mhwndOGL, msg, wParam, lParam);
@@ -517,7 +577,7 @@ LRESULT VDVideoDisplayMinidriverOpenGL::WndProc(UINT msg, WPARAM wParam, LPARAM 
 
 bool VDVideoDisplayMinidriverOpenGL::OnOpenGLInit() {
 	if (HDC hdc = GetDC(mhwndOGL)) {
-		if (mGL.Attach(hdc, 8, 0, 0, 0, false)) {
+		if (mGL.Attach(hdc, 8, 0, 0, 0, true)) {
 			if (mGL.Begin(hdc)) {
 				VDDEBUG_DISP("VideoDisplay: OpenGL version string: [%s]\n", mGL.glGetString(GL_VERSION));
 
@@ -549,6 +609,21 @@ bool VDVideoDisplayMinidriverOpenGL::OnOpenGLInit() {
 
 				VDASSERT(mGL.glGetError() == GL_NO_ERROR);
 
+				mbCubicPossible = InitBicubic();
+				if (!mbCubicPossible)
+					ShutdownBicubic();
+
+				mbVsync = false;
+				if (mGL.EXT_swap_control)
+					mGL.wglSwapIntervalEXT(0);
+
+				mFontBase = mGL.glGenLists(96);
+
+				SelectObject(hdc, GetStockObject(DEFAULT_GUI_FONT));
+				mGL.wglUseFontBitmapsA(hdc, 32, 96, mFontBase);
+
+				VDASSERT(mGL.glGetError() == GL_NO_ERROR);
+
 				mGL.End();
 				ReleaseDC(mhwndOGL, hdc);
 
@@ -566,13 +641,24 @@ bool VDVideoDisplayMinidriverOpenGL::OnOpenGLInit() {
 
 void VDVideoDisplayMinidriverOpenGL::OnDestroy() {
 	if (mGL.IsInited()) {
-		if (mTexPattern[0].IsInited() || mTexPattern[1].IsInited()) {
-			if (HDC hdc = GetDC(mhwndOGL)) {
-				if (mGL.Begin(hdc)) {
-					mTexPattern[0].Shutdown(&mGL);
-					mTexPattern[1].Shutdown(&mGL);
-					mGL.End();
+		if (HDC hdc = GetDC(mhwndOGL)) {
+			if (mGL.Begin(hdc)) {
+				mTexPattern[0].Shutdown(&mGL);
+				mTexPattern[1].Shutdown(&mGL);
+
+				if (mFontBase) {
+					mGL.glDeleteLists(96, mFontBase);
+					mFontBase = 0;
 				}
+
+				if (mGL.ARB_fragment_program) {
+					if (mFPCubic) {
+						mGL.glDeleteProgramsARB(1, &mFPCubic);
+						mFPCubic = 0;
+					}
+				}
+
+				mGL.End();
 			}
 		}
 
@@ -587,10 +673,38 @@ void VDVideoDisplayMinidriverOpenGL::OnPaint() {
 	if (!hdc)
 		return;
 
+	float bobOffset;
+
+	if (mRefreshMode & kModeBobEven)
+		bobOffset = +1.0f;
+	else if (mRefreshMode & kModeBobOdd)
+		bobOffset = -1.0f;
+	else
+		bobOffset = 0.0f;
+
 	RECT r;
 	GetClientRect(mhwndOGL, &r);
 
+	FilterMode mode = mPreferredFilter;
+
+	if (mode == kFilterAnySuitable)
+		mode = kFilterBicubic;
+
+	if (mode == kFilterBicubic && !mbCubicPossible)
+		mode = kFilterBilinear;
+
 	if (mGL.Begin(hdc)) {
+		bool vsync = (mRefreshMode & kModeVSync) != 0;
+		if (mbVsync != vsync) {
+			mbVsync = vsync;
+
+			if (mGL.EXT_swap_control)
+				mGL.wglSwapIntervalEXT(vsync ? 1 : 0);
+		}
+
+		if (mode == kFilterBicubic)
+			UpdateCubicTextures(r.right, r.bottom);
+
 		mGL.glViewport(0, 0, r.right, r.bottom);
 
 		if (mColorOverride) {
@@ -605,6 +719,7 @@ void VDVideoDisplayMinidriverOpenGL::OnPaint() {
 			mGL.glMatrixMode(GL_PROJECTION);
 			mGL.glLoadIdentity();
 			mGL.glMatrixMode(GL_MODELVIEW);
+			mGL.glLoadIdentity();
 
 			mGL.glDisable(GL_ALPHA_TEST);
 			mGL.glDisable(GL_DEPTH_TEST);
@@ -614,136 +729,227 @@ void VDVideoDisplayMinidriverOpenGL::OnPaint() {
 			mGL.glEnable(GL_DITHER);
 			mGL.glEnable(GL_TEXTURE_2D);
 
-			VDVideoTextureTilePatternOpenGL::TileInfo *pTiles;
-			int nTiles;
-
 			if (mSource.bInterlaced) {
 				const int dstH = r.bottom;
 
-				const double viewmat[16]={
-					2.0 / mSource.pixmap.w,
-					0,
-					0,
-					0,
-
-					0,
-					(mbVerticalFlip ? +2.0 : -2.0) / dstH,
-					0,
-					0,
-
-					0,
-					0,
-					0,
-					0.0,
-
-					-1.0,
-					(mbVerticalFlip ? -1.0 : +1.0),
-					-0.5,
-					+1.0,
-				};
-
-				mGL.glLoadMatrixd(viewmat);
+				mGL.glOrtho(0, r.right, mbVerticalFlip ? 0 : dstH, mbVerticalFlip ? dstH : 0, -1, 1);
 
 				for(int field=0; field<2; ++field) {
-					mTexPattern[field].GetTileInfo(pTiles, nTiles);
-
-					for(int tileno=0; tileno<nTiles; ++tileno) {
-						VDVideoTextureTilePatternOpenGL::TileInfo& tile = *pTiles++;		
-
-						double	xbase	= tile.mSrcX;
-						double	ybase	= tile.mSrcY;
-
-						int		w = tile.mSrcW;
-						int		h = tile.mSrcH;
-						double	iw = tile.mInvU;
-						double	ih = tile.mInvV;
-
-						double	px1 = tile.mbLeft ? 0 : 0.5;
-						double	py1 = tile.mbTop ? 0 : 0.5;
-						double	px2 = w - (tile.mbRight ? 0 : 0.5f);
-						double	py2 = h - (tile.mbBottom ? 0 : 0.5f);
-
-						double	u1 = iw * px1;
-						double	u2 = iw * px2;
-
-						ih *= mSource.pixmap.h / (double)dstH * 0.5;
-
-						mGL.glBindTexture(GL_TEXTURE_2D, tile.mTextureID);
-
-						int ytop	= VDRoundToInt(ceil(((ybase + py1)*2 + field - 0.5) * (dstH / (double)mSource.pixmap.h) - 0.5));
-						int ybottom	= VDRoundToInt(ceil(((ybase + py2)*2 + field - 0.5) * (dstH / (double)mSource.pixmap.h) - 0.5));
-
-						if ((ytop^field) & 1)
-							++ytop;
-
-						mGL.glBegin(GL_QUADS);
-						mGL.glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
-
-						for(int ydst = ytop; ydst < ybottom; ydst += 2) {
-							mGL.glTexCoord2d(u1, (ydst  -ybase-field+0.5)*ih);		mGL.glVertex2d(xbase + px1, ydst);
-							mGL.glTexCoord2d(u1, (ydst+1-ybase-field+0.5)*ih);		mGL.glVertex2d(xbase + px1, ydst+1);
-							mGL.glTexCoord2d(u2, (ydst+1-ybase-field+0.5)*ih);		mGL.glVertex2d(xbase + px2, ydst+1);
-							mGL.glTexCoord2d(u2, (ydst  -ybase-field+0.5)*ih);		mGL.glVertex2d(xbase + px2, ydst);
-						}
-
-						mGL.glEnd();
-					}
-				}
-			} else {
-				const double viewmat[16]={
-					2.0 / mSource.pixmap.w,
-					0,
-					0,
-					0,
-
-					0,
-					(mbVerticalFlip ? +2.0 : -2.0) / mSource.pixmap.h,
-					0,
-					0,
-
-					0,
-					0,
-					0,
-					0.0,
-
-					-1.0,
-					(mbVerticalFlip ? -1.0 : +1.0),
-					-0.5,
-					+1.0,
-				};
-
-				mGL.glLoadMatrixd(viewmat);
-
-				mTexPattern[0].GetTileInfo(pTiles, nTiles);
-				for(int tileno=0; tileno<nTiles; ++tileno) {
-					VDVideoTextureTilePatternOpenGL::TileInfo& tile = *pTiles++;		
-
-					double	xbase	= tile.mSrcX;
-					double	ybase	= tile.mSrcY;
+					const VDVideoTextureTilePatternOpenGL::TileInfo& tile = mTexPattern[field].GetTileInfo();
 
 					int		w = tile.mSrcW;
 					int		h = tile.mSrcH;
 					double	iw = tile.mInvU;
 					double	ih = tile.mInvV;
 
-					double	px1 = tile.mbLeft ? 0 : 0.5;
-					double	py1 = tile.mbTop ? 0 : 0.5;
-					double	px2 = w - (tile.mbRight ? 0 : 0.5f);
-					double	py2 = h - (tile.mbBottom ? 0 : 0.5f);
+					double	px1 = 0.0;
+					double	py1 = 0.0;
+					double	px2 = w;
+					double	py2 = h;
 
 					double	u1 = iw * px1;
-					double	v1 = ih * py1;
 					double	u2 = iw * px2;
-					double	v2 = ih * py2;
 
-					mGL.glBindTexture(GL_TEXTURE_2D, tile.mTextureID);
+					ih *= mSource.pixmap.h / (double)dstH * 0.5;
+
+					mGL.glBindTexture(GL_TEXTURE_2D, mTexPattern[field].GetTexture());
+
+					int ytop	= VDRoundToInt(ceil((py1*2 + field - 0.5) * (dstH / (double)mSource.pixmap.h) - 0.5));
+					int ybottom	= VDRoundToInt(ceil((py2*2 + field - 0.5) * (dstH / (double)mSource.pixmap.h) - 0.5));
+
+					if ((ytop^field) & 1)
+						++ytop;
 
 					mGL.glBegin(GL_QUADS);
 					mGL.glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
-					mGL.glTexCoord2d(u1, v1);		mGL.glVertex2d(xbase + px1, ybase + py1);
-					mGL.glTexCoord2d(u1, v2);		mGL.glVertex2d(xbase + px1, ybase + py2);
-					mGL.glTexCoord2d(u2, v2);		mGL.glVertex2d(xbase + px2, ybase + py2);
-					mGL.glTexCoord2d(u2, v1);		mGL.glVertex2d(xbase + px2, ybase + py1);
+
+					for(int ydst = ytop; ydst < ybottom; ydst += 2) {
+						mGL.glTexCoord2d(u1, (ydst  -field+0.5)*ih);		mGL.glVertex2d(px1, ydst);
+						mGL.glTexCoord2d(u1, (ydst+1-field+0.5)*ih);		mGL.glVertex2d(px1, ydst+1);
+						mGL.glTexCoord2d(u2, (ydst+1-field+0.5)*ih);		mGL.glVertex2d(px2, ydst+1);
+						mGL.glTexCoord2d(u2, (ydst  -field+0.5)*ih);		mGL.glVertex2d(px2, ydst);
+					}
+
+					mGL.glEnd();
+				}
+			} else {
+				const VDVideoTextureTilePatternOpenGL::TileInfo& tile = mTexPattern[0].GetTileInfo();
+
+				int		w = tile.mSrcW;
+				int		h = tile.mSrcH;
+				float	iw = tile.mInvU;
+				float	ih = tile.mInvV;
+
+				GLuint texHandle = mTexPattern[0].GetTexture();
+				mGL.glBindTexture(GL_TEXTURE_2D, texHandle);
+
+				if (mode == kFilterBicubic) {
+					float	px1 = 0;
+					float	py1 = 0;
+					float	px2 = (float)r.right;
+					float	py2 = (float)h;
+					float	u1 = 0;
+					float	v1 = 0.25f * ih * bobOffset;
+					float	u2 = iw * w;
+					float	v2 = ih * h;
+					float	f1 = 0.0f;
+					float	f2 = r.right / (float)mCubicFilterHTexSize;
+					float	px3 = 0;
+					float	py3 = 0;
+					float	px4 = (float)r.right;
+					float	py4 = (float)r.bottom;
+					float	iw2 = 1.0f / mCubicFilterTempTexWidth;
+					float	ih2 = 1.0f / mCubicFilterTempTexHeight;
+					float	u3 = 0;
+					float	v3 = 0;
+					float	u4 = iw2 * (float)r.right;
+					float	v4 = ih2 * (float)h;
+					float	f3 = 0.0f;
+					float	f4 = r.bottom / (float)mCubicFilterVTexSize;
+
+					mGL.glEnable(GL_FRAGMENT_PROGRAM_ARB);
+					mGL.glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, mFPCubic);
+
+					mGL.glActiveTextureARB(GL_TEXTURE1_ARB);
+					mGL.glEnable(GL_TEXTURE_2D);
+					mGL.glBindTexture(GL_TEXTURE_2D, texHandle);
+					mGL.glActiveTextureARB(GL_TEXTURE2_ARB);
+					mGL.glEnable(GL_TEXTURE_2D);
+					mGL.glBindTexture(GL_TEXTURE_2D, texHandle);
+					mGL.glActiveTextureARB(GL_TEXTURE3_ARB);
+					mGL.glEnable(GL_TEXTURE_2D);
+					mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterH);
+
+					mGL.glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 0, iw*0.5f, 0, 0, 0);
+
+					mGL.glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, mCubicFramebuffer);
+					GLenum foo = mGL.glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+					mGL.glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+
+					mGL.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+					float du0 = -iw;
+					float du1 = -0.25f * iw;
+					float du2 = +iw;
+
+					mGL.glLoadIdentity();
+					mGL.glOrtho(0, mCubicFilterTempTexWidth, 0, mCubicFilterTempTexHeight, 0, 1);
+					mGL.glViewport(0, 0, mCubicFilterTempTexWidth, mCubicFilterTempTexHeight);
+					mGL.glClear(GL_COLOR_BUFFER_BIT);
+
+					VDASSERT(mGL.glGetError() == GL_NO_ERROR);
+					mGL.glBegin(GL_QUADS);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u1+du0, v1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u1+du1, v1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u1+du2, v1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f1, 0.0f);
+					mGL.glVertex2f(px1, py1);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u1+du0, v2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u1+du1, v2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u1+du2, v2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f1, 0.0f);
+					mGL.glVertex2f(px1, py2);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u2+du0, v2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u2+du1, v2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u2+du2, v2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f2, 0.0f);
+					mGL.glVertex2f(px2, py2);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u2+du0, v1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u2+du1, v1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u2+du2, v1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f2, 0.0f);
+					mGL.glVertex2f(px2, py1);
+
+					mGL.glEnd();
+					VDASSERT(mGL.glGetError() == GL_NO_ERROR);
+
+					mGL.glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+					VDASSERT(mGL.glGetError() == GL_NO_ERROR);
+					mGL.glDrawBuffer(GL_BACK);
+					VDASSERT(mGL.glGetError() == GL_NO_ERROR);
+
+					mGL.glLoadIdentity();
+					mGL.glOrtho(0, r.right, mbVerticalFlip ? 0 : r.bottom, mbVerticalFlip ? r.bottom : 0, -1, 1);
+
+					mGL.glViewport(0, 0, r.right, r.bottom);
+					mGL.glClear(GL_COLOR_BUFFER_BIT);
+					mGL.glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 0, 0, ih2*0.5f, 0, 0);
+
+					mGL.glActiveTextureARB(GL_TEXTURE0_ARB);
+					mGL.glEnable(GL_TEXTURE_2D);
+					mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterTempTex);
+					mGL.glActiveTextureARB(GL_TEXTURE1_ARB);
+					mGL.glEnable(GL_TEXTURE_2D);
+					mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterTempTex);
+					mGL.glActiveTextureARB(GL_TEXTURE2_ARB);
+					mGL.glEnable(GL_TEXTURE_2D);
+					mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterTempTex);
+					mGL.glActiveTextureARB(GL_TEXTURE3_ARB);
+					mGL.glEnable(GL_TEXTURE_2D);
+					mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterV);
+
+					float dv0 = -ih2;
+					float dv1 = -0.25f * ih2;
+					float dv2 = +ih2;
+
+					mGL.glBegin(GL_QUADS);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u3, v3+dv0);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u3, v3+dv1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u3, v3+dv2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f3, 0.0f);
+					mGL.glVertex2f(px3, py3);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u3, v4+dv0);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u3, v4+dv1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u3, v4+dv2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f4, 0.0f);
+					mGL.glVertex2f(px3, py4);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u4, v4+dv0);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u4, v4+dv1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u4, v4+dv2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f4, 0.0f);
+					mGL.glVertex2f(px4, py4);
+
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u4, v3+dv0);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u4, v3+dv1);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE2_ARB, u4, v3+dv2);
+					mGL.glMultiTexCoord2fARB(GL_TEXTURE3_ARB, f3, 0.0f);
+					mGL.glVertex2f(px4, py3);
+
+					mGL.glEnd();
+
+					mGL.glActiveTextureARB(GL_TEXTURE3_ARB);
+					mGL.glDisable(GL_TEXTURE_2D);
+					mGL.glActiveTextureARB(GL_TEXTURE2_ARB);
+					mGL.glDisable(GL_TEXTURE_2D);
+					mGL.glActiveTextureARB(GL_TEXTURE1_ARB);
+					mGL.glDisable(GL_TEXTURE_2D);
+					mGL.glActiveTextureARB(GL_TEXTURE0_ARB);
+					mGL.glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
+					mGL.glDisable(GL_FRAGMENT_PROGRAM_ARB);
+				} else {
+					float	px1 = 0;
+					float	py1 = 0;
+					float	px2 = (float)r.right;
+					float	py2 = (float)r.bottom;
+					float	u1 = 0;
+					float	v1 = 0.25f * ih * bobOffset;
+					float	u2 = iw * w;
+					float	v2 = ih * h;
+
+					mGL.glOrtho(0, r.right, mbVerticalFlip ? 0 : r.bottom, mbVerticalFlip ? r.bottom : 0, -1, 1);
+					mGL.glBegin(GL_QUADS);
+					mGL.glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+					mGL.glTexCoord2d(u1, v1);		mGL.glVertex2d(px1, py1);
+					mGL.glTexCoord2d(u1, v2);		mGL.glVertex2d(px1, py2);
+					mGL.glTexCoord2d(u2, v2);		mGL.glVertex2d(px2, py2);
+					mGL.glTexCoord2d(u2, v1);		mGL.glVertex2d(px2, py1);
 					mGL.glEnd();
 				}
 			}
@@ -753,7 +959,9 @@ void VDVideoDisplayMinidriverOpenGL::OnPaint() {
 
 		mGL.glFlush();
 
+		mProfChan.Begin(0xa0c0e0, "Flip");
 		SwapBuffers(hdc);
+		mProfChan.End();
 
 		// Workaround for Windows Vista DWM composition chain not updating.
 		if (mbFirstPresent) {
@@ -766,4 +974,214 @@ void VDVideoDisplayMinidriverOpenGL::OnPaint() {
 	}
 
 	EndPaint(mhwndOGL, &ps);
+}
+
+bool VDVideoDisplayMinidriverOpenGL::InitBicubic() {
+	if (!mGL.ARB_fragment_program || !mGL.ARB_multitexture)
+		return false;
+
+	VDASSERT(!mFPCubic);
+
+	mGL.glEnable(GL_FRAGMENT_PROGRAM_ARB);
+	mGL.glGenProgramsARB(1, &mFPCubic);
+	mGL.glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, mFPCubic);
+
+	VDASSERT(mGL.glGetError() == GL_NO_ERROR);
+	mGL.glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, sizeof kFPCubic1 - 1, kFPCubic1);
+	if (mGL.glGetError()) {
+		VDDEBUG_DISP("VideoDisplay: GL fragment shader compilation failed.\n%s\n", mGL.glGetString(GL_PROGRAM_ERROR_STRING_ARB));
+		mGL.glDeleteProgramsARB(1, &mFPCubic);
+		mFPCubic = 0;
+	}
+	mGL.glDisable(GL_FRAGMENT_PROGRAM_ARB);
+
+	if (!mFPCubic)
+		return false;
+
+	return true;
+}
+
+void VDVideoDisplayMinidriverOpenGL::ShutdownBicubic() {
+	if (mCubicFilterTempTex) {
+		mGL.glDeleteTextures(1, &mCubicFilterTempTex);
+		mCubicFilterTempTex = 0;
+		mCubicFilterTempTexWidth = 0;
+		mCubicFilterTempTexHeight = 0;
+	}
+
+	if (mCubicFramebuffer) {
+		mGL.glDeleteFramebuffersEXT(1, &mCubicFramebuffer);
+		mCubicFramebuffer = 0;
+	}
+
+	if (mCubicFilterH) {
+		mGL.glDeleteTextures(1, &mCubicFilterH);
+		mCubicFilterH = 0;
+		mCubicFilterHSize = 0;
+		mCubicFilterHTexSize = 0;
+	}
+
+	if (mCubicFilterV) {
+		mGL.glDeleteTextures(1, &mCubicFilterV);
+		mCubicFilterV = 0;
+		mCubicFilterVSize = 0;
+		mCubicFilterVTexSize = 0;
+	}
+}
+
+void VDVideoDisplayMinidriverOpenGL::UpdateCubicTextures(uint32 w, uint32 h) {
+	uint32 temptexw = 1;
+	while(temptexw < w)
+		temptexw += temptexw;
+
+	uint32 temptexh = 1;
+	while(temptexh < (uint32)mSource.pixmap.h)
+		temptexh += temptexh;
+
+	if (temptexw < 128)
+		temptexw = 128;
+
+	if (temptexh < 128)
+		temptexh = 128;
+
+	if (!mCubicFilterTempTex)
+		mGL.glGenTextures(1, &mCubicFilterTempTex);
+
+	if (mCubicFilterTempTex) {
+		if (temptexw != mCubicFilterTempTexWidth || temptexh != mCubicFilterTempTexHeight) {
+			mCubicFilterTempTexWidth = temptexw;
+			mCubicFilterTempTexHeight = temptexh;
+
+			mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterTempTex);
+			mGL.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, temptexw, temptexh, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+			mGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			mGL.glBindTexture(GL_TEXTURE_2D, 0);
+		}
+
+		if (!mCubicFramebuffer) {
+			mGL.glGenFramebuffersEXT(1, &mCubicFramebuffer);
+			mGL.glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, mCubicFramebuffer);
+			mGL.glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, mCubicFilterTempTex, 0);
+			mGL.glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+		}
+	}
+
+	if (mCubicFilterHSize != w) {
+		mCubicFilterHSize = w;
+
+		uint32 texw = 1;
+		while(texw < w)
+			texw += texw;
+
+		if (!mCubicFilterH)
+			mGL.glGenTextures(1, &mCubicFilterH);
+
+		mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterH);
+
+		if (mCubicFilterHTexSize != texw) {
+			mCubicFilterHTexSize = texw;
+			mGL.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texw, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+		}
+
+		UpdateCubicTexture(w, mSource.pixmap.w);
+
+		mGL.glBindTexture(GL_TEXTURE_2D, 0);
+	}
+
+	if (mCubicFilterVSize != h) {
+		mCubicFilterVSize = h;
+
+		uint32 texh = 1;
+		while(texh < h)
+			texh += texh;
+
+		if (!mCubicFilterV)
+			mGL.glGenTextures(1, &mCubicFilterV);
+
+		mGL.glBindTexture(GL_TEXTURE_2D, mCubicFilterV);
+
+		if (mCubicFilterVTexSize != texh) {
+			mCubicFilterVTexSize = texh;
+			mGL.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texh, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+		}
+
+		UpdateCubicTexture(h, mSource.pixmap.h);
+
+		mGL.glBindTexture(GL_TEXTURE_2D, 0);
+	}
+}
+
+void VDVideoDisplayMinidriverOpenGL::UpdateCubicTexture(uint32 dw, uint32 sw) {
+	double dudx = (double)sw / (double)dw;
+	double u = dudx * 0.5;
+
+	vdfastvector<uint32> data(dw);
+
+	for(int x = 0; x < (int)dw; ++x) {
+		int ix = VDFloorToInt(u - 0.5);
+		double d = u - ((double)ix + 0.5);
+
+		static const double m = -0.75;
+		double c0 = (( (m    )*d - 2.0*m    )*d +   m)*d;
+		double c1 = (( (m+2.0)*d -     m-3.0)*d      )*d + 1.0;
+		double c2 = ((-(m+2.0)*d + 2.0*m+3.0)*d -   m)*d;
+		double c3 = ((-(m    )*d +     m    )*d      )*d;
+
+		double k0 = d*(1-d)*m;
+		double k2 = d*(1-d)*m;
+
+		double c1bi = d*k0;
+		double c2bi = (1-d)*k2;
+		double c1ex = c1-c1bi;
+		double c2ex = c2-c2bi;
+
+		double o1 = c2ex/(c1ex+c2ex)-d;
+
+		double blue		= d;							// bilinear offset - p0 and p3
+		double green	= o1*4;							// bilinear offset - p1 and p2
+		double red		= (d*(1-d))*4;					// shift factor between the two
+		double alpha	= d;							// lerp constant between p0 and p3
+
+		uint8 ib = VDClampedRoundFixedToUint8Fast((float)blue * 127.0f/255.0f + 128.0f/255.0f);
+		uint8 ig = VDClampedRoundFixedToUint8Fast((float)green * 127.0f/255.0f + 128.0f/255.0f);
+		uint8 ir = VDClampedRoundFixedToUint8Fast((float)red);
+		uint8 ia = VDClampedRoundFixedToUint8Fast((float)alpha);
+
+		data[x] = (uint32)ib + ((uint32)ig << 8) + ((uint32)ir << 16) + ((uint32)ia << 24);
+
+#if 0
+				double fb = ((int)ib - 128) / 127.0f;
+				double fg = ((int)ig - 128) / 127.0f;
+				double fr = (double)ir / 255.0f;
+				double fa = (double)ia / 255.0f;
+
+				double g0 = fr*0.25f*0.75f;
+				double g1 = 2*(0.5f + fr*0.25f*0.75f);
+				double d1 = 0.25f * fg + d;
+				double g2 = fr*0.25f*0.75f;
+
+				double cr0 = -g0*(1-d);
+				double cr1 = -g0*d + g1*(1-d1);
+				double cr2 = g1*d1 + -g2*(1-d);
+				double cr3 = -g2*d;
+
+				if (fabsf(cr0-c0) > 0.01f)
+					__debugbreak();
+				if (fabsf(cr1-c1) > 0.01f)
+					__debugbreak();
+				if (fabsf(cr2-c2) > 0.01f)
+					__debugbreak();
+				if (fabsf(cr3-c3) > 0.01f)
+					__debugbreak();
+#endif
+
+		u += dudx;
+	}
+
+	mGL.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dw, 1, GL_BGRA_EXT, GL_UNSIGNED_BYTE, data.data());
+
+	mGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	mGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	mGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	mGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 }

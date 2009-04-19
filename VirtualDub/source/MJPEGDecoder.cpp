@@ -21,27 +21,19 @@
 #include "MJPEGDecoder.h"
 #include <vd2/system/cpuaccel.h>
 #include <vd2/system/memory.h>
+#include <vd2/system/binary.h>
+#include <vd2/Kasumi/pixmap.h>
+#include <vd2/Kasumi/pixmapops.h>
+#include <vd2/Kasumi/pixmaputils.h>
+
+#ifdef VD_COMPILER_MSVC
+	#include <intrin.h>
+	#pragma intrinsic(__ll_lshift)
+#endif
+
 
 #if defined(VD_COMPILER_MSVC)
 	#pragma warning(disable: 4324)	// warning C4324: '': structure was padded due to __declspec(align())
-#endif
-
-#ifndef _M_IX86
-#pragma vdpragma_TODO("Need scalar implementation of MJPEG decoder")
-IMJPEGDecoder *CreateMJPEGDecoder(int w, int h) {
-	return NULL;
-}
-#else
-
-//#define DCTLEN_PROFILE
-//#define PROFILE
-
-
-
-#ifdef DCTLEN_PROFILE
-extern "C" {
-	long short_coeffs, med_coeffs, long_coeffs;
-};
 #endif
 
 ///////////////////////////////////////////////////////////////////////////
@@ -50,20 +42,18 @@ extern "C" {
 //
 ///////////////////////////////////////////////////////////////////////////
 
-typedef unsigned char byte;
-typedef unsigned long dword;
-
 class MJPEGBlockDef {
 public:
-	const byte *huff_dc;
-	const byte *huff_ac;
-	const byte (*huff_ac_quick)[2];
-	const byte (*huff_ac_quick2)[2];
+	const uint8 *huff_dc;
+	const uint8 *huff_ac;
+	const uint8 (*huff_ac_quick)[2];
+	const uint8 (*huff_ac_quick2)[2];
 	const int *quant;
 	int *dc_ptr;
 	int	ac_last;
 };
-extern "C" void asm_mb_decode(dword& bitbuf, int& bitcnt, byte *& ptr, int mcu_length, MJPEGBlockDef *pmbd, short **dctarray);
+extern "C" void asm_mb_decode(uint32& bitbuf, int& bitcnt, const uint8 *& ptr, int mcu_length, MJPEGBlockDef *pmbd, short **dctarray);
+void mb_decode(uint32& bitbuf, int& bitcnt, const uint8 *& ptr, int mcu_length, MJPEGBlockDef *pmbd, short **dctarray);
 
 extern "C" void IDCT_mmx(signed short *dct_coeff, void *dst, long pitch, int intra_flag, int ac_last);
 extern "C" void IDCT_isse(signed short *dct_coeff, void *dst, long pitch, int intra_flag, int ac_last);
@@ -99,17 +89,17 @@ static const char MJPEG_zigzag_sse2[64]={
 
 // Huffman tables
 
-static const byte huff_dc_0[] = {	// DC table 0
+static const uint8 huff_dc_0[] = {	// DC table 0
 	0x00,0x01,0x05,0x01,0x01,0x01,0x01,0x01,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,	// counts by bit length
 	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,	// values
 };
 
-static const byte huff_dc_1[] = {	// DC table 1
+static const uint8 huff_dc_1[] = {	// DC table 1
 	0x00,0x03,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x00,0x00,0x00,0x00,0x00,
 	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,
 };
 
-static const byte huff_ac_0_quick[][2]={
+static const uint8 huff_ac_0_quick[][2]={
 #if 0
 	0x01,2,	// 0000-3FFF
 	0x01,2,
@@ -137,9 +127,9 @@ static const byte huff_ac_0_quick[][2]={
 /* A0-AF */	0x00,4,0x00,4,0x00,4,0x00,4,0x00,4,0x00,4,0x00,4,0x00,4,
 };
 
-static byte huff_ac_0_quick2[0x1000 - 0xB00][2];
+static uint8 huff_ac_0_quick2[0x1000 - 0xB00][2];
 
-static const byte huff_ac_0[]={		// AC table 0
+static const uint8 huff_ac_0[]={		// AC table 0
 //	0x00,0x02,0x01,0x03,0x03,0x02,0x04,0x03,0x05,0x05,0x04,0x04,0x00,0x00,0x01,0x7D,	// 0xe2 values
 
 /*
@@ -168,7 +158,7 @@ static const byte huff_ac_0[]={		// AC table 0
 	0xE8,16,0xE9,16,0xEA,16,0xF1,16,0xF2,16,0xF3,16,0xF4,16,0xF5,16,0xF6,16,0xF7,16,0xF8,16,0xF9,16,0xFA,16,
 };
 
-static const byte huff_ac_0_src[]={		// AC table 0
+static const uint8 huff_ac_0_src[]={		// AC table 0
 	0x00,0x02,0x01,0x03,0x03,0x02,0x04,0x03,0x05,0x05,0x04,0x04,0x00,0x00,0x01,0x7D,	// 0xe2 values
 
 	0x01,0x02,					// (00-01) 0000-7FFF
@@ -184,7 +174,7 @@ static const byte huff_ac_0_src[]={		// AC table 0
 	0x24,0x33,0x62,0x72,		// (20-23) FF40-FF7F
 };
 
-static const byte huff_ac_1_quick[][2]={
+static const uint8 huff_ac_1_quick[][2]={
 #if 0
 	0x00,2,	// 0000-0FFF
 	0x00,2,	// 1000-1FFF
@@ -212,7 +202,7 @@ static const byte huff_ac_1_quick[][2]={
 /* A0-AF */	0xF9,7,0xFA,7,0xFB,7,0xFC,7,0x04,7,0x05,7,0x06,7,0x07,7,
 };
 
-static const byte huff_ac_1[]={		// AC table 1
+static const uint8 huff_ac_1[]={		// AC table 1
 //	0x00,0x02,0x01,0x02,0x04,0x04,0x03,0x04,0x07,0x05,0x04,0x04,0x00,0x01,0x02,0x77,
 
 /*
@@ -246,7 +236,7 @@ static const byte huff_ac_1[]={		// AC table 1
 	0xF4,16,0xF5,16,0xF6,16,0xF7,16,0xF8,16,0xF9,16,0xFA,16
 };
 
-static const byte huff_ac_1_src[]={		// AC table 1
+static const uint8 huff_ac_1_src[]={		// AC table 1
 	0x00,0x02,0x01,0x02,0x04,0x04,0x03,0x04,0x07,0x05,0x04,0x04,0x00,0x01,0x02,0x77,
 
 	0x00,0x01,								// (00-01) 4000 0000-7FFF
@@ -262,13 +252,13 @@ static const byte huff_ac_1_src[]={		// AC table 1
 	0x0A,0x16,0x24,0x34,					// (25-28) 0010 FF40-FF80
 };
 
-static byte huff_ac_1_quick2[0x1000 - 0xB00][2];
+static uint8 huff_ac_1_quick2[0x1000 - 0xB00][2];
 
-static const byte *huff_dc[2] = { huff_dc_0, huff_dc_1 };
-static const byte *huff_ac[2] = { huff_ac_0, huff_ac_1 };
-static const byte *huff_ac_src[2] = { huff_ac_0_src, huff_ac_1_src };
-static const byte (*huff_ac_quick[2])[2] = { huff_ac_0_quick, huff_ac_1_quick };
-static const byte (*huff_ac_quick2[2])[2] = { huff_ac_0_quick2, huff_ac_1_quick2 };
+static const uint8 *huff_dc[2] = { huff_dc_0, huff_dc_1 };
+static const uint8 *huff_ac[2] = { huff_ac_0, huff_ac_1 };
+static const uint8 *huff_ac_src[2] = { huff_ac_0_src, huff_ac_1_src };
+static const uint8 (*huff_ac_quick[2])[2] = { huff_ac_0_quick, huff_ac_1_quick };
+static const uint8 (*huff_ac_quick2[2])[2] = { huff_ac_0_quick2, huff_ac_1_quick2 };
 
 ///////////////////////////////////////////////////////////////////////////
 //
@@ -282,10 +272,10 @@ public:
 	MJPEGDecoder(int w, int h);
 	~MJPEGDecoder();
 
-	void decodeFrameRGB15(dword *output, byte *input, int len);
-	void decodeFrameRGB32(dword *output, byte *input, int len);
-	void decodeFrameUYVY(dword *output, byte *input, int len);
-	void decodeFrameYUY2(dword *output, byte *input, int len);
+	void decodeFrameRGB15(uint32 *output, uint8 *input, int len);
+	void decodeFrameRGB32(uint32 *output, uint8 *input, int len);
+	void decodeFrameUYVY(uint32 *output, uint8 *input, int len);
+	void decodeFrameYUY2(uint32 *output, uint8 *input, int len);
 
 private:
 	int quant[4][128];				// quantization matrices
@@ -330,13 +320,15 @@ private:
 	} mDecodeMode;
 	int mBPP;
 
-	void decodeFrame(dword *output, byte *input, int len);
-	byte *decodeQuantTables(byte *psrc);
-	byte *decodeFrameInfo(byte *psrc);
-	byte *decodeScan(byte *ptr, bool odd_field);
-	byte __forceinline huffDecodeDC(dword& bitbuf, int& bitcnt, const byte * const table);
-	byte __forceinline huffDecodeAC(dword& bitbuf, int& bitcnt, const byte * const table);
-	byte *decodeMCUs(byte *ptr, bool odd_field);
+	VDPixmapBuffer	mImageBuffer;
+
+	void decodeFrame(uint32 *output, const uint8 *input, int len);
+	const uint8 *decodeQuantTables(const uint8 *psrc);
+	const uint8 *decodeFrameInfo(const uint8 *psrc);
+	const uint8 *decodeScan(const uint8 *ptr, bool odd_field);
+	uint8 __forceinline huffDecodeDC(uint32& bitbuf, int& bitcnt, const uint8 * const table);
+	uint8 __forceinline huffDecodeAC(uint32& bitbuf, int& bitcnt, const uint8 * const table);
+	const uint8 *decodeMCUs(const uint8 *ptr, bool odd_field);
 };
 
 enum {
@@ -357,20 +349,6 @@ enum {
 //
 ///////////////////////////////////////////////////////////////////////////
 
-
-static bool mmxtest() {
-	bool supportsMMX = true;
-
-	__try {
-		__asm pand mm0,mm0
-		__asm emms
-	} __except(1) {
-		supportsMMX = false;
-	}
-
-	return supportsMMX;
-}
-
 MJPEGDecoder::MJPEGDecoder(int w, int h)
 	: width(w)
 	, height(h)
@@ -378,9 +356,9 @@ MJPEGDecoder::MJPEGDecoder(int w, int h)
 {
 	for(int tbl=0; tbl<2; tbl++) {
 		int base=0;
-		byte *ptr = (byte *)huff_ac_quick2[tbl];
-		const byte *countptr = huff_ac_src[tbl];
-		const byte *codeptr = huff_ac_src[tbl] + 16;
+		uint8 *ptr = (uint8 *)huff_ac_quick2[tbl];
+		const uint8 *countptr = huff_ac_src[tbl];
+		const uint8 *codeptr = huff_ac_src[tbl] + 16;
 
 		for(int bits=1; bits<=12; bits++) {
 			for(int cnt=0; cnt<*countptr; cnt++) {
@@ -394,7 +372,7 @@ MJPEGDecoder::MJPEGDecoder(int w, int h)
 
 				while(first < last) {
 					*ptr++ = *codeptr;
-					*ptr++ = (byte)bits;
+					*ptr++ = (uint8)bits;
 					++first;
 				}
 
@@ -408,12 +386,6 @@ MJPEGDecoder::MJPEGDecoder(int w, int h)
 
 		_RPT2(0,"Code length for table %d: %04x\n", tbl, base);
 	}
-
-	// instruction test
-
-	if (!mmxtest())
-		throw MyError("VirtualDub cannot decode your Motion JPEG video because your CPU does not support "
-				"MMX instructions. Please install a third-party codec with non-MMX support.");
 }
 
 MJPEGDecoder::~MJPEGDecoder() {
@@ -432,39 +404,39 @@ IMJPEGDecoder *CreateMJPEGDecoder(int w, int h) {
 ///////////////////////////////////////////////////////////////////////////
 
 
-int __inline getshort(byte *p) {
+int __inline getshort(const uint8 *p) {
 	return ((int)p[0]<<8) + (int)p[1];
 }
 
 
 
-void MJPEGDecoder::decodeFrameRGB15(dword *output, byte *ptr, int size) {
+void MJPEGDecoder::decodeFrameRGB15(uint32 *output, uint8 *ptr, int size) {
 	mDecodeMode = kDecodeRGB15;
 	mBPP = 2;
 	decodeFrame(output, ptr, size);
 }
 
-void MJPEGDecoder::decodeFrameRGB32(dword *output, byte *ptr, int size) {
+void MJPEGDecoder::decodeFrameRGB32(uint32 *output, uint8 *ptr, int size) {
 	mDecodeMode = kDecodeRGB32;
 	mBPP = 4;
 	decodeFrame(output, ptr, size);
 }
 
-void MJPEGDecoder::decodeFrameUYVY(dword *output, byte *ptr, int size) {
+void MJPEGDecoder::decodeFrameUYVY(uint32 *output, uint8 *ptr, int size) {
 	mDecodeMode = kDecodeUYVY;
 	mBPP = 2;
 	decodeFrame(output, ptr, size);
 }
 
-void MJPEGDecoder::decodeFrameYUY2(dword *output, byte *ptr, int size) {
+void MJPEGDecoder::decodeFrameYUY2(uint32 *output, uint8 *ptr, int size) {
 	mDecodeMode = kDecodeYUY2;
 	mBPP = 2;
 	decodeFrame(output, ptr, size);
 }
 
-void MJPEGDecoder::decodeFrame(dword *output, byte *ptr, int size) {
-	byte *limit = ptr+size-1;
-	byte tag;
+void MJPEGDecoder::decodeFrame(uint32 *output, const uint8 *ptr, int size) {
+	const uint8 *limit = ptr+size-1;
+	uint8 tag;
 	bool odd_field = true;
 	int field_count = 0;
 	bool bFirstField = true;
@@ -566,7 +538,7 @@ next_field:
 //	_RPT0(0,"Warning: No EOI tag found\n");
 }
 
-byte *MJPEGDecoder::decodeQuantTables(byte *psrc) {
+const uint8 *MJPEGDecoder::decodeQuantTables(const uint8 *psrc) {
 	int *dst;
 	int n;
 
@@ -605,7 +577,7 @@ byte *MJPEGDecoder::decodeQuantTables(byte *psrc) {
 	return psrc;
 }
 
-byte *MJPEGDecoder::decodeFrameInfo(byte *psrc) {
+const uint8 *MJPEGDecoder::decodeFrameInfo(const uint8 *psrc) {
 	int i, n;
 
 	if (psrc[2] != 8)
@@ -701,10 +673,30 @@ byte *MJPEGDecoder::decodeFrameInfo(byte *psrc) {
 	mcu_size_x = comp_mcu_x[0] * 8;
 	mcu_size_y = comp_mcu_y[0] * 8;
 
+	// reinit frame buffer
+
+	int format = 0;
+	switch(mChromaMode) {
+		case kYCrCb444:
+			format = nsVDPixmap::kPixFormat_YUV444_Planar;
+			break;
+
+		case kYCrCb422:
+			format = nsVDPixmap::kPixFormat_YUV422_Planar_Centered;
+			break;
+
+		case kYCrCb420:
+			format = nsVDPixmap::kPixFormat_YUV420_Planar_Centered;
+			break;
+	}
+
+	if (!mImageBuffer.base() || mImageBuffer.format != format)
+		mImageBuffer.init((width + 15) & ~15, (height + 15) & ~15, format);
+
 	return psrc + 8 + 3*3;
 }
 
-byte *MJPEGDecoder::decodeScan(byte *ptr, bool odd_field) {
+const uint8 *MJPEGDecoder::decodeScan(const uint8 *ptr, bool odd_field) {
 	int mb=0;
 	int i,j;
 
@@ -749,32 +741,22 @@ byte *MJPEGDecoder::decodeScan(byte *ptr, bool odd_field) {
 	}
 
 	static const char translator_444_422[] = { 0,1,2,3 };
-	static const char translator_420[] = { 0,2,1,3,4,5 };
-
-	const char *pTranslator = (mChromaMode == kYCrCb420) ? translator_420 : translator_444_422;
+	static const char translator_420[] = { 0,1,2,3,4,5 };
 
 	for(i=0; i<mcu_length; i++) {
 		blocks[i+mcu_length] = blocks[i];
 		blocks[i+mcu_length*2] = blocks[i];
 		blocks[i+mcu_length*3] = blocks[i];
 
-		int j  = pTranslator[i];
-
-		dct_coeff_ptrs[i] = &dct_coeff[j][0];
-		dct_coeff_ptrs[i+mcu_length] = &dct_coeff[j+mcu_length][0];
-		dct_coeff_ptrs[i+mcu_length*2] = &dct_coeff[j+mcu_length*2][0];
-		dct_coeff_ptrs[i+mcu_length*3] = &dct_coeff[j+mcu_length*3][0];
+		dct_coeff_ptrs[i] = &dct_coeff[i][0];
+		dct_coeff_ptrs[i+mcu_length] = &dct_coeff[i+mcu_length][0];
+		dct_coeff_ptrs[i+mcu_length*2] = &dct_coeff[i+mcu_length*2][0];
+		dct_coeff_ptrs[i+mcu_length*3] = &dct_coeff[i+mcu_length*3][0];
 	}
 
 	comp_last_dc[0] = 128*8;
-
-	if (mDecodeMode == kDecodeUYVY || mDecodeMode == kDecodeYUY2) {
-		comp_last_dc[1] = 128*8;
-		comp_last_dc[2] = 128*8;
-	} else {
-		comp_last_dc[1] = 0;
-		comp_last_dc[2] = 0;
-	}
+	comp_last_dc[1] = 128*8;
+	comp_last_dc[2] = 128*8;
 
 	ptr += 12;
 
@@ -783,6 +765,7 @@ byte *MJPEGDecoder::decodeScan(byte *ptr, bool odd_field) {
 
 ///////////////////////////////////////////////////////////////////////////
 
+#if 0
 namespace nsVDMJPEG {
 	static const uint64 Cr_coeff = 0x0000005AFFD20000;
 	static const uint64 Cb_coeff = 0x00000000FFEA0071;
@@ -839,92 +822,28 @@ using namespace nsVDMJPEG;
 #undef MOVNTQ
 
 #pragma warning(pop)
+#endif
 
 ///////////////////////////////////////////////////////////////////////////
 
 // 320x240 -> 20x30 -> 600 MCUs
 // 304x228 -> 19x29 -> 551 MCUs 
 
-byte *MJPEGDecoder::decodeMCUs(byte *ptr, bool odd_field) {
+const uint8 *MJPEGDecoder::decodeMCUs(const uint8 *ptr, bool odd_field) {
 	int mcu;
-	dword bitbuf = 0;
+	uint32 bitbuf = 0;
 	int bitcnt = 24;	// 24 - bits in buffer
-	char *pixptr = (char *)pixdst;
 	int mb_x = 0, mb_y = 0;
-#ifdef PROFILE
-	__int64 mb_cycles = 0;
-	__int64 dct_cycles = 0;
-	__int64 cvt_cycles = 0;
-#endif
 
-	ptrdiff_t dst_pitch = width * mBPP;
-	ptrdiff_t dst_pitch_row = dst_pitch * (mcu_size_y - 1);
-	int lines = mcu_size_y;
-
-	if (mDecodeMode != kDecodeUYVY && mDecodeMode != kDecodeYUY2) {
-		pixptr += dst_pitch * (height-1);
-		dst_pitch_row += dst_pitch*2;
-
-		dst_pitch = -dst_pitch;
-		dst_pitch_row = -dst_pitch_row;
-	}
-
-	if (interlaced) {
-		if (odd_field)
-			pixptr += dst_pitch;
-
-		dst_pitch_row += dst_pitch * mcu_size_y;
-
-		dst_pitch *= 2;
-	}
-
-	// This is going to get ugly.
-
-	typedef void (__stdcall *tColorConverter)(void *dst, const short *dct_coeffs, ptrdiff_t dstpitch, int rows);
-	static const tColorConverter sDecodeTable[2][kChromaModeCount][kDecodeModeCount]={
-		{
-			{
-				MJPEGDecode444_RGB15_MMX,
-				MJPEGDecode444_RGB32_MMX,
-				MJPEGDecode444_UYVY_MMX,
-				MJPEGDecode444_YUY2_MMX,
-			},
-			{
-				MJPEGDecode422_RGB15_MMX,
-				MJPEGDecode422_RGB32_MMX,
-				MJPEGDecode422_UYVY_MMX,
-				MJPEGDecode422_YUY2_MMX,
-			},
-			{
-				MJPEGDecode420_RGB15_MMX,
-				MJPEGDecode420_RGB32_MMX,
-				MJPEGDecode420_UYVY_MMX,
-				MJPEGDecode420_YUY2_MMX,
-			},
-		},
-		{
-			{
-				MJPEGDecode444_RGB15_ISSE,
-				MJPEGDecode444_RGB32_ISSE,
-				MJPEGDecode444_UYVY_ISSE,
-				MJPEGDecode444_YUY2_ISSE,
-			},
-			{
-				MJPEGDecode422_RGB15_ISSE,
-				MJPEGDecode422_RGB32_ISSE,
-				MJPEGDecode422_UYVY_ISSE,
-				MJPEGDecode422_YUY2_ISSE,
-			},
-			{
-				MJPEGDecode420_RGB15_ISSE,
-				MJPEGDecode420_RGB32_ISSE,
-				MJPEGDecode420_UYVY_ISSE,
-				MJPEGDecode420_YUY2_ISSE,
-			},
-		}
-	};
-
-	tColorConverter		pColorConverter = sDecodeTable[ISSE_enabled][mChromaMode][mDecodeMode];
+	const ptrdiff_t pitchY = mImageBuffer.pitch;
+	const ptrdiff_t pitchCb = mImageBuffer.pitch2;
+	const ptrdiff_t pitchCr = mImageBuffer.pitch3;
+	uint8 *dstrowY = (uint8 *)mImageBuffer.data;
+	uint8 *dstrowCb = (uint8 *)mImageBuffer.data2;
+	uint8 *dstrowCr = (uint8 *)mImageBuffer.data3;
+	uint8 *dstY = dstrowY;
+	uint8 *dstCb = dstrowCb;
+	uint8 *dstCr = dstrowCr;
 
 	// Decode!!!
 
@@ -939,12 +858,16 @@ byte *MJPEGDecoder::decodeMCUs(byte *ptr, bool odd_field) {
 
 	void (*pIDCT)(signed short *dct_coeff, void *dst, long pitch, int intra_flag, int ac_last);
 
+#ifdef _M_IX86
 	if (SSE2_enabled)
 		pIDCT = IDCT_sse2;
 	else if (ISSE_enabled)
 		pIDCT = IDCT_isse;
 	else
 		pIDCT = IDCT_mmx;
+#else
+	pIDCT = IDCT_sse2;
+#endif
 
 	mcu = 0;
 	try {
@@ -957,15 +880,7 @@ byte *MJPEGDecoder::decodeMCUs(byte *ptr, bool odd_field) {
 			if (mcus > nRestartCounter)
 				mcus = nRestartCounter;
 
-#ifdef PROFILE
-		__asm {
-			rdtsc
-			sub dword ptr mb_cycles+0,eax
-			sbb dword ptr mb_cycles+4,edx
-		}
-#endif
-
-			asm_mb_decode(bitbuf, bitcnt, ptr, mcu_length*mcus, blocks, dct_coeff_ptrs);
+			mb_decode(bitbuf, bitcnt, ptr, mcu_length*mcus, blocks, dct_coeff_ptrs);
 
 			mcu += mcus;
 
@@ -998,113 +913,362 @@ byte *MJPEGDecoder::decodeMCUs(byte *ptr, bool odd_field) {
 				comp_last_dc[2] = 0;
 			}
 
-#ifdef PROFILE
-		__asm {
-			rdtsc
-			add dword ptr mb_cycles+0,eax
-			adc dword ptr mb_cycles+4,edx
-			sub dword ptr dct_cycles+0,eax
-			sbb dword ptr dct_cycles+4,edx
-		}
-#endif
-		{
-			for(int i=0; i<mcu_length*mcus; i++)
-				pIDCT(dct_coeff_ptrs[i], dct_coeff_ptrs[i], 16, 2, blocks[i].ac_last);
-		}
+			short **dct_src = dct_coeff_ptrs;
+			const MJPEGBlockDef *block_src = blocks;
 
-#ifdef PROFILE
-		__asm {
-			rdtsc
-			add dword ptr dct_cycles+0,eax
-			adc dword ptr dct_cycles+4,edx
-			sub dword ptr cvt_cycles+0,eax
-			sbb dword ptr cvt_cycles+4,edx
-		}
-#endif
-			for(int i=0; i<mcus; i++) {
-				short *dct_coeffs = (short *)&dct_coeff[mcu_length * i];
+			for(int i=0; i<mcus; ++i) {
+				// transform luma blocks
+				switch(mChromaMode) {
+					case kYCrCb444:
+						pIDCT(dct_src[0], dstY, pitchY, 1, block_src[0].ac_last);
+						++dct_src;
+						++block_src;
+						dstY += 8;
+						break;
 
-				pColorConverter(pixptr, dct_coeffs, dst_pitch, lines);
+					case kYCrCb422:
+						pIDCT(dct_src[0], dstY, pitchY, 1, block_src[0].ac_last);
+						pIDCT(dct_src[1], dstY + 8, pitchY, 1, block_src[1].ac_last);
+						dct_src += 2;
+						block_src += 2;
+						dstY += 16;
+						break;
 
-				if (lines != mcu_size_y)
-					memset(dct_coeffs, 0, mcu_length * 64 * sizeof(short));
+					case kYCrCb420:
+						pIDCT(dct_src[0], dstY, pitchY, 1, block_src[0].ac_last);
+						pIDCT(dct_src[1], dstY + 8, pitchY, 1, block_src[1].ac_last);
+						pIDCT(dct_src[2], dstY + pitchY * 8, pitchY, 1, block_src[2].ac_last);
+						pIDCT(dct_src[3], dstY + pitchY * 8 + 8, pitchY, 1, block_src[3].ac_last);
+						dct_src += 4;
+						block_src += 4;
+						dstY += 16;
+						break;
+				}
 
-				pixptr += mcu_size_x * mBPP;
+				// transform chroma blocks
+				pIDCT(dct_src[0], dstCb, pitchCb, 1, block_src[0].ac_last);
+				pIDCT(dct_src[1], dstCr, pitchCr, 1, block_src[1].ac_last);
+				dct_src += 2;
+				block_src += 2;
+				dstCr += 8;
+				dstCb += 8;
 
 				if (++mb_x >= mcu_width) {
 					mb_x = 0;
+					++mb_y;
 
-					pixptr += dst_pitch_row;
+					switch(mChromaMode) {
+						case kYCrCb444:
+						case kYCrCb422:
+							dstrowY += pitchY * 8;
+							break;
 
-					if (++mb_y == clip_row)
-						lines = clip_lines;
+						case kYCrCb420:
+							dstrowY += pitchY * 16;
+							break;
+					}
+
+					dstrowCb += pitchCb * 8;
+					dstrowCr += pitchCr * 8;
+
+					dstY = dstrowY;
+					dstCb = dstrowCb;
+					dstCr = dstrowCr;
 				}
 			}
-#ifdef PROFILE
-		__asm {
-			rdtsc
-			add dword ptr cvt_cycles+0,eax
-			adc dword ptr cvt_cycles+4,edx
+
+			for(int i=0; i<mcu_length*mcus; i++)
+				memset(dct_coeff[i], 0, 128);
 		}
-#endif
-		}
-#if 1
 	} catch(...) {
 		// This ain't good, folks
-
+#ifdef _M_IX86
 		__asm emms
 
 		if (ISSE_enabled)
 			__asm sfence
-
+#endif
 		throw MyError("MJPEG decoder: Access violation caught.  Source may be corrupted.");
 	}
-#endif
 
-#ifdef PROFILE
-	{
-		char buf[128];
-		static __int64 tcycles;
-		static __int64 tcyclesDCT;
-		static __int64 tcyclesCVT;
-		static int tcount;
-
-		tcycles += mb_cycles;
-		tcyclesDCT += dct_cycles;
-		tcyclesCVT += cvt_cycles;
-		tcount += mcu_count;
-
-		if (tcount >= 65536) {
-			sprintf(buf, "decode: %4I64d (%3d%% CPU)     IDCT: %4I64d (%3d%% CPU)    CVT: %4I64d (%3d%% CPU)\n",
-						tcycles/tcount,
-						(long)((tcycles*24*2997+tcount*2250000i64)/(tcount*4500000i64)),
-						tcyclesDCT/tcount,
-						(long)((tcyclesDCT*24*2997+tcount*2250000i64)/(tcount*4500000i64)),
-						tcyclesCVT/tcount,
-						(long)((tcyclesCVT*24*2997+tcount*2250000i64)/(tcount*4500000i64))
-						);
-			OutputDebugString(buf);
-			tcount = 0;
-			tcycles = 0;
-			tcyclesDCT = 0;
-			tcyclesCVT = 0;
-
-
-#ifdef DCTLEN_PROFILE
-			sprintf(buf, "%d short coefficients, %d medium, %d long\n", short_coeffs, med_coeffs, long_coeffs);
-			OutputDebugString(buf);
-			short_coeffs = med_coeffs = long_coeffs = 0;
-#endif
-		}
-	}
-#endif
-
+#ifdef _M_IX86
 	__asm emms
 
 	if (ISSE_enabled)
 		__asm sfence
+#endif
+
+	VDPixmap pxdst = {0};
+
+	pxdst.w = width;
+	pxdst.h = height;
+	pxdst.pitch = (width * mBPP + 3) & ~3;
+	pxdst.data = pixdst;
+
+	switch(mDecodeMode) {
+		case kDecodeRGB15:
+			pxdst.format = nsVDPixmap::kPixFormat_XRGB1555;
+			pxdst.data = (char *)pxdst.data + pxdst.pitch * (pxdst.h - 1);
+			pxdst.pitch = -pxdst.pitch;
+			break;
+
+		case kDecodeRGB32:
+			pxdst.format = nsVDPixmap::kPixFormat_XRGB8888;
+			pxdst.data = (char *)pxdst.data + pxdst.pitch * (pxdst.h - 1);
+			pxdst.pitch = -pxdst.pitch;
+			break;
+
+		case kDecodeUYVY:
+			pxdst.format = nsVDPixmap::kPixFormat_YUV422_UYVY;
+			break;
+
+		case kDecodeYUY2:
+			pxdst.format = nsVDPixmap::kPixFormat_YUV422_YUYV;
+			break;
+	}
+
+
+	if (interlaced)
+		VDPixmapBlt(VDPixmapExtractField(pxdst, odd_field), mImageBuffer);
+	else
+		VDPixmapBlt(pxdst, mImageBuffer);
 
 //	return ptr - ((31-bitcnt)>>3);
 	return ptr - 8;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void mb_decode(uint32& bitheap0, int& bitcnt0, const uint8 *& src0, int mcu_length, MJPEGBlockDef *block, short **dctarray) {
+	const uint8 * VDRESTRICT src = src0;
+	uint32 bitheap = bitheap0;
+	int bitcnt = bitcnt0;
+
+	bitcnt -= 8;
+
+	for(int mb=0; mb<mcu_length; ++mb) {
+		const int *quantptr = block->quant + 2;
+		const uint8 (*const acquick)[2] = block->huff_ac_quick;
+		const uint8 (*const acquick2)[2] = block->huff_ac_quick2;
+		const uint8 *const huffac = block->huff_ac;
+		short *dctptr = *dctarray++;
+		const int *quantlimit = quantptr + 64*2;
+
+		// fill bit heap
+		if (bitcnt >= -8) {
+			do {
+				uint32 c = *src;
+				src += ((c + 0x101) >> 8);
+				bitheap += c << (bitcnt + 8);
+				bitcnt -= 8;
+			} while(bitcnt >= 0);
+		}
+
+		// decode DC coefficient
+		int i = 0;
+		int code = 0;
+		sint32 acc = bitheap >> 30;
+		bitheap <<= 2;
+		while(i < 16) {
+			uint32 count = block->huff_dc[i + 1];
+			if (acc < count)
+				break;
+			acc -= count;
+			acc = (acc + acc) + (bitheap >> 31);
+			bitheap += bitheap;
+			code += count;
+			++i;
+		}
+
+		bitcnt += i + 2;
+		code += acc;
+		
+		sint32 coeff = 0;
+		if (code) {
+			// sign-extend DC difference
+
+			sint32 sign = ~((sint32)bitheap >> 31);
+			union {
+				uint32 d[2];
+				uint64 q;
+			} converter = { { bitheap, sign } };
+
+#ifdef VD_COMPILER_MSVC
+			converter.q = __ll_lshift(converter.q, code);
+#else
+			converter.q <<= code;
 #endif
+
+			bitheap = converter.d[0];
+			coeff = converter.d[1] - sign;
+			bitcnt += code;
+		}
+
+		coeff *= quantptr[-2];
+		coeff += *block->dc_ptr;
+		*block->dc_ptr = coeff;
+		*dctptr = (short)coeff;
+
+		// BEGIN DECODING AC COEFFICIENTS
+
+		for(;;) {
+			VDASSERT(bitcnt < 32);
+			if (bitcnt >= 0) {
+				uint32 c = VDSwizzleU32(*(uint16 *)src) >> 16;
+				src += 2;
+
+				if (~(c + 0x01010101) & (c & 0x80808080)) {
+					c = src[-2];
+					src += (c + 1) >> 8;
+
+					uint32 d = src[-1];
+					c = (c << 8) + d;
+					src += (d + 1) >> 8;
+				}
+
+				bitheap += c << bitcnt;
+				bitcnt -= 16;
+			}
+
+			if (bitheap < 0xb0000000) {
+				// short decode
+				// table-based decode for short AC coefficients
+
+				const uint8 *acdata = acquick[bitheap >> 25];
+				int code = (sint8)acdata[0];
+				uint8 len = acdata[1];
+
+				bitheap <<= len;
+				bitcnt += len;
+
+				if (!code)
+					break;
+
+				// multiply coefficient by quant. matrix entry and store
+				int idx = quantptr[1];
+				*(short *)((char *)dctptr + idx) = (short)(code * quantptr[0]);
+				quantptr += 2;
+
+				if (idx >= 63*2)
+					break;
+
+				continue;
+			}
+
+			uint8 code;
+			if (bitheap >= 0xff800000) {
+				// long decode
+				// start long AC decode
+				//
+				//	16: 00-7F
+				//	15: 00-3F
+				//	14: 00-1F
+
+				const uint8 *acdata = &huffac[((bitheap >> 16) - 0xFF80) * 2];
+				code = acdata[0];
+				int len = acdata[1];
+				bitheap <<= len;
+				bitcnt += len;
+
+				if (bitcnt > 0) {
+					uint32 c = VDSwizzleU32(*(uint16 *)src) >> 16;
+					src += 2;
+					if (~(c + 0x01010101) & (c & 0x80808080)) {
+						c = src[-2];
+						src += (c + 1) >> 8;
+						uint32 d = src[-1];
+						c = (c << 8) + d;
+						src += (d + 1) >> 8;
+					}
+					bitheap += (c << bitcnt);
+					bitcnt -= 16;
+				}
+			} else {
+				// medium decode
+				const uint8 *acdata = acquick2[(bitheap >> 20) - 0xB00];
+				code = acdata[0];
+				int len = acdata[1];
+
+				bitheap <<= len;
+				bitcnt += len;
+
+				if (bitcnt > 0) {
+					uint32 c = VDSwizzleU32(*(uint16 *)src) >> 16;
+					src += 2;
+					if (~(c + 0x01010101) & (c & 0x80808080)) {
+						c = src[-2];
+						src += (c + 1) >> 8;
+						uint32 d = src[-1];
+						c = (c << 8) + d;
+						src += (d + 1) >> 8;
+					}
+					bitheap += (c << bitcnt);
+					bitcnt -= 16;
+				}
+
+				if (code == 0xf0) {
+					quantptr += 16*2;
+					if (quantptr > quantlimit) {
+						quantptr = quantlimit;
+						break;
+					}
+					continue;
+				}
+			}
+
+			int skip = code >> 4;
+			int len = code & 15;
+
+			quantptr += skip*2 + 2;
+			if (quantptr > quantlimit) {
+				quantptr = quantlimit;
+				break;
+			}
+
+			sint32 sign = ~((sint32)bitheap >> 31);
+			union {
+				uint32 d[2];
+				uint64 q;
+			} converter = { { bitheap, sign } };
+
+#ifdef VD_COMPILER_MSVC
+			converter.q = __ll_lshift(converter.q, len);
+#else
+			converter.q <<= len;
+#endif
+
+			bitheap = converter.d[0];
+			coeff = converter.d[1] - sign;
+			bitcnt += len;
+
+			int idx = quantptr[-1];
+			*(short *)((char *)dctptr + idx) = (short)(coeff*quantptr[-2]);
+
+			if (idx >= 63*2)
+				break;
+		};
+
+		block->ac_last = (((quantptr - block->quant) >> 1) - 1) & 63;
+		++block;
+	}
+
+	bitcnt += 8;
+
+	bitheap0 = bitheap;
+	bitcnt0 = bitcnt;
+	src0 = src;
+}

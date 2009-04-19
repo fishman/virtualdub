@@ -191,55 +191,95 @@ VDStreamInterleaver::Action VDStreamInterleaver::PushStreams() {
 //
 ///////////////////////////////////////////////////////////////////////////
 
-void VDRenderFrameMap::Init(const vdfastvector<IVDVideoSource *>& videoSources, VDPosition nSrcStart, VDFraction srcStep, const FrameSubset *pSubset, VDPosition nFrameCount, bool bDirect, const FilterSystem *pRemapperFS) {
+void VDRenderFrameMap::Init(const vdfastvector<IVDVideoSource *>& videoSources, VDPosition nSrcStart, VDFraction srcStep, const FrameSubset *pSubset, VDPosition nFrameCount, bool allowDirect, bool forceDirect, bool preserveEmptyFrames, const FilterSystem *pRemapperFS) {
 	VDPosition directLast = -1;
-	int sourceLast = -1;
+	VDPosition sourceLast = -1;
+	int sourceIndexLast = -1;
 	IVDVideoSource *pVS = NULL;
-	VDPosition len = 0;
+	bool lastUseDirect = false;
 
 	mFrameMap.reserve((size_t)nFrameCount);
 	for(VDPosition frame = 0; frame < nFrameCount; ++frame) {
 		VDPosition timelineFrame = nSrcStart + srcStep.scale64t(frame);
+
+		// translate from timeline to source frame through the subset... this means that the subset
+		// is POST-FILTER.
 		VDPosition srcFrame = timelineFrame;
-		int source = 0;
 
 		if (pSubset) {
 			bool masked;
-			srcFrame = pSubset->lookupFrame((int)srcFrame, masked, source);
+			int dummy;
+			srcFrame = pSubset->lookupFrame((int)srcFrame, masked, dummy);
 			if (srcFrame < 0)
 				break;
 		} else {
-			if (srcFrame < 0 || srcFrame >= len)
-				break;
+			if (srcFrame < 0)
+				srcFrame = 0;
 		}
 
-		if (sourceLast != source) {
-			sourceLast = source;
-			pVS = videoSources[source];
-			len = pVS->asStream()->getLength();
+		// check if we're allowed to go direct mode for this frame
+		sint64 directFrame = -1;
+		int directIndex = -1;
+		bool useDirect = false;
+
+		if (forceDirect) {
+			// direct mode is forced on, so set the direct mapping
+			useDirect = true;
+			directIndex = 0;
+			directFrame = srcFrame;
+			
+			// allow the filter system to remap if present since the subset depends on it anyway
+			if (pRemapperFS)
+				directFrame = pRemapperFS->GetSourceFrame(directFrame);
+		} else if (allowDirect) {
+			// check if the filter system wants to request direct mapping
+			if (pRemapperFS) {
+				sint64 directFrameTest;
+				int directIndexTest;
+				if (pRemapperFS->GetDirectFrameMapping(srcFrame, directFrameTest, directIndexTest)) {
+					directFrame = directFrameTest;
+					directIndex = directIndexTest;
+					useDirect = true;
+				}
+			}
+		}
+
+		// switch sources if directed
+		if (sourceIndexLast != directIndex) {
+			sourceIndexLast = directIndex;
+
+			if (directIndex >= 0)
+				pVS = videoSources[directIndex];
+			else {
+				VDASSERT(!useDirect);
+				pVS = NULL;
+			}
+
+			// invalidate the last direct frame since we've switched sources
 			directLast = -1;
 		}
 
-		// we need to preserve this so filter timing isn't screwed up across drop frames
-		VDPosition origSrcFrame = srcFrame;
+		// check and adjust for direct mode dependency violations
+		if (useDirect) {
+			// allow video source to remap to last unique frame; note that this is done later if we are
+			// not in direct mode, as we don't know the source frame until the filter system requests it
+			sint64 actualDirectFrame = pVS->getRealDisplayFrame(directFrame);
 
-		if (pRemapperFS)
-			srcFrame = pRemapperFS->GetSourceFrame(srcFrame);
+			// get nearest key frame
+			VDPosition key = pVS->nearestKey(actualDirectFrame);
 
-		srcFrame = pVS->getRealDisplayFrame(srcFrame);
-
-		if (bDirect) {
-			VDPosition key = pVS->nearestKey((LONG)srcFrame);
-
-			if (directLast < key)
+			// clamp to nearest decodable
+			if (directLast < key) {
+				// Current frame is in earlier dependency chain.
 				directLast = key;
-			else if (directLast > srcFrame)
+			} else if (directLast > actualDirectFrame) {
+				// Desired frame is behind current frame.
 				directLast = key;
-			else {
-				if (directLast < srcFrame) {
+			} else {
+				if (directLast < actualDirectFrame) {
 					for(;;) {
 						++directLast;
-						if (directLast >= srcFrame)
+						if (directLast >= actualDirectFrame)
 							break;
 
 						if (pVS->getDropType(directLast) != VideoSource::kDroppable)
@@ -248,163 +288,87 @@ void VDRenderFrameMap::Init(const vdfastvector<IVDVideoSource *>& videoSources, 
 				}
 			}
 
-			srcFrame = directLast;
+			// Check if we couldn't get the frame we wanted due to frame restrictions. If this happens
+			// in force-direct mode, tough noogies. If we're in allow-direct mode, though, then we've
+			// got to drop to full mode.
+			if (!forceDirect && actualDirectFrame != directLast) {
+				// Can't copy the right frame -- drop to full mode.
+				useDirect = false;
+			} else {
+				// Looks good -- use the nearest decodable frame as the direct frame.
+				srcFrame = directLast;
+			}
 		}
 
-		FrameEntry ent;
-		ent.mSrcIndex = source;
-		ent.mTimelineFrame = timelineFrame;
-		ent.mDisplayFrame = srcFrame;
-		ent.mOrigDisplayFrame = origSrcFrame;
+		// If we switched direct modes, we need to invalidate the last frame counter.
+		if (lastUseDirect != useDirect) {
+			lastUseDirect = useDirect;
+			sourceLast = -1;
+		}
 
-		mFrameMap.push_back(ent);
+		// If we're writing the same frame, we may be able to drop it.
+		bool sameAsLast = false;
+
+		if (sourceLast >= 0) {
+			if (sourceLast == srcFrame) {
+				if (useDirect || preserveEmptyFrames) {
+					sameAsLast = true;
+				}
+			} else if (preserveEmptyFrames && pRemapperFS) {
+				VDPosition srcUniqueFrame = pRemapperFS->GetNearestUniqueFrame(srcFrame);
+
+				if (sourceLast >= srcUniqueFrame)
+					sameAsLast = true;
+			}
+		}
+		
+		if (sameAsLast) {
+			srcFrame = -1;
+			useDirect = true;
+		} else
+			sourceLast = srcFrame;
+
+		if (!useDirect)
+			directLast = -1;
+
+		InternalFrameEntry ient;
+		ient.mTimelineFrame = timelineFrame;
+		ient.mSourceFrameAndDirectFlag = srcFrame + srcFrame + useDirect;
+		mFrameMap.push_back(ient);
 	}
 
 	mMaxFrame = mFrameMap.size();
-
-	mInvalidEntry.mSrcIndex = -1;
-	mInvalidEntry.mTimelineFrame = -1;
-	mInvalidEntry.mDisplayFrame = -1;
 }
 
-///////////////////////////////////////////////////////////////////////////
-//
-//	VDRenderFrameIterator
-//
-///////////////////////////////////////////////////////////////////////////
+const VDRenderFrameMap::FrameEntry VDRenderFrameMap::operator[](VDPosition outFrame) const {
+	FrameEntry ent;
 
-void VDRenderFrameIterator::Init(const vdfastvector<IVDVideoSource *>& videoSources, bool bDirect, bool bSmart, const FilterSystem *filtsys) {
-	mVideoSources = videoSources;
-	mpFilterSystem	= filtsys;
-	mbDirect		= bDirect || bSmart;
-	mbSmart			= bSmart;
-	mDstFrame		= 0;
-	mSrcOrigDisplayFrame	= -1;
-	mSrcDisplayFrame	= -1;
-	mSrcTargetSample	= -1;
-	mSequenceFrame = 0;
-	mLastSrcDisplayFrame = -1;
-	mSrcIndex = -1;
-	mLastSrcIndex = -1;
-	mpVideoSource = NULL;
-	mbFinished		= false;
-	mbSameAsLast	= false;
-
-	Reload();
-}
-
-VDRenderFrameStep VDRenderFrameIterator::Next() {
-	VDRenderFrameStep step;
-
-	while(!mbFinished) {
-		bool b;
-		VDPosition f = -1;
-
-		if (mSrcDisplayFrame >= 0) {
-			f = mpVideoSource->streamGetNextRequiredFrame(b);
-			step.mbIsPreroll = (b!=0) && !mbDirect;
-		} else {
-			f = -1;
-			step.mbIsPreroll = false;
-		}
-
-		if (f!=-1 || mbFirstSourceFrame) {
-			mbFirstSourceFrame = false;
-
-			VDASSERT(mSrcIndex >= 0);
-
-			step.mSourceFrame	= f;
-			step.mTargetSample	= mSrcTargetSample;
-			step.mOrigDisplayFrame = mSrcOrigDisplayFrame;
-			step.mDisplayFrame	= mSrcDisplayFrame;
-			step.mTimelineFrame	= mSrcTimelineFrame;
-			step.mSequenceFrame	= mSequenceFrame;
-			step.mSrcIndex		= mSrcIndex;
-			step.mbDirect		= mbDirect;
-			step.mbSameAsLast	= mbSameAsLast;
-
-			if (mbDirect) {
-				if (!Reload())
-					mbFinished = true;
-			}
-
-			return step;
-		}
-
-		if (!Reload())
-			break;
-	}
-
-	step.mSourceFrame	= -1;
-	step.mTargetSample	= mSrcTargetSample;
-	step.mSrcIndex		= mSrcIndex;
-	step.mTimelineFrame	= mSrcTimelineFrame;
-	step.mOrigDisplayFrame	= mSrcOrigDisplayFrame;
-	step.mDisplayFrame	= mSrcDisplayFrame;
-	step.mSequenceFrame	= mSequenceFrame;
-	step.mbIsPreroll	= false;
-	step.mbSameAsLast	= true;
-	step.mbDirect		= mbDirect;
-
-	mbFinished = true;
-
-	return step;
-}
-
-bool VDRenderFrameIterator::Reload() {
-	const VDRenderFrameMap::FrameEntry& ent = mFrameMap[mDstFrame];
-
-	if (ent.mSrcIndex < 0)
-		return false;
-
-	mSrcIndex = ent.mSrcIndex;
-
-	if (mLastSrcIndex != mSrcIndex) {
-		mLastSrcIndex = mSrcIndex;
-		mLastSrcDisplayFrame = -1;
-	}
-
-	mpVideoSource = mVideoSources[mSrcIndex];
-
-	mSrcTimelineFrame	= ent.mTimelineFrame;
-	VDPosition nextOrigDisplay = ent.mOrigDisplayFrame;
-	VDPosition nextDisplay = ent.mDisplayFrame;
-
-	if (mbSmart) {
-		bool isFiltered = mpFilterSystem && mpFilterSystem->IsFiltered(ent.mTimelineFrame);
-
-		if (mbDirect) {
-			mpVideoSource->streamSetDesiredFrame(nextDisplay);
-			if (isFiltered || mpVideoSource->streamGetRequiredCount(NULL) != 1) {
-				mpVideoSource->streamRestart();
-				mbDirect = false;
-			}
-		} else {
-			if (!isFiltered && mpVideoSource->isKey(nextDisplay)) {
-				mpVideoSource->streamRestart();
-				mbDirect = true;
-			}
-		}
-	}
-
-	mbSameAsLast = (nextDisplay == mLastSrcDisplayFrame);
-
-	if (mbDirect && mbSameAsLast) {
-		nextOrigDisplay = -1;
-		nextDisplay = -1;
+	if (outFrame < 0 || outFrame >= mMaxFrame) {
+		ent.mTimelineFrame = -1;
+		ent.mSourceFrame = -1;
+		ent.mbDirect = false;
+		ent.mbHoldFrame = true;
 	} else {
-		mpVideoSource->streamSetDesiredFrame(nextDisplay);
-		mLastSrcDisplayFrame = nextDisplay;
+		const InternalFrameEntry& ient = mFrameMap[(FrameMap::size_type)outFrame];
+
+		ent.mTimelineFrame = ient.mTimelineFrame;
+		ent.mSourceFrame = ient.mSourceFrameAndDirectFlag >> 1;
+		ent.mbDirect = ((int)ient.mSourceFrameAndDirectFlag & 1) != 0;
+		ent.mbHoldFrame = false;
+
+		if (!ent.mbDirect) {
+			VDPosition nextFrame = outFrame + 1;
+
+			// Note that we should hold frame on the last frame, if it's processed.
+			bool nextIsDirect = true;
+			if (nextFrame < mMaxFrame)
+				nextIsDirect = (mFrameMap[(FrameMap::size_type)nextFrame].mSourceFrameAndDirectFlag & 1) != 0;
+
+			ent.mbHoldFrame = nextIsDirect;
+		}
 	}
 
-	mSrcOrigDisplayFrame = nextOrigDisplay;
-	mSrcDisplayFrame = nextDisplay;
-	mSrcTargetSample = mpVideoSource->displayToStreamOrder(nextDisplay);
-	mSequenceFrame = mDstFrame;
-	++mDstFrame;
-
-	mbFirstSourceFrame = true;
-	return true;
+	return ent;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -486,6 +450,7 @@ void VDAudioPipeline::EndWrite(int actual) {
 
 VDLoopThrottle::VDLoopThrottle()
 	: mThrottleFactor(1.0f)
+	, mActivityRatio(1.0f)
 	, mWaitDepth(0)
 	, mWaitTime(0)
 	, mLastTime(0)
@@ -504,10 +469,8 @@ VDLoopThrottle::~VDLoopThrottle() {
 bool VDLoopThrottle::Delay() {
 	float desiredRatio = mThrottleFactor;
 
-	if (desiredRatio >= 1.0f)
-		return true;
-
 	if (desiredRatio <= 0.0f) {
+		mActivityRatio = 0.0f;
 		::Sleep(100);
 		return false;
 	}
@@ -518,7 +481,15 @@ bool VDLoopThrottle::Delay() {
 		float delta = mActiveTimeWindowSum - total * mThrottleFactor;
 
 		mWaitTime += delta * (0.1f / 16.0f);
+
+		mActivityRatio = (float)mActiveTimeWindowSum / (float)total;
 	}
+
+	if (desiredRatio >= 1.0f) {
+		mWaitTime = 0.0f;
+		return true;
+	}
+
 
 	if (mWaitTime > 0) {
 		int delayTime = VDRoundToInt(mWaitTime);
@@ -578,4 +549,6 @@ void VDLoopThrottle::EndWait() {
 		mLastTime = currentTime;
 		mbLastTimeValid = true;
 	}
+
+	VDASSERT(mWaitDepth >= 0);
 }

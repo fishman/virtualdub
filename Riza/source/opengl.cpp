@@ -27,6 +27,7 @@ namespace {
 		"wglMakeCurrent",
 		"wglGetProcAddress",
 		"wglSwapBuffers",
+		"wglUseFontBitmapsA",
 	};
 
 	static const char *const kGLFunctions[]={
@@ -39,6 +40,7 @@ namespace {
 		"glClearColor",
 		"glColor4d",
 		"glColor4f",
+		"glColor4ub",
 		"glColorMask",
 		"glCopyTexSubImage2D",
 		"glDeleteLists",
@@ -53,6 +55,7 @@ namespace {
 		"glFeedbackBuffer",
 		"glFinish",
 		"glFlush",
+		"glFrontFace",
 		"glGetError",
 		"glGetFloatv",
 		"glGetIntegerv",
@@ -73,15 +76,19 @@ namespace {
 		"glRenderMode",
 		"glTexCoord2d",
 		"glTexCoord2f",
+		"glTexCoord2fv",
+		"glTexEnvf",
 		"glTexEnvi",
 		"glTexImage1D",
 		"glTexImage2D",
 		"glTexParameterfv",
 		"glTexParameteri",
+		"glTexSubImage1D",
 		"glTexSubImage2D",
 		"glVertex2d",
 		"glVertex2f",
 		"glVertex2i",
+		"glVertex3fv",
 		"glViewport",
 	};
 
@@ -164,6 +171,76 @@ namespace {
 		"glFramebufferRenderbufferEXT",
 		"glGetFramebufferAttachmentParameterivEXT",
 		"glGenerateMipmapEXT",
+
+		// ARB_vertex_program
+		"glVertexAttrib1sARB",
+		"glVertexAttrib1fARB",
+		"glVertexAttrib1dARB",
+		"glVertexAttrib2sARB",
+		"glVertexAttrib2fARB",
+		"glVertexAttrib2dARB",
+		"glVertexAttrib3sARB",
+		"glVertexAttrib3fARB",
+		"glVertexAttrib3dARB",
+		"glVertexAttrib4sARB",
+		"glVertexAttrib4fARB",
+		"glVertexAttrib4dARB",
+		"glVertexAttrib4NubARB",
+		"glVertexAttrib1svARB",
+		"glVertexAttrib1fvARB",
+		"glVertexAttrib1dvARB",
+		"glVertexAttrib2svARB",
+		"glVertexAttrib2fvARB",
+		"glVertexAttrib2dvARB",
+		"glVertexAttrib3svARB",
+		"glVertexAttrib3fvARB",
+		"glVertexAttrib3dvARB",
+		"glVertexAttrib4bvARB",
+		"glVertexAttrib4svARB",
+		"glVertexAttrib4ivARB",
+		"glVertexAttrib4ubvARB",
+		"glVertexAttrib4usvARB",
+		"glVertexAttrib4uivARB",
+		"glVertexAttrib4fvARB",
+		"glVertexAttrib4dvARB",
+		"glVertexAttrib4NbvARB",
+		"glVertexAttrib4NsvARB",
+		"glVertexAttrib4NivARB",
+		"glVertexAttrib4NubvARB",
+		"glVertexAttrib4NusvARB",
+		"glVertexAttrib4NuivARB",
+		"glVertexAttribPointerARB",
+		"glEnableVertexAttribArrayARB",
+		"glDisableVertexAttribArrayARB",
+		"glProgramStringARB",
+		"glBindProgramARB",
+		"glDeleteProgramsARB",
+		"glGenProgramsARB",
+		"glProgramEnvParameter4dARB",
+		"glProgramEnvParameter4dvARB",
+		"glProgramEnvParameter4fARB",
+		"glProgramEnvParameter4fvARB",
+		"glProgramLocalParameter4dARB",
+		"glProgramLocalParameter4dvARB",
+		"glProgramLocalParameter4fARB",
+		"glProgramLocalParameter4fvARB",
+		"glGetProgramEnvParameterdvARB",
+		"glGetProgramEnvParameterfvARB",
+		"glGetProgramLocalParameterdvARB",
+		"glGetProgramLocalParameterfvARB",
+		"glGetProgramivARB",
+		"glGetProgramStringARB",
+		"glGetVertexAttribdvARB",
+		"glGetVertexAttribfvARB",
+		"glGetVertexAttribivARB",
+		"glGetVertexAttribPointervARB",
+		"glIsProgramARB",
+
+		// EXT_blend_minmax
+		"glBlendEquationEXT",
+
+		// EXT_secondary_color
+		"glSecondaryColor3ubEXT",
 
 		// WGL_ARB_extensions_string
 		"wglGetExtensionsStringARB",
@@ -275,14 +352,20 @@ bool VDOpenGLBinding::Attach(HDC hdc, int minColorBits, int minAlphaBits, int mi
 
 	const char *ext = (const char *)glGetString(GL_EXTENSIONS);
 
+	ARB_fragment_program = false;
 	ARB_multitexture = false;
+	ARB_pixel_buffer_object = false;
+	ARB_vertex_program = false;
+	ATI_fragment_shader = false;
+	EXT_blend_minmax = false;
+	EXT_blend_subtract = false;
+	EXT_framebuffer_object = false;
+	EXT_pixel_buffer_object = false;
+	EXT_texture_env_combine = false;
+	EXT_texture_edge_clamp = false;
+	NV_occlusion_query = false;
 	NV_register_combiners = false;
 	NV_register_combiners2 = false;
-	NV_occlusion_query = false;
-	ATI_fragment_shader = false;
-	EXT_pixel_buffer_object = false;
-	ARB_pixel_buffer_object = false;
-	EXT_texture_env_combine = false;
 
 	if (ext) {
 		for(;;) {
@@ -302,16 +385,34 @@ bool VDOpenGLBinding::Attach(HDC hdc, int minColorBits, int minAlphaBits, int mi
 			case 19:
 				if (!memcmp(start, "GL_ARB_multitexture", 19))
 					ARB_multitexture = true;
+				else if (!memcmp(start, "GL_EXT_blend_minmax", 19))
+					EXT_blend_minmax = true;
 				break;
+
+			case 20:
+				if (!memcmp(start, "GL_EXT_blend_subtract", 20))
+					EXT_blend_subtract = true;
+				break;
+
 			case 21:
 				if (!memcmp(start, "GL_NV_occlusion_query", 21))
 					NV_occlusion_query = true;
+				else if (!memcmp(start, "GL_ARB_vertex_program", 21))
+					ARB_vertex_program = true;
 				break;
 
 			case 22:
 				if (!memcmp(start, "GL_ATI_fragment_shader", 22))
 					ATI_fragment_shader = true;
+				else if (!memcmp(start, "GL_EXT_secondary_color", 22))
+					EXT_secondary_color = true;
 				break;
+
+			case 23:
+				if (!memcmp(start, "GL_ARB_fragment_program", 23))
+					ARB_fragment_program = true;
+				break;
+
 			case 24:
 				if (!memcmp(start, "GL_NV_register_combiners", 24))
 					NV_register_combiners = true;
@@ -321,6 +422,8 @@ bool VDOpenGLBinding::Attach(HDC hdc, int minColorBits, int minAlphaBits, int mi
 					NV_register_combiners2 = true;
 				else if (!memcmp(start, "GL_EXT_framebuffer_object", 25))
 					EXT_framebuffer_object = true;
+				else if (!memcmp(start, "GL_EXT_texture_edge_clamp", 25))
+					EXT_texture_edge_clamp = true;
 				break;
 			case 26:
 				if (!memcmp(start, "GL_EXT_pixel_buffer_object", 26))

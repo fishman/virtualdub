@@ -20,9 +20,8 @@
 #include "stdafx.h"
 
 #include <windows.h>
-#include <commctrl.h>
-#include <vfw.h>
 #include <vd2/Riza/display.h>
+#include <vd2/system/w32assist.h>
 
 #include "oshelper.h"
 
@@ -55,7 +54,7 @@ public:
 private:
 	LRESULT WndProc(UINT msg, WPARAM wParam, LPARAM lParam);
 	void OnPaint();
-	void OnMouseMove(int x, int y);
+	void OnMouseMove(int x, int y, int mods);
 	void OnLButtonDown(int x, int y);
 	LRESULT OnNcHitTest(int x, int y);
 	bool OnSetCursor(UINT htcode, UINT mousemsg);
@@ -162,7 +161,7 @@ LRESULT VDClippingControlOverlay::WndProc(UINT msg, WPARAM wParam, LPARAM lParam
 	case WM_NCHITTEST:
 		return OnNcHitTest((SHORT)LOWORD(lParam), (SHORT)HIWORD(lParam));
 	case WM_MOUSEMOVE:
-		OnMouseMove((SHORT)LOWORD(lParam), (SHORT)HIWORD(lParam));
+		OnMouseMove((SHORT)LOWORD(lParam), (SHORT)HIWORD(lParam), wParam);
 		return 0;
 	case WM_LBUTTONDOWN:
 		OnLButtonDown((SHORT)LOWORD(lParam), (SHORT)HIWORD(lParam));
@@ -225,12 +224,30 @@ void VDClippingControlOverlay::OnPaint() {
 	}
 }
 
-void VDClippingControlOverlay::OnMouseMove(int x, int y) {
+void VDClippingControlOverlay::OnMouseMove(int x, int y, int mods) {
 	if (mDragPoleX>=0 || mDragPoleY>=0) {
+		bool roundoff = (mods & MK_SHIFT) != 0;
 
 		if (mDragPoleX>=0) {
-			double v = std::min<double>(std::max<double>(0.0, (x-mX+1) / (double)(mWidth + 1)), 1.0);
+			double v = (x-mX+1) / (double)(mWidth + 1);
 			int i;
+
+			if (roundoff && mSourceWidth) {
+				if (mDragPoleX == 0) {
+					int x2 = VDRoundToLong(mSourceWidth * mXBounds[1]);
+
+					v = (x2 - ((x2 - VDRoundToLong(mSourceWidth * v) + 8) & ~15)) * mInvSourceWidth;
+				} else {
+					int x1 = VDRoundToLong(mSourceWidth * mXBounds[0]);
+
+					v = (x1 + ((VDRoundToLong(mSourceWidth * v) - x1 + 8) & ~15)) * mInvSourceWidth;
+				}
+			}
+
+			if (v > 1.0)
+				v = 1.0;
+			if (v < 0.0)
+				v = 0.0;
 
 			mXBounds[mDragPoleX] = v;
 
@@ -242,8 +259,25 @@ void VDClippingControlOverlay::OnMouseMove(int x, int y) {
 		}
 
 		if (mDragPoleY>=0) {
-			double v = std::min<double>(std::max<double>(0.0, (y-mY+1) / (double)(mHeight + 1)), 1.0);
+			double v = (y-mY+1) / (double)(mHeight + 1);
 			int i;
+
+			if (roundoff && mSourceHeight) {
+				if (mDragPoleY == 0) {
+					int y2 = VDRoundToLong(mSourceHeight * mYBounds[1]);
+
+					v = (y2 - ((y2 - VDRoundToLong(mSourceHeight * v) + 8) & ~15)) * mInvSourceHeight;
+				} else {
+					int y1 = VDRoundToLong(mSourceHeight * mYBounds[0]);
+
+					v = (y1 + ((VDRoundToLong(mSourceHeight * v) - y1 + 8) & ~15)) * mInvSourceHeight;
+				}
+			}
+
+			if (v > 1.0)
+				v = 1.0;
+			if (v < 0.0)
+				v = 0.0;
 
 			mYBounds[mDragPoleY] = v;
 
@@ -380,7 +414,9 @@ private:
 		kIDC_Y2_EDIT		= 510,
 		kIDC_Y2_SPIN		= 511,
 		kIDC_POSITION		= 512,
-		kIDC_VIDEODISPLAY	= 513
+		kIDC_VIDEODISPLAY	= 513,
+		kIDC_SIZE_LABEL		= 514,
+		kIDC_SIZE			= 515
 	};
 
 	VDClippingControl(HWND hwnd);
@@ -602,15 +638,25 @@ void VDClippingControl::ResetDisplayBounds() {
 	int scaledy1 = VDCeilToInt(y1 * mInvSourceHeight * mDisplayHeight - 0.5);
 	int scaledx2 = VDCeilToInt((1.0 - x2*mInvSourceWidth ) * mDisplayWidth  - 0.5);
 	int scaledy2 = VDCeilToInt((1.0 - y2*mInvSourceHeight) * mDisplayHeight - 0.5);
+	int w = 0;
+	int h = 0;
 
 	if (scaledx1 >= scaledx2 || scaledy1 >= scaledy2)
 		ShowWindow(hwndDisplay, SW_HIDE);
 	else {
 		ShowWindow(hwndDisplay, SW_SHOWNA);
 		vdrect32 r(x1, y1, mSourceWidth - x2, mSourceHeight - y2);
+
+		w = r.width();
+		h = r.height();
+
 		pVD->SetSourceSubrect(&r);
 		SetWindowPos(hwndDisplay, NULL, mOverlayX+4+scaledx1, mOverlayY+4+scaledy1, scaledx2-scaledx1, scaledy2-scaledy1, SWP_NOACTIVATE|SWP_NOCOPYBITS|SWP_NOZORDER);
 	}
+
+	HWND hwndSize = GetDlgItem(mhwnd, kIDC_SIZE);
+	if (hwndSize)
+		VDSetWindowTextFW32(hwndSize, L"%dx%u", w, h);
 }
 
 bool VDClippingControl::VerifyParams() {
@@ -685,18 +731,31 @@ LRESULT VDClippingControl::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			mOverlayY = (14*duY)/8;
 
 			fInhibitRefresh = true;
-			CreateWindowEx(0				,"STATIC"		,NULL,WS_CHILD | SS_LEFT							,( 0*duX)/4, ( 2*duY)/8, (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_X1_STATIC	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,NULL,WS_TABSTOP | WS_CHILD | ES_LEFT | ES_NUMBER				,(23*duX)/4, ( 0*duY)/8, (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X1_EDIT	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,NULL,WS_CHILD | UDS_AUTOBUDDY | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT, 0, 0,	 ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X1_SPIN	, g_hInst, NULL);
-			CreateWindowEx(0				,"STATIC"		,NULL,WS_CHILD | SS_LEFT							,( 0*duX)/4, (16*duY)/8, (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_Y1_STATIC	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,NULL,WS_TABSTOP | WS_CHILD | ES_LEFT | ES_NUMBER				,(23*duX)/4, (14*duY)/8, (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y1_EDIT	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,NULL,WS_CHILD | UDS_AUTOBUDDY | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT, 0, 0,	 ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y1_SPIN	, g_hInst, NULL);
-			CreateWindowEx(0				,"STATIC"		,NULL,WS_CHILD | SS_LEFT							,0         , 0         , (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_X2_STATIC	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,NULL,WS_TABSTOP | WS_CHILD | ES_LEFT | ES_NUMBER				,0         , 0         , (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X2_EDIT	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,NULL,WS_CHILD | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT	,0         , 0         , ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X2_SPIN	, g_hInst, NULL);
-			CreateWindowEx(0				,"STATIC"		,NULL,WS_CHILD | SS_LEFT							,0         , 0         , (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_Y2_STATIC	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,NULL,WS_TABSTOP | WS_CHILD | ES_LEFT | ES_NUMBER				,0         , 0         , (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y2_EDIT	, g_hInst, NULL);
-			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,NULL,WS_CHILD | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT	,0         , 0         , ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y2_SPIN	, g_hInst, NULL);
+
+			// x1
+			CreateWindowEx(0				,"STATIC"		,"X1 offset"  ,WS_CHILD | SS_LEFT							,( 0*duX)/4, ( 2*duY)/8, (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_X1_STATIC	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,""  ,WS_CHILD | WS_TABSTOP | ES_LEFT | ES_NUMBER				,(23*duX)/4, ( 0*duY)/8, (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X1_EDIT	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,""  ,WS_CHILD | UDS_AUTOBUDDY | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT, 0, 0,	 ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X1_SPIN	, g_hInst, NULL);
+			
+			// x2
+			CreateWindowEx(0				,"STATIC"		,"X2 offset"  ,WS_CHILD | SS_LEFT							,0         , 0         , (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_X2_STATIC	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,""  ,WS_CHILD | WS_TABSTOP | ES_LEFT | ES_NUMBER				,0         , 0         , (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X2_EDIT	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,""  ,WS_CHILD | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT	,0         , 0         , ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_X2_SPIN	, g_hInst, NULL);
+
+			// y1
+			CreateWindowEx(0				,"STATIC"		,"Y1 offset"  ,WS_CHILD | SS_LEFT							,( 0*duX)/4, (16*duY)/8, (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_Y1_STATIC	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,""  ,WS_CHILD | WS_TABSTOP | ES_LEFT | ES_NUMBER				,(23*duX)/4, (14*duY)/8, (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y1_EDIT	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,""  ,WS_CHILD | UDS_AUTOBUDDY | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT, 0, 0,	 ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y1_SPIN	, g_hInst, NULL);
+
+			// size
+			CreateWindowEx(0, "STATIC", "Size", WS_CHILD | SS_LEFT, 0, (26*duY)/8, (47*duX)/8, duY, mhwnd, (HMENU)kIDC_SIZE_LABEL, g_hInst, NULL);
+			CreateWindowEx(0, "STATIC", "320x240", WS_CHILD | SS_LEFT, 0, (34*duY)/8, (47*duX)/8, (10*duY)/8, mhwnd, (HMENU)kIDC_SIZE, g_hInst, NULL);
+						
+			// y2
+			CreateWindowEx(0				,"STATIC"		,"Y2 offset"  ,WS_CHILD | SS_LEFT							,0         , 0         , (22*duX)/4, ( 8*duY)/8, mhwnd, (HMENU)kIDC_Y2_STATIC	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	, "EDIT"		,""  ,WS_CHILD | WS_TABSTOP | ES_LEFT | ES_NUMBER				,0         , 0         , (24*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y2_EDIT	, g_hInst, NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE	,UPDOWN_CLASS	,""  ,WS_CHILD | UDS_ALIGNRIGHT	| UDS_SETBUDDYINT	,0         , 0         , ( 2*duX)/4, (10*duY)/8, mhwnd, (HMENU)kIDC_Y2_SPIN	, g_hInst, NULL);
+			
 			HWND hwndDisplay = (HWND)VDCreateDisplayWindowW32(0, WS_CHILD, 0, 0, 0, 0, (VDGUIHandle)mhwnd);
 			SetWindowLong(hwndDisplay, GWL_ID, kIDC_VIDEODISPLAY);
 

@@ -104,84 +104,26 @@ class VDRenderFrameMap {
 public:
 	struct FrameEntry {
 		VDPosition	mTimelineFrame;
-		VDPosition	mDisplayFrame;
-		VDPosition	mOrigDisplayFrame;
-		int			mSrcIndex;
+		VDPosition	mSourceFrame;		///< If -1, a drop frame should be written.
+		bool		mbDirect;			///< Set if this frame should be copied directly.
+		bool		mbHoldFrame;		///< Set if this frame is not followed by a processed frame.
 	};
 
-	void		Init(const vdfastvector<IVDVideoSource *>& videoSources, VDPosition nSrcStart, VDFraction srcStep, const FrameSubset *pSubset, VDPosition nFrameCount, bool bDirect, const FilterSystem *pRemapperFS);
+	void Init(const vdfastvector<IVDVideoSource *>& videoSources, VDPosition nSrcStart, VDFraction srcStep, const FrameSubset *pSubset, VDPosition nFrameCount, bool allowDirect, bool forceDirect, bool preserveEmptyFrames, const FilterSystem *pRemapperFS);
 
 	VDPosition	size() const { return mFrameMap.size(); }
 
-	const FrameEntry& operator[](VDPosition outFrame) const {
-		return outFrame>=0 && outFrame<mMaxFrame ? mFrameMap[(tFrameMap::size_type)outFrame] : mInvalidEntry;
-	}
+	const FrameEntry operator[](VDPosition outFrame) const;
 
 protected:
-	typedef vdfastvector<FrameEntry> tFrameMap;
-	tFrameMap mFrameMap;
+	struct InternalFrameEntry {
+		VDPosition	mTimelineFrame;
+		VDPosition	mSourceFrameAndDirectFlag;
+	};
+
+	typedef vdfastvector<InternalFrameEntry> FrameMap;
+	FrameMap mFrameMap;
 	VDPosition mMaxFrame;
-	FrameEntry	mInvalidEntry;
-};
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	VDRenderFrameIterator
-//
-//	Render frame iterators sequentially walk down a frame render map,
-//	returning a list of display frames to be processed, and the stream
-//	frames that must be fetched to decode them.
-//
-///////////////////////////////////////////////////////////////////////////
-
-struct VDRenderFrameStep {
-	VDPosition	mSourceFrame;
-	VDPosition	mTargetSample;
-	VDPosition	mOrigDisplayFrame;
-	VDPosition	mDisplayFrame;
-	VDPosition	mTimelineFrame;
-	VDPosition	mSequenceFrame;
-	bool		mbIsPreroll;
-	bool		mbDirect;
-	bool		mbSameAsLast;
-	int			mSrcIndex;
-};
-
-class VDRenderFrameIterator {
-public:
-	VDRenderFrameIterator(const VDRenderFrameMap& frameMap) : mFrameMap(frameMap) {}
-
-	void		Init(const vdfastvector<IVDVideoSource *>& videoSources, bool bDirect, bool bSmart, const FilterSystem *filtsys);
-	VDRenderFrameStep	Next();
-
-protected:
-	bool		Reload();
-	void		ReloadQueue(sint32 nCount);
-	long		ConvertToIdealRawFrame(sint64 frame);
-
-	const VDRenderFrameMap&	mFrameMap;
-
-	int			mSrcIndex;
-	int			mLastSrcIndex;
-	VDPosition	mSrcTimelineFrame;
-	VDPosition	mSrcOrigDisplayFrame;
-	VDPosition	mSrcDisplayFrame;
-	VDPosition	mSrcTargetSample;
-	VDPosition	mLastSrcDisplayFrame;
-	VDPosition	mSequenceFrame;
-	VDPosition	mDstFrame;
-	VDPosition	mDstFrameQueueNext;
-
-	vdfastvector<IVDVideoSource *> mVideoSources;
-	IVDVideoSource *mpVideoSource;
-
-	const FilterSystem	*mpFilterSystem;
-
-	bool		mbDirect;
-	bool		mbSmart;
-	bool		mbSameAsLast;
-	bool		mbFirstSourceFrame;
-	bool		mbFinished;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -228,6 +170,10 @@ public:
 
 	bool full() const {
 		return mBuffer.full();
+	}
+
+	int size() const {
+		return mBuffer.size();
 	}
 
 	int getLevel() const {
@@ -279,6 +225,10 @@ public:
 	VDLoopThrottle();
 	~VDLoopThrottle();
 
+	float GetActivityRatio() const {
+		return mActivityRatio;
+	}
+
 	void SetThrottleFactor(float factor) {
 		mThrottleFactor = factor;
 	}
@@ -290,6 +240,7 @@ public:
 
 protected:
 	VDAtomicFloat	mThrottleFactor;
+	VDAtomicFloat	mActivityRatio;
 	int		mWaitDepth;
 	float	mWaitTime;
 	uint32	mLastTime;

@@ -81,6 +81,18 @@ protected:
 	vdblock<sint32, vdaligned_alloc<sint32> >	mFilterBank;
 };
 
+class VDResamplerRowStageSeparableTable32F : public IVDResamplerSeparableRowStage {
+public:
+	VDResamplerRowStageSeparableTable32F(const IVDResamplerFilter& filter);
+
+	int GetWindowSize() const;
+
+	void Process(void *dst0, const void *src0, uint32 w, uint32 u, uint32 dudx);
+
+protected:
+	vdblock<float, vdaligned_alloc<float> >	mFilterBank;
+};
+
 class VDResamplerRowStageSeparableTable32Fx4 : public IVDResamplerSeparableRowStage {
 public:
 	VDResamplerRowStageSeparableTable32Fx4(const IVDResamplerFilter& filter);
@@ -115,6 +127,18 @@ public:
 
 protected:
 	vdblock<sint32, vdaligned_alloc<sint32> >	mFilterBank;
+};
+
+class VDResamplerColStageSeparableTable32F : public IVDResamplerSeparableColStage {
+public:
+	VDResamplerColStageSeparableTable32F(const IVDResamplerFilter& filter);
+
+	int GetWindowSize() const;
+
+	void Process(void *dst0, const void *const *src0, uint32 w, sint32 phase);
+
+protected:
+	vdblock<float, vdaligned_alloc<float> >	mFilterBank;
 };
 
 class VDResamplerColStageSeparableTable32Fx4 : public IVDResamplerSeparableColStage {

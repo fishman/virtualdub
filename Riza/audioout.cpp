@@ -22,6 +22,8 @@
 #include <dsound.h>
 
 #include <vd2/system/math.h>
+#include <vd2/system/text.h>
+#include <vd2/system/VDString.h>
 #include <vd2/Riza/audioout.h>
 
 extern HINSTANCE g_hInst;
@@ -31,7 +33,7 @@ public:
 	VDAudioOutputWaveOutW32();
 	~VDAudioOutputWaveOutW32();
 
-	bool	Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf);
+	bool	Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf, const wchar_t *preferredDevice);
 	void	Shutdown();
 	void	GoSilent();
 
@@ -100,7 +102,26 @@ VDAudioOutputWaveOutW32::~VDAudioOutputWaveOutW32() {
 	Shutdown();
 }
 
-bool VDAudioOutputWaveOutW32::Init(uint32 bufsize, uint32 bufcount, const WAVEFORMATEX *wf) {
+bool VDAudioOutputWaveOutW32::Init(uint32 bufsize, uint32 bufcount, const WAVEFORMATEX *wf, const wchar_t *preferredDevice) {
+	UINT deviceID = WAVE_MAPPER;
+
+	if (preferredDevice && *preferredDevice) {
+		UINT numDevices = waveOutGetNumDevs();
+
+		for(UINT i=0; i<numDevices; ++i) {
+			WAVEOUTCAPSA caps = {0};
+
+			if (MMSYSERR_NOERROR == waveOutGetDevCapsA(i, &caps, sizeof(caps))) {
+				const VDStringW key(VDTextAToW(caps.szPname).c_str());
+
+				if (key == preferredDevice) {
+					deviceID = i;
+					break;
+				}
+			}
+		}
+	}
+
 	mBuffer.resize(bufsize * bufcount);
 	mBlockHead = 0;
 	mBlockTail = 0;
@@ -116,7 +137,7 @@ bool VDAudioOutputWaveOutW32::Init(uint32 bufsize, uint32 bufcount, const WAVEFO
 			return false;
 	}
 
-	MMRESULT res = waveOutOpen(&mhWaveOut, WAVE_MAPPER, wf, (DWORD_PTR)mhWaveEvent, 0, CALLBACK_EVENT);
+	MMRESULT res = waveOutOpen(&mhWaveOut, deviceID, wf, (DWORD_PTR)mhWaveEvent, 0, CALLBACK_EVENT);
 	if (MMSYSERR_NOERROR != res) {
 		Shutdown();
 		return false;
@@ -464,7 +485,7 @@ public:
 	VDAudioOutputDirectSoundW32();
 	~VDAudioOutputDirectSoundW32();
 
-	bool	Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf);
+	bool	Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf, const wchar_t *preferredDevice);
 	void	Shutdown();
 	void	GoSilent();
 
@@ -523,7 +544,7 @@ VDAudioOutputDirectSoundW32::VDAudioOutputDirectSoundW32()
 VDAudioOutputDirectSoundW32::~VDAudioOutputDirectSoundW32() {
 }
 
-bool VDAudioOutputDirectSoundW32::Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf) {
+bool VDAudioOutputDirectSoundW32::Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf, const wchar_t *preferredDevice) {
 	if (!Init2(bufsize, bufcount, wf)) {
 		Shutdown();
 		return false;

@@ -66,6 +66,38 @@ bool VDCreateD3D9TextureGeneratorFullSizeRTT(IVDD3D9TextureGenerator **ppGenerat
 
 ///////////////////////////////////////////////////////////////////////////
 
+class VDD3D9TextureGeneratorFullSizeRTT16F : public vdrefcounted<IVDD3D9TextureGenerator> {
+public:
+	bool GenerateTexture(VDD3D9Manager *pManager, IVDD3D9Texture *pTexture) {
+		const D3DPRESENT_PARAMETERS& parms = pManager->GetPresentParms();
+
+		int w = parms.BackBufferWidth;
+		int h = parms.BackBufferHeight;
+
+		pManager->AdjustTextureSize(w, h);
+
+		IDirect3DDevice9 *dev = pManager->GetDevice();
+		IDirect3DTexture9 *tex;
+		HRESULT hr = dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &tex, NULL);
+		if (FAILED(hr))
+			return false;
+
+		pTexture->SetD3DTexture(tex);
+		tex->Release();
+		return true;
+	}
+};
+
+bool VDCreateD3D9TextureGeneratorFullSizeRTT16F(IVDD3D9TextureGenerator **ppGenerator) {
+	*ppGenerator = new VDD3D9TextureGeneratorFullSizeRTT16F;
+	if (!*ppGenerator)
+		return false;
+	(*ppGenerator)->AddRef();
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 
 #define D3D_AUTOBREAK_2(x) if (FAILED(hr = x)) { VDASSERT(!"VideoDriver/D3DFX: Direct3D call failed: "#x); goto d3d_failed; } else ((void)0)
 #define D3D_AUTOBREAK(x) if ((hr = mpD3DDevice->x), FAILED(hr)) { VDASSERT(!"VideoDriver/D3DFX: Direct3D call failed: "#x); goto d3d_failed; } else ((void)0)
@@ -709,7 +741,7 @@ bool VDVideoDisplayMinidriverD3DFX::Init(HWND hwnd, const VDVideoDisplaySourceIn
 		return false;
 	}
 
-	if (!mpUploadContext->Init(info.pixmap, info.bAllowConversion, mhPrevSrc2Texture ? 3 : mhPrevSrcTexture ? 2 : 1)) {
+	if (!mpUploadContext->Init(info.pixmap, info.bAllowConversion, false, mhPrevSrc2Texture ? 3 : mhPrevSrcTexture ? 2 : 1)) {
 		Shutdown();
 		return false;
 	}

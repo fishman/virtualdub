@@ -389,6 +389,24 @@ const vdint128 vdint128::operator*(const vdint128& x) const {
 	return (q[1]^x.q[1])<0 ? -(const vdint128&)bd : (const vdint128&)bd;
 }
 
+const vdint128 vdint128::operator/(int x) const {
+	vdint128 r;
+	sint64 accum;
+
+	r.d[3] = d[3] / x;
+	
+	accum = ((sint64)(d[3] % x) << 32) + d[2];
+	r.d[2] = (sint32)(accum / x);
+
+	accum = ((accum % x) << 32) + d[1];
+	r.d[1] = (sint32)(accum / x);
+
+	accum = ((accum % x) << 32) + d[0];
+	r.d[0] = (sint32)(accum / x);
+
+	return r;
+}
+
 vdint128::operator double() const {
 	return (double)(unsigned long)q[0]
 		+ ldexp((double)(unsigned long)((unsigned __int64)q[0]>>32), 32)

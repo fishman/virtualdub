@@ -69,6 +69,7 @@
 #include "capture.h"
 #include "captureui.h"
 #include "version.h"
+#include "FilterInstance.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -90,6 +91,8 @@ extern LONG __stdcall CrashHandler(struct _EXCEPTION_POINTERS *ExceptionInfo, bo
 extern void FreeCompressor(COMPVARS *pCompVars);
 extern LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam);
 extern void DetectDivX();
+
+void VDDumpChangeLog();
 
 bool InitApplication(HINSTANCE hInstance);
 bool InitInstance( HANDLE hInstance, int nCmdShow);
@@ -356,7 +359,7 @@ bool Init(HINSTANCE hInstance, int nCmdShow, VDCommandLine& cmdLine) {
 
 		VDLog(kVDLogInfo, s);
 		VDLog(kVDLogInfo, VDswprintf(
-				L"Copyright (C) Avery Lee 1998-2008. Licensed under GNU General Public License\n"
+				L"Copyright (C) Avery Lee 1998-2009. Licensed under GNU General Public License\n"
 				,1
 				,&version_num));
 	}
@@ -367,7 +370,7 @@ bool Init(HINSTANCE hInstance, int nCmdShow, VDCommandLine& cmdLine) {
 
 	AVIFileInit();
 
-	VDRegistryAppKey::setDefaultKey("Software\\Freeware\\VirtualDub\\");
+	VDRegistryAppKey::setDefaultKey("Software\\VirtualDub.org\\VirtualDub\\");
 	VDLoadFilespecSystemData();
 
 	LoadPreferences();
@@ -483,7 +486,7 @@ void Deinit() {
 	VDCHECKPOINT;
 
 	while(fa = (FilterInstance *)g_listFA.RemoveHead()) {
-		fa->Destroy();
+		fa->Release();
 	}
 
 	VDCHECKPOINT;
@@ -804,6 +807,9 @@ int VDProcessCommandLine(const VDCommandLine& cmdLine) {
 
 					g_capProjectUI->Capture();
 				}
+				else if (!wcscmp(token, L"changelog")) {
+					VDDumpChangeLog();
+				}
 				else if (!wcscmp(token, L"cmd")) {
 					if (!cmdLine.GetNextNonSwitchArgument(it, token))
 						throw MyError("Command line error: syntax is /cmd <script>");
@@ -931,11 +937,8 @@ int VDProcessCommandLine(const VDCommandLine& cmdLine) {
 				}
 				else if (!wcscmp(token, L"r")) {
 					JobUnlockDubber();
-					bool success = JobRunList();
+					JobRunList();
 					JobLockDubber();
-
-					if (!success)
-						break;
 				}
 				else if (!wcscmp(token, L"s")) {
 					if (!cmdLine.GetNextNonSwitchArgument(it, token))

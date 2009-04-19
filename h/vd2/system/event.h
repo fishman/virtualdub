@@ -75,14 +75,24 @@ public:
 template<class T, class Source, class ArgType>
 struct VDDelegateAdapterS {
 	typedef void (T::*T_Fn)(Source *, const ArgType&);
+	typedef void (T::*T_Fn2)(Source *, ArgType);
 
 	static void Init(VDDelegate& dst, T_Fn fn) {
 		dst.mpCallback = Fn;
 		dst.mpFnS = reinterpret_cast<void(VDDelegateHolderS::*)()>(fn);
 	}
 
+	static void Init(VDDelegate& dst, T_Fn2 fn) {
+		dst.mpCallback = Fn2;
+		dst.mpFnS = reinterpret_cast<void(VDDelegateHolderS::*)()>(fn);
+	}
+
 	static void Fn(void *src, const void *info, VDDelegate& del) {
 		return (((T *)del.mpObj)->*reinterpret_cast<T_Fn>(del.mpFnS))(static_cast<Source *>(src), *static_cast<const ArgType *>(info));
+	}
+
+	static void Fn2(void *src, const void *info, VDDelegate& del) {
+		return (((T *)del.mpObj)->*reinterpret_cast<T_Fn2>(del.mpFnS))(static_cast<Source *>(src), *static_cast<const ArgType *>(info));
 	}
 };
 
@@ -99,14 +109,24 @@ public:
 template<class T, class Source, class ArgType>
 struct VDDelegateAdapterM {
 	typedef void (T::*T_Fn)(Source *, const ArgType&);
+	typedef void (T::*T_Fn2)(Source *, ArgType);
 
 	static void Init(VDDelegate& dst, T_Fn fn) {
 		dst.mpCallback = Fn;
 		dst.mpFnM = reinterpret_cast<void(VDDelegateHolderM::*)()>(fn);
 	}
 
+	static void Init(VDDelegate& dst, T_Fn2 fn) {
+		dst.mpCallback = Fn2;
+		dst.mpFnM = reinterpret_cast<void(VDDelegateHolderM::*)()>(fn2);
+	}
+
 	static void Fn(void *src, const void *info, VDDelegate& del) {
 		return (((T *)del.mpObj)->*reinterpret_cast<T_Fn>(del.mpFnM))(static_cast<Source *>(src), *static_cast<const ArgType *>(info));
+	}
+
+	static void Fn2(void *src, const void *info, VDDelegate& del) {
+		return (((T *)del.mpObj)->*reinterpret_cast<T_Fn2>(del.mpFnM))(static_cast<Source *>(src), *static_cast<const ArgType *>(info));
 	}
 };
 
@@ -137,8 +157,14 @@ public:
 		return binding;
 	}
 
-protected:
-	template<int size, class T, class Source, class ArgType> void Set(void (T::*fn)(Source *, const ArgType&)) {
+	template<class T, class Source, class ArgType>
+	VDDelegateBinding<Source, ArgType> Bind(T *obj, void (T::*fn)(Source *, ArgType)) {
+		mpObj = obj;
+
+		VDDelegateAdapter<sizeof fn>::AdapterLookup<T, Source, ArgType>::result::Init(*this, fn);
+
+		VDDelegateBinding<Source, ArgType> binding = {this};
+		return binding;
 	}
 
 public:

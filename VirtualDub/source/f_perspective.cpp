@@ -73,7 +73,8 @@ namespace {
 	const char *const g_filterModes[]={
 		"Point sampling",
 		"Bilinear",
-		"Trilinear"
+		"Trilinear",
+		"Bicubic+MipLinear",
 	};
 };
 
@@ -139,7 +140,7 @@ static int perspective_run(const FilterActivation *fa, const FilterFunctions *ff
 	pxdst.w			= fa->dst.w;
 	pxdst.h			= fa->dst.h;
 
-	VDPixmapTextureMipmapChain	mipmaps(pxsrc, false, mfd->filtermode ? 16 : 1);
+	VDPixmapTextureMipmapChain	mipmaps(pxsrc, false, mfd->filtermode == 3, mfd->filtermode ? 16 : 1);
 
 	VDTriBltVertex trivx[8]={
 		{ -1, -1, 0, 0, 0 },
@@ -193,7 +194,9 @@ static int perspective_run(const FilterActivation *fa, const FilterFunctions *ff
 	VDPixmapTriFill(pxdst, 0, trivx, 8, fillmesh, 24, NULL);
 
 	// texture image
-	VDPixmapTriBlt(pxdst, mipmaps.Mips(), mipmaps.Levels(), trivx, 4, indices, 6, (VDTriBltFilterMode)mfd->filtermode, true, mx.data());
+	const float bias = -0.5f;
+
+	VDPixmapTriBlt(pxdst, mipmaps.Mips(), mipmaps.Levels(), trivx, 4, indices, 6, (VDTriBltFilterMode)mfd->filtermode, bias, mx.data());
 
 	return 0;
 }

@@ -19,14 +19,16 @@
 #include <algorithm>
 #include <math.h>
 #include <vd2/system/w32assist.h>
+#include <vd2/VDXFrame/VideoFilter.h>
+#include <vd2/VDXFrame/VideoFilterDialog.h>
 
 #include "ScriptValue.h"
 #include "filter.h"
 #include "resource.h"
-#include "f_base.h"
 
 #ifdef _M_IX86
 	#pragma warning(disable: 4799)		// warning C4799: function '`anonymous namespace'::CubicFilterH_MMX' has no EMMS instruction
+	#pragma warning(disable: 4505)		// warning C4505: 'VDXVideoFilter::[thunk]: __thiscall VDXVideoFilter::`vcall'{48,{flat}}' }'' : unreferenced local function has been removed
 #endif
 
 namespace {
@@ -53,24 +55,22 @@ namespace {
 
 int g_lengthTable[8192];
 
-class WarpResizeFilter : public VDVFilter<WarpResizeFilter>, public VDVFilterDialog {
+class WarpResizeFilter : public VDXVideoFilter, public VDXVideoFilterDialog {
 public:
 	WarpResizeFilter();
 
-	long GetParams();
+	uint32 GetParams();
 	void Start();
 	void End();
-	bool Run();
+	void Run();
 	bool Configure(VDXHWND hwnd);
 	void GetSettingString(char *buf, int maxlen);
 	void GetScriptString(char *buf, int maxlen);
-	int Serialize(char *, int);
-	int Deserialize(const char *, int);
 
-	static const ScriptFunctionDef sScriptMethods[];
+	VDXVF_DECLARE_SCRIPT_METHODS();
 
 protected:
-	static void ScriptConfigFunc(IScriptInterpreter *, void *, CScriptValue *, int);
+	void ScriptConfigFunc(IVDXScriptInterpreter *, const VDXScriptValue *, int);
 
 	INT_PTR DlgProc(UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -97,8 +97,8 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////
 
-extern FilterDefinition filterDef_warpresize = VDVFilterDefinition<WarpResizeFilter>(
-	"Avery Lee",
+extern const FilterDefinition filterDef_warpresize = VDXVideoFilterDefinition<WarpResizeFilter>(
+	NULL,
 	"warp resize",
 	"Stretches an image with edge-directed sharpening using a variant of the warpsharp algorithm."
 	);
@@ -111,13 +111,15 @@ WarpResizeFilter::WarpResizeFilter()
 {
 }
 
-long WarpResizeFilter::GetParams() {
+uint32 WarpResizeFilter::GetParams() {
 	fa->dst.w = mTargetWidth;
 	if (fa->dst.w < fa->src.w)
 		fa->dst.w = fa->src.w;
+
 	fa->dst.h = mTargetHeight;
 	if (fa->dst.h < fa->src.h)
 		fa->dst.h = fa->src.h;
+
 	fa->dst.offset = 0;
 	fa->dst.pitch = fa->dst.w * 4;
 	fa->dst.modulo = 0;
@@ -181,7 +183,7 @@ void WarpResizeFilter::End() {
 	mpTempRows = NULL;
 }
 
-bool WarpResizeFilter::Run() {
+void WarpResizeFilter::Run() {
 	ComputeGradientMap();
 
 	if (mbShowGradientMap) {
@@ -199,7 +201,6 @@ bool WarpResizeFilter::Run() {
 		ComputeBicubicImage();
 		ComputeFinalPass();
 	}
-	return true;
 }
 
 bool WarpResizeFilter::Configure(VDXHWND hwnd) {
@@ -264,14 +265,6 @@ void WarpResizeFilter::GetSettingString(char *buf, int maxlen) {
 void WarpResizeFilter::GetScriptString(char *buf, int maxlen) {
 	_snprintf(buf, maxlen, "Config(%u, %u, %d)", mTargetWidth, mTargetHeight, mbShowGradientMap);
 	buf[maxlen - 1] = 0;
-}
-
-int WarpResizeFilter::Serialize(char *, int) {
-	return 0;
-}
-
-int WarpResizeFilter::Deserialize(const char *, int) {
-	return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1478,20 +1471,16 @@ void WarpResizeFilter::ComputeFinalPass() {
 #endif
 }
 
-void WarpResizeFilter::ScriptConfigFunc(IScriptInterpreter *, void *obj, CScriptValue *argv, int argc) {
-	FilterActivation *fa = (FilterActivation *)obj;
-	WarpResizeFilter *pThis = (WarpResizeFilter *)fa->filter_data;
-
-	pThis->mTargetWidth = argv[0].asInt();
-	if (pThis->mTargetWidth < 1)
-		pThis->mTargetWidth = 1;
-	pThis->mTargetHeight = argv[1].asInt();
-	if (pThis->mTargetHeight < 1)
-		pThis->mTargetHeight = 1;
-	pThis->mbShowGradientMap = argv[2].asInt() != 0;
+void WarpResizeFilter::ScriptConfigFunc(IVDXScriptInterpreter *, const VDXScriptValue *argv, int argc) {
+	mTargetWidth = argv[0].asInt();
+	if (mTargetWidth < 1)
+		mTargetWidth = 1;
+	mTargetHeight = argv[1].asInt();
+	if (mTargetHeight < 1)
+		mTargetHeight = 1;
+	mbShowGradientMap = argv[2].asInt() != 0;
 }
 
-const ScriptFunctionDef WarpResizeFilter::sScriptMethods[]={
-	{ (ScriptFunctionPtr)ScriptConfigFunc, "Config", "0iii" },
-	{ NULL, NULL },
-};
+VDXVF_BEGIN_SCRIPT_METHODS(WarpResizeFilter)
+	VDXVF_DEFINE_SCRIPT_METHOD(WarpResizeFilter, ScriptConfigFunc, "iii")
+VDXVF_END_SCRIPT_METHODS()

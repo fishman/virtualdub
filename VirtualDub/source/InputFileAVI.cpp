@@ -815,7 +815,7 @@ INT_PTR APIENTRY InputFileAVI::_InfoDlgProc( HWND hDlg, UINT message, WPARAM wPa
 					sint64 len = pAS->getLength();
 
 					char *s = buf + sprintf(buf, "%I64d samples (", len);
-					DWORD ticks = VDRoundToInt(1000.0*len*fmt->mBlockSize/fmt->mDataRate);
+					uint32 ticks = VDRoundToInt32(1000.0 * len * pAS->getRate().AsInverseDouble());
 					ticks_to_str(s, (buf + sizeof(buf)/sizeof(buf[0])) - s, ticks);
 					sprintf(s+strlen(s),".%02d)", (ticks/10)%100);
 					SetDlgItemText(hDlg, IDC_AUDIO_LENGTH, buf);

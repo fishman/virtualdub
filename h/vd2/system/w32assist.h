@@ -67,6 +67,7 @@ void		VDAppendMenuW32(HMENU hmenu, UINT flags, UINT id, const wchar_t *text);
 void		VDCheckMenuItemByCommandW32(HMENU hmenu, UINT cmd, bool checked);
 void		VDCheckRadioMenuItemByCommandW32(HMENU hmenu, UINT cmd, bool checked);
 void		VDEnableMenuItemByCommandW32(HMENU hmenu, UINT cmd, bool checked);
+VDStringW	VDGetMenuItemTextByCommandW32(HMENU hmenu, UINT cmd);
 void		VDSetMenuItemTextByCommandW32(HMENU hmenu, UINT cmd, const wchar_t *text);
 
 LRESULT		VDDualCallWindowProcW32(WNDPROC wp, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);

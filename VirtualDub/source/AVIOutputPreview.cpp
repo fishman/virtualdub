@@ -26,6 +26,8 @@
 #include "AVIOutput.h"
 #include "AVIOutputPreview.h"
 
+const VDStringW& VDPreferencesGetAudioPlaybackDeviceKey();
+
 ///////////////////////////////////////////////////////////////////////////
 
 AVIAudioPreviewOutputStream::AVIAudioPreviewOutputStream()
@@ -50,6 +52,12 @@ AVIAudioPreviewOutputStream::~AVIAudioPreviewOutputStream() {
 	}
 }
 
+uint32 AVIAudioPreviewOutputStream::GetPreviewTime() {
+	sint32 t = mpAudioOut->GetPosition();
+
+	return t < 0 ? 0 : t;
+}
+
 void AVIAudioPreviewOutputStream::initAudio() {
 	const VDWaveFormat *pwfex = (const VDWaveFormat *)getFormat();
 	int blocks;
@@ -66,7 +74,7 @@ void AVIAudioPreviewOutputStream::initAudio() {
 
 	// Use the smaller value and allocate.
 
-	if (!mpAudioOut->Init(std::max<int>(blocks, blocksin512)*pwfex->mBlockSize, 10, (const tWAVEFORMATEX *)pwfex))
+	if (!mpAudioOut->Init(std::max<int>(blocks, blocksin512)*pwfex->mBlockSize, 10, (const tWAVEFORMATEX *)pwfex, VDPreferencesGetAudioPlaybackDeviceKey().c_str()))
 		mpAudioOut->GoSilent();
 }
 

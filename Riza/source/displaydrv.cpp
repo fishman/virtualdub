@@ -329,6 +329,7 @@ void VDDitherImage(VDPixmap& dst, const VDPixmap& src, const uint8 *pLogPal) {
 
 VDVideoDisplayMinidriver::VDVideoDisplayMinidriver()
 	: mbDisplayDebugInfo(false)
+	, mbHighPrecision(false)
 	, mColorOverride(0)
 {
 }
@@ -349,6 +350,10 @@ void VDVideoDisplayMinidriver::SetDisplayDebugInfo(bool enable) {
 
 void VDVideoDisplayMinidriver::SetColorOverride(uint32 color) {
 	mColorOverride = color;
+}
+
+void VDVideoDisplayMinidriver::SetHighPrecision(bool enable) {
+	mbHighPrecision = enable;
 }
 
 bool VDVideoDisplayMinidriver::Tick(int id) {

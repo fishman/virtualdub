@@ -1,6 +1,7 @@
 #include <vd2/system/vdtypes.h>
 #include <vd2/Kasumi/pixmap.h>
 #include <vd2/Kasumi/pixmaputils.h>
+#include "blt_setup.h"
 
 #define DECLARE_PALETTED(x, y) extern void VDPixmapBlt_##x##_to_##y##_reference(void *dst0, ptrdiff_t dstpitch, const void *src0, ptrdiff_t srcpitch, vdpixsize w, vdpixsize h, const void *pal0)
 #define DECLARE_RGB(x, y) extern void VDPixmapBlt_##x##_to_##y##_reference(void *dst0, ptrdiff_t dstpitch, const void *src0, ptrdiff_t srcpitch, vdpixsize w, vdpixsize h)
@@ -83,194 +84,176 @@ DECLARE_YUV_PLANAR(YUV411, XRGB8888);
 extern void VDPixmapBlt_YUVPlanar_decode_reference(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h);
 extern void VDPixmapBlt_YUVPlanar_encode_reference(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h);
 extern void VDPixmapBlt_YUVPlanar_convert_reference(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h);
+extern void VDPixmapBlt_UberblitAdapter(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h);
 
 using namespace nsVDPixmap;
 
+void VDPixmapInitBlittersReference(VDPixmapBlitterTable& table) {
+	// use uberblit as the baseline
+	VDPixmapFormatSubset uberblitSrcFormats;
+	VDPixmapFormatSubset uberblitDstFormats;
+
+	uberblitSrcFormats =
+		kPixFormat_Pal1,
+		kPixFormat_Pal2,
+		kPixFormat_Pal4,
+		kPixFormat_Pal8,
+		kPixFormat_XRGB1555,
+		kPixFormat_RGB565,
+		kPixFormat_RGB888,
+		kPixFormat_XRGB8888,
+		kPixFormat_Y8,
+		kPixFormat_YUV422_UYVY,
+		kPixFormat_YUV422_YUYV,
+		kPixFormat_YUV444_XVYU,
+		kPixFormat_YUV444_Planar,
+		kPixFormat_YUV422_Planar,
+		kPixFormat_YUV422_Planar_16F,
+		kPixFormat_YUV420_Planar,
+		kPixFormat_YUV411_Planar,
+		kPixFormat_YUV410_Planar,
+		kPixFormat_YUV422_Planar_Centered,
+		kPixFormat_YUV420_Planar_Centered,
+		kPixFormat_YUV422_V210,
+		kPixFormat_YUV422_UYVY_709,
+		kPixFormat_YUV420_NV12;
+
+	uberblitDstFormats =
+		kPixFormat_XRGB1555,
+		kPixFormat_RGB565,
+		kPixFormat_RGB888,
+		kPixFormat_XRGB8888,
+		kPixFormat_Y8,
+		kPixFormat_YUV422_UYVY,
+		kPixFormat_YUV422_YUYV,
+		kPixFormat_YUV444_XVYU,
+		kPixFormat_YUV444_Planar,
+		kPixFormat_YUV422_Planar,
+		kPixFormat_YUV422_Planar_16F,
+		kPixFormat_YUV420_Planar,
+		kPixFormat_YUV411_Planar,
+		kPixFormat_YUV410_Planar,
+		kPixFormat_YUV422_Planar_Centered,
+		kPixFormat_YUV420_Planar_Centered,
+		kPixFormat_YUV422_V210,
+		kPixFormat_YUV422_UYVY_709,
+		kPixFormat_YUV420_NV12;
+
+	table.AddBlitter(uberblitSrcFormats, uberblitDstFormats, VDPixmapBlt_UberblitAdapter);
+
+	// standard formats
+
+	table.AddBlitter(kPixFormat_Pal1,	kPixFormat_Y8,			VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal1_to_Any8_reference>);
+	table.AddBlitter(kPixFormat_Pal1,	kPixFormat_XRGB1555,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal1_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal1,	kPixFormat_RGB565,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal1_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal1,	kPixFormat_RGB888,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal1_to_Any24_reference>);
+	table.AddBlitter(kPixFormat_Pal1,	kPixFormat_XRGB8888,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal1_to_Any32_reference>);
+	table.AddBlitter(kPixFormat_Pal2,	kPixFormat_Y8,			VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal2_to_Any8_reference>);
+	table.AddBlitter(kPixFormat_Pal2,	kPixFormat_XRGB1555,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal2_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal2,	kPixFormat_RGB565,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal2_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal2,	kPixFormat_RGB888,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal2_to_Any24_reference>);
+	table.AddBlitter(kPixFormat_Pal2,	kPixFormat_XRGB8888,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal2_to_Any32_reference>);
+	table.AddBlitter(kPixFormat_Pal4,	kPixFormat_Y8,			VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal4_to_Any8_reference>);
+	table.AddBlitter(kPixFormat_Pal4,	kPixFormat_XRGB1555,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal4_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal4,	kPixFormat_RGB565,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal4_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal4,	kPixFormat_RGB888,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal4_to_Any24_reference>);
+	table.AddBlitter(kPixFormat_Pal4,	kPixFormat_XRGB8888,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal4_to_Any32_reference>);
+	table.AddBlitter(kPixFormat_Pal8,	kPixFormat_Y8,			VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal8_to_Any8_reference>);
+	table.AddBlitter(kPixFormat_Pal8,	kPixFormat_XRGB1555,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal8_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal8,	kPixFormat_RGB565,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal8_to_Any16_reference>);
+	table.AddBlitter(kPixFormat_Pal8,	kPixFormat_RGB888,		VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal8_to_Any24_reference>);
+	table.AddBlitter(kPixFormat_Pal8,	kPixFormat_XRGB8888,	VDPixmapBlitterPalettedAdapter<VDPixmapBlt_Pal8_to_Any32_reference>);
+
+	table.AddBlitter(kPixFormat_XRGB1555,	kPixFormat_RGB565,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB1555_to_RGB565_reference>);
+	table.AddBlitter(kPixFormat_XRGB1555,	kPixFormat_RGB888,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB1555_to_RGB888_reference>);
+	table.AddBlitter(kPixFormat_XRGB1555,	kPixFormat_XRGB8888,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB1555_to_XRGB8888_reference>);
+	table.AddBlitter(kPixFormat_RGB565,		kPixFormat_XRGB1555,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB565_to_XRGB1555_reference>);
+	table.AddBlitter(kPixFormat_RGB565,		kPixFormat_RGB888,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB565_to_RGB888_reference>);
+	table.AddBlitter(kPixFormat_RGB565,		kPixFormat_XRGB8888,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB565_to_XRGB8888_reference>);
+	table.AddBlitter(kPixFormat_RGB888,		kPixFormat_XRGB1555,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB888_to_XRGB1555_reference>);
+	table.AddBlitter(kPixFormat_RGB888,		kPixFormat_RGB565,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB888_to_RGB565_reference>);
+	table.AddBlitter(kPixFormat_RGB888,		kPixFormat_XRGB8888,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB888_to_XRGB8888_reference>);
+	table.AddBlitter(kPixFormat_XRGB8888,	kPixFormat_XRGB1555,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB8888_to_XRGB1555_reference>);
+	table.AddBlitter(kPixFormat_XRGB8888,	kPixFormat_RGB565,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB8888_to_RGB565_reference>);
+	table.AddBlitter(kPixFormat_XRGB8888,	kPixFormat_RGB888,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB8888_to_RGB888_reference>);
+
+	table.AddBlitter(kPixFormat_YUV444_XVYU,	kPixFormat_YUV422_UYVY,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XVYU_to_UYVY_reference>);
+	table.AddBlitter(kPixFormat_YUV444_XVYU,	kPixFormat_YUV422_YUYV,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XVYU_to_YUYV_reference>);
+	table.AddBlitter(kPixFormat_Y8,				kPixFormat_YUV422_UYVY,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_Y8_to_UYVY_reference>);
+	table.AddBlitter(kPixFormat_Y8,				kPixFormat_YUV422_YUYV,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_Y8_to_YUYV_reference>);
+	table.AddBlitter(kPixFormat_YUV422_UYVY,	kPixFormat_Y8,			VDPixmapBlitterChunkyAdapter<VDPixmapBlt_UYVY_to_Y8_reference>);
+	table.AddBlitter(kPixFormat_YUV422_YUYV,	kPixFormat_Y8,			VDPixmapBlitterChunkyAdapter<VDPixmapBlt_YUYV_to_Y8_reference>);
+
+	table.AddBlitter(kPixFormat_YUV422_UYVY,	kPixFormat_XRGB1555,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_UYVY_to_XRGB1555_reference>);
+	table.AddBlitter(kPixFormat_YUV422_UYVY,	kPixFormat_RGB565,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_UYVY_to_RGB565_reference>);
+	table.AddBlitter(kPixFormat_YUV422_UYVY,	kPixFormat_RGB888,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_UYVY_to_RGB888_reference>);
+	table.AddBlitter(kPixFormat_YUV422_UYVY,	kPixFormat_XRGB8888,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_UYVY_to_XRGB8888_reference>);
+	table.AddBlitter(kPixFormat_YUV422_YUYV,	kPixFormat_XRGB1555,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_YUYV_to_XRGB1555_reference>);
+	table.AddBlitter(kPixFormat_YUV422_YUYV,	kPixFormat_RGB565,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_YUYV_to_RGB565_reference>);
+	table.AddBlitter(kPixFormat_YUV422_YUYV,	kPixFormat_RGB888,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_YUYV_to_RGB888_reference>);
+	table.AddBlitter(kPixFormat_YUV422_YUYV,	kPixFormat_XRGB8888,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_YUYV_to_XRGB8888_reference>);
+	table.AddBlitter(kPixFormat_Y8,				kPixFormat_XRGB1555,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_Y8_to_XRGB1555_reference>);
+	table.AddBlitter(kPixFormat_Y8,				kPixFormat_RGB565,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_Y8_to_RGB565_reference>);
+	table.AddBlitter(kPixFormat_Y8,				kPixFormat_RGB888,		VDPixmapBlitterChunkyAdapter<VDPixmapBlt_Y8_to_RGB888_reference>);
+	table.AddBlitter(kPixFormat_Y8,				kPixFormat_XRGB8888,	VDPixmapBlitterChunkyAdapter<VDPixmapBlt_Y8_to_XRGB8888_reference>);
+
+	table.AddBlitter(kPixFormat_XRGB1555,	kPixFormat_YUV444_XVYU, VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB1555_to_XVYU_reference>);
+	table.AddBlitter(kPixFormat_RGB565,		kPixFormat_YUV444_XVYU, VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB565_to_XVYU_reference>);
+	table.AddBlitter(kPixFormat_RGB888,		kPixFormat_YUV444_XVYU, VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB888_to_XVYU_reference>);
+	table.AddBlitter(kPixFormat_XRGB8888,	kPixFormat_YUV444_XVYU, VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB8888_to_XVYU_reference>);
+
+	table.AddBlitter(kPixFormat_XRGB1555,	kPixFormat_Y8,			VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB1555_to_Y8_reference>);
+	table.AddBlitter(kPixFormat_RGB565,		kPixFormat_Y8,			VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB565_to_Y8_reference>);
+	table.AddBlitter(kPixFormat_RGB888,		kPixFormat_Y8,			VDPixmapBlitterChunkyAdapter<VDPixmapBlt_RGB888_to_Y8_reference>);
+	table.AddBlitter(kPixFormat_XRGB8888,	kPixFormat_Y8,			VDPixmapBlitterChunkyAdapter<VDPixmapBlt_XRGB8888_to_Y8_reference>);
+
+	table.AddBlitter(kPixFormat_YUV411_Planar, kPixFormat_YUV420_Planar, VDPixmapBlt_YUV411_to_YV12_reference);
+
+	table.AddBlitter(kPixFormat_YUV422_UYVY, kPixFormat_YUV422_YUYV, VDPixmapBlitterChunkyAdapter<VDPixmapBlt_UYVY_to_YUYV_reference>);
+	table.AddBlitter(kPixFormat_YUV422_YUYV, kPixFormat_YUV422_UYVY, VDPixmapBlitterChunkyAdapter<VDPixmapBlt_UYVY_to_YUYV_reference>);		// not an error -- same routine
+
+	//////////////////////////////////////////////////////////
+
+	VDPixmapFormatSubset srcFormats;
+	VDPixmapFormatSubset dstFormats;
+
+	srcFormats = kPixFormat_YUV444_Planar,
+				kPixFormat_YUV422_Planar,
+				kPixFormat_YUV420_Planar,
+				kPixFormat_YUV411_Planar,
+				kPixFormat_YUV410_Planar,
+				kPixFormat_YUV422_Planar_Centered,
+				kPixFormat_YUV420_Planar_Centered;
+
+	dstFormats = kPixFormat_XRGB1555, kPixFormat_RGB565, kPixFormat_RGB888, kPixFormat_XRGB8888, kPixFormat_YUV422_UYVY, kPixFormat_YUV422_YUYV;
+
+	table.AddBlitter(srcFormats, dstFormats, VDPixmapBlt_YUVPlanar_decode_reference);
+
+	//////////////////////////////////////////////////////////
+
+	dstFormats = kPixFormat_YUV444_Planar, kPixFormat_YUV422_Planar, kPixFormat_YUV420_Planar, kPixFormat_YUV411_Planar, kPixFormat_YUV410_Planar, kPixFormat_YUV422_Planar_Centered, kPixFormat_YUV420_Planar_Centered;
+	srcFormats = kPixFormat_XRGB1555, kPixFormat_RGB565, kPixFormat_RGB888, kPixFormat_XRGB8888, kPixFormat_YUV422_UYVY, kPixFormat_YUV422_YUYV;
+
+	table.AddBlitter(srcFormats, dstFormats, VDPixmapBlt_YUVPlanar_encode_reference);
+
+	//////////////////////////////////////////////////////////
+
+	srcFormats = kPixFormat_YUV444_Planar, kPixFormat_YUV422_Planar, kPixFormat_YUV420_Planar, kPixFormat_YUV411_Planar, kPixFormat_YUV410_Planar, kPixFormat_Y8, kPixFormat_YUV422_Planar_Centered, kPixFormat_YUV420_Planar_Centered;
+	dstFormats = kPixFormat_YUV444_Planar, kPixFormat_YUV422_Planar, kPixFormat_YUV420_Planar, kPixFormat_YUV411_Planar, kPixFormat_YUV410_Planar, kPixFormat_Y8, kPixFormat_YUV422_Planar_Centered, kPixFormat_YUV420_Planar_Centered;
+
+	table.AddBlitter(srcFormats, dstFormats, VDPixmapBlt_YUVPlanar_convert_reference);
+}
+
+tpVDPixBltTable VDGetPixBltTableReferenceInternal() {
+	static VDPixmapBlitterTable sReferenceTable;
+
+	VDPixmapInitBlittersReference(sReferenceTable);
+
+	return sReferenceTable.mTable;
+}
+
 tpVDPixBltTable VDGetPixBltTableReference() {
-	static void *sReferenceMap[kPixFormat_Max_Standard][kPixFormat_Max_Standard] = {0};
+	static tpVDPixBltTable spTable = VDGetPixBltTableReferenceInternal();
 
-	sReferenceMap[kPixFormat_Pal1][kPixFormat_Y8      ] = VDPixmapBlt_Pal1_to_Any8_reference;
-	sReferenceMap[kPixFormat_Pal1][kPixFormat_XRGB1555] = VDPixmapBlt_Pal1_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal1][kPixFormat_RGB565  ] = VDPixmapBlt_Pal1_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal1][kPixFormat_RGB888  ] = VDPixmapBlt_Pal1_to_Any24_reference;
-	sReferenceMap[kPixFormat_Pal1][kPixFormat_XRGB8888] = VDPixmapBlt_Pal1_to_Any32_reference;
-	sReferenceMap[kPixFormat_Pal2][kPixFormat_Y8      ] = VDPixmapBlt_Pal2_to_Any8_reference;
-	sReferenceMap[kPixFormat_Pal2][kPixFormat_XRGB1555] = VDPixmapBlt_Pal2_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal2][kPixFormat_RGB565  ] = VDPixmapBlt_Pal2_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal2][kPixFormat_RGB888  ] = VDPixmapBlt_Pal2_to_Any24_reference;
-	sReferenceMap[kPixFormat_Pal2][kPixFormat_XRGB8888] = VDPixmapBlt_Pal2_to_Any32_reference;
-	sReferenceMap[kPixFormat_Pal4][kPixFormat_Y8      ] = VDPixmapBlt_Pal4_to_Any8_reference;
-	sReferenceMap[kPixFormat_Pal4][kPixFormat_XRGB1555] = VDPixmapBlt_Pal4_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal4][kPixFormat_RGB565  ] = VDPixmapBlt_Pal4_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal4][kPixFormat_RGB888  ] = VDPixmapBlt_Pal4_to_Any24_reference;
-	sReferenceMap[kPixFormat_Pal4][kPixFormat_XRGB8888] = VDPixmapBlt_Pal4_to_Any32_reference;
-	sReferenceMap[kPixFormat_Pal8][kPixFormat_Y8      ] = VDPixmapBlt_Pal8_to_Any8_reference;
-	sReferenceMap[kPixFormat_Pal8][kPixFormat_XRGB1555] = VDPixmapBlt_Pal8_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal8][kPixFormat_RGB565  ] = VDPixmapBlt_Pal8_to_Any16_reference;
-	sReferenceMap[kPixFormat_Pal8][kPixFormat_RGB888  ] = VDPixmapBlt_Pal8_to_Any24_reference;
-	sReferenceMap[kPixFormat_Pal8][kPixFormat_XRGB8888] = VDPixmapBlt_Pal8_to_Any32_reference;
-
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_RGB565  ] = VDPixmapBlt_XRGB1555_to_RGB565_reference;
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_RGB888  ] = VDPixmapBlt_XRGB1555_to_RGB888_reference;
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_XRGB8888] = VDPixmapBlt_XRGB1555_to_XRGB8888_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_XRGB1555] = VDPixmapBlt_RGB565_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_RGB888  ] = VDPixmapBlt_RGB565_to_RGB888_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_XRGB8888] = VDPixmapBlt_RGB565_to_XRGB8888_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_XRGB1555] = VDPixmapBlt_RGB888_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_RGB565  ] = VDPixmapBlt_RGB888_to_RGB565_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_XRGB8888] = VDPixmapBlt_RGB888_to_XRGB8888_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_XRGB1555] = VDPixmapBlt_XRGB8888_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_RGB565  ] = VDPixmapBlt_XRGB8888_to_RGB565_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_RGB888  ] = VDPixmapBlt_XRGB8888_to_RGB888_reference;
-
-	sReferenceMap[kPixFormat_YUV444_XVYU][kPixFormat_YUV422_UYVY] = VDPixmapBlt_XVYU_to_UYVY_reference;
-	sReferenceMap[kPixFormat_YUV444_XVYU][kPixFormat_YUV422_YUYV] = VDPixmapBlt_XVYU_to_YUYV_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_YUV422_UYVY] = VDPixmapBlt_Y8_to_UYVY_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_YUV422_YUYV] = VDPixmapBlt_Y8_to_YUYV_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_Y8] = VDPixmapBlt_UYVY_to_Y8_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_Y8] = VDPixmapBlt_YUYV_to_Y8_reference;
-
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_XRGB1555] = VDPixmapBlt_UYVY_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_RGB565  ] = VDPixmapBlt_UYVY_to_RGB565_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_RGB888  ] = VDPixmapBlt_UYVY_to_RGB888_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_XRGB8888] = VDPixmapBlt_UYVY_to_XRGB8888_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_XRGB1555] = VDPixmapBlt_YUYV_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_RGB565  ] = VDPixmapBlt_YUYV_to_RGB565_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_RGB888  ] = VDPixmapBlt_YUYV_to_RGB888_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_XRGB8888] = VDPixmapBlt_YUYV_to_XRGB8888_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_XRGB1555] = VDPixmapBlt_Y8_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_RGB565  ] = VDPixmapBlt_Y8_to_RGB565_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_RGB888  ] = VDPixmapBlt_Y8_to_RGB888_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_XRGB8888] = VDPixmapBlt_Y8_to_XRGB8888_reference;
-
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_YUV444_XVYU] = VDPixmapBlt_XRGB1555_to_XVYU_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_YUV444_XVYU] = VDPixmapBlt_RGB565_to_XVYU_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_YUV444_XVYU] = VDPixmapBlt_RGB888_to_XVYU_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_YUV444_XVYU] = VDPixmapBlt_XRGB8888_to_XVYU_reference;
-
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_Y8] = VDPixmapBlt_XRGB1555_to_Y8_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_Y8] = VDPixmapBlt_RGB565_to_Y8_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_Y8] = VDPixmapBlt_RGB888_to_Y8_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_Y8] = VDPixmapBlt_XRGB8888_to_Y8_reference;
-
-#if 0
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_XRGB1555] = VDPixmapBlt_YV12_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_RGB565  ] = VDPixmapBlt_YV12_to_RGB565_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_RGB888  ] = VDPixmapBlt_YV12_to_RGB888_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_XRGB8888] = VDPixmapBlt_YV12_to_XRGB8888_reference;
-
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_XRGB1555] = VDPixmapBlt_YUV411_to_XRGB1555_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_RGB565  ] = VDPixmapBlt_YUV411_to_RGB565_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_RGB888  ] = VDPixmapBlt_YUV411_to_RGB888_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_XRGB8888] = VDPixmapBlt_YUV411_to_XRGB8888_reference;
-#else
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_XRGB1555] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_RGB565  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_RGB888  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_XRGB8888] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_YUV422_UYVY] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_YUV422_YUYV] = VDPixmapBlt_YUVPlanar_decode_reference;
-
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_XRGB1555] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_RGB565  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_RGB888  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_XRGB8888] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_YUV422_UYVY] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_YUV422_YUYV] = VDPixmapBlt_YUVPlanar_decode_reference;
-
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_XRGB1555] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_RGB565  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_RGB888  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_XRGB8888] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_YUV422_UYVY] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_YUV422_YUYV] = VDPixmapBlt_YUVPlanar_decode_reference;
-
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_XRGB1555] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_RGB565  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_RGB888  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_XRGB8888] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_YUV422_UYVY] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_YUV422_YUYV] = VDPixmapBlt_YUVPlanar_decode_reference;
-
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_XRGB1555] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_RGB565  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_RGB888  ] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_XRGB8888] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_YUV422_UYVY] = VDPixmapBlt_YUVPlanar_decode_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_YUV422_YUYV] = VDPixmapBlt_YUVPlanar_decode_reference;
-#endif
-
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUV411_to_YV12_reference;
-
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_YUV422_YUYV] = VDPixmapBlt_UYVY_to_YUYV_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_YUV422_UYVY] = VDPixmapBlt_UYVY_to_YUYV_reference;		// not an error -- same routine
-
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB1555][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB565  ][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_RGB888  ][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_XRGB8888][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_UYVY][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-	sReferenceMap[kPixFormat_YUV422_YUYV][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_encode_reference;
-
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV444_Planar][kPixFormat_Y8           ] = VDPixmapBlt_YUVPlanar_convert_reference;
-
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV422_Planar][kPixFormat_Y8           ] = VDPixmapBlt_YUVPlanar_convert_reference;
-
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV420_Planar][kPixFormat_Y8           ] = VDPixmapBlt_YUVPlanar_convert_reference;
-
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV411_Planar][kPixFormat_Y8           ] = VDPixmapBlt_YUVPlanar_convert_reference;
-
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_YUV410_Planar][kPixFormat_Y8           ] = VDPixmapBlt_YUVPlanar_convert_reference;
-
-	sReferenceMap[kPixFormat_Y8][kPixFormat_YUV444_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_YUV422_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_YUV420_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_YUV411_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-	sReferenceMap[kPixFormat_Y8][kPixFormat_YUV410_Planar] = VDPixmapBlt_YUVPlanar_convert_reference;
-
-	return sReferenceMap;
+	return spTable;
 }

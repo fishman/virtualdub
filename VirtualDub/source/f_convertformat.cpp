@@ -48,6 +48,8 @@ bool VDVFilterConvertFormatConfigDialog::OnLoaded() {
 	LBAddString(IDC_FORMATS, L"4:2:0 planar YCbCr (YV12)");
 	LBAddString(IDC_FORMATS, L"4:1:1 planar YCbCr");
 	LBAddString(IDC_FORMATS, L"4:1:0 planar YCbCr (YVU9)");
+	LBAddString(IDC_FORMATS, L"4:2:2 interleaved YCbCr (UYVY)");
+	LBAddString(IDC_FORMATS, L"4:2:2 interleaved YCbCr (YUY2)");
 
 	SetFocusToControl(IDC_FORMATS);
 
@@ -77,6 +79,12 @@ void VDVFilterConvertFormatConfigDialog::OnDataExchange(bool write) {
 			case 5:
 				mFormat = nsVDXPixmap::kPixFormat_YUV410_Planar;
 				break;
+			case 6:
+				mFormat = nsVDXPixmap::kPixFormat_YUV422_UYVY;
+				break;
+			case 7:
+				mFormat = nsVDXPixmap::kPixFormat_YUV422_YUYV;
+				break;
 		}
 	} else {
 		switch(mFormat) {
@@ -103,6 +111,14 @@ void VDVFilterConvertFormatConfigDialog::OnDataExchange(bool write) {
 
 			case nsVDXPixmap::kPixFormat_YUV410_Planar:
 				LBSetSelectedIndex(IDC_FORMATS, 5);
+				break;
+
+			case nsVDXPixmap::kPixFormat_YUV422_UYVY:
+				LBSetSelectedIndex(IDC_FORMATS, 6);
+				break;
+
+			case nsVDXPixmap::kPixFormat_YUV422_YUYV:
+				LBSetSelectedIndex(IDC_FORMATS, 7);
 				break;
 		}
 	}
@@ -183,6 +199,14 @@ void VDVFilterConvertFormat::GetSettingString(char *buf, int maxlen) {
 		case nsVDXPixmap::kPixFormat_YUV410_Planar:
 			formatname = "YVU9";
 			break;
+
+		case nsVDXPixmap::kPixFormat_YUV422_UYVY:
+			formatname = "UYVY";
+			break;
+
+		case nsVDXPixmap::kPixFormat_YUV422_YUYV:
+			formatname = "YUY2";
+			break;
 	}
 
 	_snprintf(buf, maxlen, " (%s)", formatname);
@@ -202,6 +226,8 @@ void VDVFilterConvertFormat::ScriptConfig(IVDXScriptInterpreter *, const VDXScri
 		case nsVDXPixmap::kPixFormat_YUV420_Planar:
 		case nsVDXPixmap::kPixFormat_YUV411_Planar:
 		case nsVDXPixmap::kPixFormat_YUV410_Planar:
+		case nsVDXPixmap::kPixFormat_YUV422_UYVY:
+		case nsVDXPixmap::kPixFormat_YUV422_YUYV:
 			break;
 
 		default:

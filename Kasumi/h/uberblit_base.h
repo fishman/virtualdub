@@ -37,8 +37,12 @@ public:
 		mWindowLastY = -0x3FFFFFFF;
 	}
 
-	sint32 GetWidth() const { return mWidth; }
-	sint32 GetHeight() const { return mHeight; }
+	sint32 GetWidth(int) const { return mWidth; }
+	sint32 GetHeight(int) const { return mHeight; }
+
+	bool IsStateful() const {
+		return true;
+	}
 
 	const void *GetRow(sint32 y, uint32 index) {
 		sint32 tostep = y - mWindowLastY;
@@ -83,8 +87,8 @@ public:
 	void InitSource(IVDPixmapGen *src, uint32 srcindex) {
 		mpSrc = src;
 		mSrcIndex = srcindex;
-		mSrcWidth = src->GetWidth();
-		mSrcHeight = src->GetHeight();
+		mSrcWidth = src->GetWidth(srcindex);
+		mSrcHeight = src->GetHeight(srcindex);
 		mWidth = mSrcWidth;
 		mHeight = mSrcHeight;
 	}
@@ -98,6 +102,10 @@ public:
 		mpSrc->Start();
 
 		VDPixmapGenWindowBased::StartWindow(rowbytes, outputCount);
+	}
+
+	uint32 GetType(uint32 output) const {
+		return mpSrc->GetType(mSrcIndex);
 	}
 
 protected:

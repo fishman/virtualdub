@@ -69,6 +69,8 @@ public:
 	bool	Init();
 	void	Shutdown();
 
+	void	SetBackgroundFallbackEnabled(bool enabled);
+
 	void	RemoteCall(void (*function)(void *), void *data);
 
 	void	AddClient(VDVideoDisplayClient *pClient);
@@ -118,6 +120,7 @@ protected:
 
 	bool		mbMultithreaded;
 	bool		mbAppActive;
+	bool		mbBackgroundFallbackEnabled;
 
 	typedef vdlist<VDVideoDisplayClient> Clients;
 	Clients		mClients;

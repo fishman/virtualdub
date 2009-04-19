@@ -44,6 +44,7 @@ void tool_glc(const vdfastvector<const char *>& args, const vdfastvector<const c
 void tool_fontextract(const vdfastvector<const char *>& args, const vdfastvector<const char *>& switches);
 void tool_snapsetup();
 void tool_filecreate(const vdfastvector<const char *>& args, const vdfastvector<const char *>& switches);
+void tool_maketables(const vdfastvector<const char *>& args, const vdfastvector<const char *>& switches);
 
 int main(int argc, char **argv) {
 	--argc;
@@ -92,6 +93,8 @@ int main(int argc, char **argv) {
 			tool_snapsetup();
 		} else if (!_stricmp(s, "filecreate")) {
 			tool_filecreate(args, switches);
+		} else if (!_stricmp(s, "maketables")) {
+			tool_maketables(args, switches);
 		} else
 			help();
 	} catch(const char *s) {

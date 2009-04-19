@@ -114,6 +114,8 @@ public:
 			return 0;
 		}
 
+		VDASSERT(rc > 0);
+
 		return rc;
 	}
 
@@ -229,6 +231,13 @@ public:
 		T *p = ptr;
 		ptr = NULL;
 		return p;
+	}
+
+	/// Swaps the references between two smart pointers.
+	void swap(vdrefptr& r) {
+		T *p = ptr;
+		ptr = r.ptr;
+		r.ptr = p;
 	}
 };
 

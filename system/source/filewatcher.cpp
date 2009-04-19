@@ -5,30 +5,6 @@
 #include <vd2/system/thunk.h>
 #include <vd2/system/w32assist.h>
 
-namespace {
-	uint64 VDFileGetLastWriteTime(const wchar_t *path) {
-		if (VDIsWindowsNT()) {
-			WIN32_FIND_DATAW fdw;
-			HANDLE h = FindFirstFileW(path, &fdw);
-			if (h == INVALID_HANDLE_VALUE)
-				return 0;
-
-			FindClose(h);
-
-			return ((uint64)fdw.ftLastWriteTime.dwHighDateTime << 32) + fdw.ftLastWriteTime.dwLowDateTime;
-		} else {
-			WIN32_FIND_DATAA fda;
-			HANDLE h = FindFirstFileA(VDTextWToA(path).c_str(), &fda);
-			if (h == INVALID_HANDLE_VALUE)
-				return 0;
-
-			FindClose(h);
-
-			return ((uint64)fda.ftLastWriteTime.dwHighDateTime << 32) + fda.ftLastWriteTime.dwLowDateTime;
-		}
-	}
-}
-
 VDFileWatcher::VDFileWatcher()
 	: mChangeHandle(INVALID_HANDLE_VALUE)
 	, mLastWriteTime(0)

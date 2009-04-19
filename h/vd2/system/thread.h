@@ -211,6 +211,7 @@ public:
 	void wait();
 	int wait(VDSignalBase *second);
 	int wait(VDSignalBase *second, VDSignalBase *third);
+	static int waitMultiple(const VDSignalBase **signals, int count);
 	void *getHandle() { return hEvent; }
 
 	void operator()() { signal(); }

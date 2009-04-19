@@ -1,3 +1,21 @@
+//	VirtualDub - Video processing and capture application
+//	Graphics support library
+//	Copyright (C) 1998-2008 Avery Lee
+//
+//	This program is free software; you can redistribute it and/or modify
+//	it under the terms of the GNU General Public License as published by
+//	the Free Software Foundation; either version 2 of the License, or
+//	(at your option) any later version.
+//
+//	This program is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU General Public License for more details.
+//
+//	You should have received a copy of the GNU General Public License
+//	along with this program; if not, write to the Free Software
+//	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
 #ifndef f_VD2_KASUMI_TRIBLT_H
 #define f_VD2_KASUMI_TRIBLT_H
 
@@ -17,6 +35,7 @@ enum VDTriBltFilterMode {
 	kTriBltFilterPoint,
 	kTriBltFilterBilinear,
 	kTriBltFilterTrilinear,
+	kTriBltFilterBicubicMipLinear,
 	kTriBltFilterCount
 };
 
@@ -34,12 +53,12 @@ bool VDPixmapTriBlt(VDPixmap& dst, const VDPixmap *const *pSources, int nMipmaps
 					const VDTriBltVertex *pVertices, int nVertices,
 					const int *pIndices, const int nIndices,
 					VDTriBltFilterMode filterMode,
-					bool border = false,
+					float mipMapLODBias,
 					const float pTransform[16] = NULL);
 
 class VDPixmapTextureMipmapChain {
 public:
-	VDPixmapTextureMipmapChain(const VDPixmap& src, bool wrap=false, int maxlevels = 16);
+	VDPixmapTextureMipmapChain(const VDPixmap& src, bool wrap=false, bool cubic = false, int maxlevels = 16);
 
 	const VDPixmap *const *Mips() const { return mMipMaps.data(); }
 	int Levels() const { return mMipMaps.size(); }

@@ -55,6 +55,7 @@ void help() {
 	puts("Asuka glc          Compile shaders for OpenGL");
 	puts("Asuka lookup       Look up address in link map");
 	puts("Asuka makearray    Convert binary file to C array");
+	puts("Asuka maketable    Regenerate precomputed tables");
 	puts("Asuka mapconv      Generate runtime symbol database");
 	puts("Asuka snapsetup    Temporarily change windows settings for screencaps");
 	puts("Asuka verinc       Increment version file");

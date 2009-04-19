@@ -2,6 +2,7 @@
 #include <ddraw.h>
 #include <vd2/system/vdtypes.h>
 #include <vd2/system/vdstl.h>
+#include <vd2/system/time.h>
 #include <vd2/Kasumi/pixmap.h>
 #include <vd2/Kasumi/pixmapops.h>
 #include <vd2/Kasumi/pixmaputils.h>
@@ -32,7 +33,56 @@ public:
 	virtual const DDCAPS& GetCaps() = 0;
 	virtual IDirectDrawSurface2 *GetPrimary() = 0;
 	virtual const DDSURFACEDESC& GetPrimaryDesc() = 0;
+	virtual HMONITOR GetMonitor() = 0;
 	virtual bool Restore() = 0;
+};
+
+class VDDDrawPresentHistory {
+public:
+	bool mbPresentPending;
+	bool mbPresentBlitStarted;
+	float mPresentDelay;
+	float mVBlankSuccess;
+	uint64	mPresentStartTime;
+
+	double	mAveragePresentTime;
+	double	mAverageStartScanline;
+	double	mAverageEndScanline;
+	uint32	mPollCount;
+	uint32	mLastBracketY1;
+	uint32	mLastBracketY2;
+
+	float	mScanlineTarget;
+	sint32	mLastScanline;
+	bool	mbLastWasVBlank;
+
+	sint32	mScanTop;
+	sint32	mScanBottom;
+
+	float mSuccessProb[17];
+	float mAttemptProb[17];
+
+	VDDDrawPresentHistory()
+		: mbPresentPending(false)
+		, mbPresentBlitStarted(false)
+		, mPresentDelay(0.f)
+		, mVBlankSuccess(1.0f)
+		, mPresentStartTime(0)
+		, mAveragePresentTime(0)
+		, mAverageStartScanline(0)
+		, mAverageEndScanline(0)
+		, mPollCount(0)
+		, mLastBracketY1(0)
+		, mLastBracketY2(0)
+		, mScanlineTarget(0)
+		, mLastScanline(0)
+		, mbLastWasVBlank(false)
+		, mScanTop(0)
+		, mScanBottom(0)
+	{
+		memset(&mSuccessProb, 0, sizeof mSuccessProb);
+		memset(&mAttemptProb, 0, sizeof mAttemptProb);
+	}
 };
 
 class VDDirectDrawManager : public IVDDirectDrawManager {
@@ -46,6 +96,8 @@ public:
 	IDirectDrawSurface2 *GetPrimary() { return mpddsPrimary; }
 	const DDSURFACEDESC& GetPrimaryDesc() { return mPrimaryDesc; }
 
+	HMONITOR GetMonitor() { return mhMonitor; }
+
 	bool Restore();
 
 protected:
@@ -56,6 +108,7 @@ protected:
 	int mInitCount;
 
 	HMODULE					mhmodDD;
+	HMONITOR				mhMonitor;
 
 	IDirectDraw2			*mpdd;
 	IDirectDrawSurface2		*mpddsPrimary;
@@ -74,8 +127,10 @@ bool VDDirectDrawManager::Init(IVDDirectDrawClient *pClient) {
 		return true;
 	}
 
-	mhmodDD = LoadLibrary("ddraw");
+	POINT pt = {0,0};
+	mhMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
 
+	mhmodDD = LoadLibrary("ddraw");
 	if (!mhmodDD)
 		return false;
 
@@ -271,8 +326,10 @@ public:
 	bool ModifySource(const VDVideoDisplaySourceInfo& info);
 
 	bool IsValid();
+	bool IsFramePending() { return mbPresentPending; }
 
 	bool Tick(int id);
+	void Poll();
 	bool Resize();
 	bool Update(UpdateMode);
 	void Refresh(UpdateMode);
@@ -298,8 +355,8 @@ protected:
 	bool InitOffscreen();
 	void ShutdownDisplay();
 	bool UpdateOverlay(bool force);
-	void InternalRefresh(const RECT& rClient, UpdateMode mode);
-	bool InternalBlt(IDirectDrawSurface2 *&pDest, RECT *prDst, RECT *prSrc, UpdateMode mode);
+	bool InternalRefresh(const RECT& rClient, UpdateMode mode, bool newFrame, bool doNotWait);
+	bool InternalBlt(IDirectDrawSurface2 *&pDest, RECT *prDst, RECT *prSrc, bool doNotWait, bool& stillDrawing);
 
 	HWND		mhwnd;
 	IVDDirectDrawManager	*mpddman;
@@ -311,6 +368,7 @@ protected:
 	int			mPrimaryH;
 	const uint8 *mpLogicalPalette;
 
+	RECT		mrClient;
 	RECT		mLastDisplayRect;
 	UINT		mOverlayUpdateTimer;
 
@@ -321,14 +379,18 @@ protected:
 	bool		mbValid;
 	bool		mbFirstFrame;
 	bool		mbRepaintOnNextUpdate;
+	bool		mbPresentPending;
 	bool		mbSwapChromaPlanes;
 	bool		mbUseSubrect;
+	uint32		mPresentPendingFlags;
 	vdrect32	mSubrect;
 
 	bool		mbEnableOverlays;
 
 	DDCAPS		mCaps;
 	VDVideoDisplaySourceInfo	mSource;
+
+	VDDDrawPresentHistory	mPresentHistory;
 };
 
 IVDVideoDisplayMinidriver *VDCreateVideoDisplayMinidriverDirectDraw(bool enableOverlays) {
@@ -346,11 +408,14 @@ VDVideoDisplayMinidriverDirectDraw::VDVideoDisplayMinidriverDirectDraw(bool enab
 	, mbReset(false)
 	, mbValid(false)
 	, mbFirstFrame(false)
+	, mbPresentPending(false)
 	, mbRepaintOnNextUpdate(false)
 	, mbUseSubrect(false)
+	, mPresentPendingFlags(0)
 	, mbEnableOverlays(enableOverlays)
 {
 	memset(&mSource, 0, sizeof mSource);
+	mrClient.top = mrClient.left = mrClient.right = mrClient.bottom = 0;
 }
 
 VDVideoDisplayMinidriverDirectDraw::~VDVideoDisplayMinidriverDirectDraw() {
@@ -371,6 +436,9 @@ bool VDVideoDisplayMinidriverDirectDraw::Init(HWND hwnd, const VDVideoDisplaySou
 	case nsVDPixmap::kPixFormat_YUV411_Planar:
 	case nsVDPixmap::kPixFormat_YUV410_Planar:
 	case nsVDPixmap::kPixFormat_Y8:
+	case nsVDPixmap::kPixFormat_YUV422_V210:
+	case nsVDPixmap::kPixFormat_YUV422_UYVY_709:
+	case nsVDPixmap::kPixFormat_YUV420_NV12:
 		break;
 	default:
 		return false;
@@ -378,6 +446,7 @@ bool VDVideoDisplayMinidriverDirectDraw::Init(HWND hwnd, const VDVideoDisplaySou
 
 	mhwnd	= hwnd;
 	mSource	= info;
+	GetClientRect(hwnd, &mrClient);
 
 	do {
 		mpddman = VDInitDirectDraw(this);
@@ -390,20 +459,28 @@ bool VDVideoDisplayMinidriverDirectDraw::Init(HWND hwnd, const VDVideoDisplaySou
 		bool allowOverlay = mbEnableOverlays && !mbUseSubrect;
 
 		if (mbEnableOverlays) {
-			HMODULE hmodDwmApi = LoadLibraryA("dwmapi");
-			if (hmodDwmApi) {
-				typedef HRESULT (WINAPI *tpDwmIsCompositionEnabled)(BOOL *);
+			// Looks like some systems have screwed up configs where either someone has inserted
+			// a fake DWMAPI.DLL into the path or have somehow gotten it installed on an XP system;
+			// the result is a failed dependency error when we try loading it. We avoid this by
+			// explicitly checking for Windows Vista or higher.
 
-				tpDwmIsCompositionEnabled pDwmIsCompositionEnabled = (tpDwmIsCompositionEnabled)GetProcAddress(hmodDwmApi, "DwmIsCompositionEnabled");
-				if (pDwmIsCompositionEnabled) {
-					BOOL enabled;
-					HRESULT hr = pDwmIsCompositionEnabled(&enabled);
+			OSVERSIONINFO osInfo = { sizeof(OSVERSIONINFO) };
+			if (GetVersionEx(&osInfo) && osInfo.dwMajorVersion >= 6) {
+				HMODULE hmodDwmApi = LoadLibraryA("dwmapi");
+				if (hmodDwmApi) {
+					typedef HRESULT (WINAPI *tpDwmIsCompositionEnabled)(BOOL *);
 
-					if (SUCCEEDED(hr) && enabled)
-						allowOverlay = false;
+					tpDwmIsCompositionEnabled pDwmIsCompositionEnabled = (tpDwmIsCompositionEnabled)GetProcAddress(hmodDwmApi, "DwmIsCompositionEnabled");
+					if (pDwmIsCompositionEnabled) {
+						BOOL enabled;
+						HRESULT hr = pDwmIsCompositionEnabled(&enabled);
+
+						if (SUCCEEDED(hr) && enabled)
+							allowOverlay = false;
+					}
+
+					FreeLibrary(hmodDwmApi);
 				}
-
-				FreeLibrary(hmodDwmApi);
 			}
 		}
 
@@ -466,6 +543,16 @@ bool VDVideoDisplayMinidriverDirectDraw::InitOverlay() {
 		dwFourCC = MAKEFOURCC('Y', '8', ' ', ' ');
 		mbSwapChromaPlanes = true;
 		break;
+
+	// Disabled because ForceWare 175.16 on XP+Quadro NVS 140M doesn't flip properly with
+	// NV12 overlays.
+	#if 0
+		case nsVDPixmap::kPixFormat_YUV420_NV12:
+			dwFourCC = MAKEFOURCC('N', 'V', '1', '2');
+			minw = 2;
+			minh = 2;
+			break;
+	#endif
 
 	default:
 		return false;
@@ -689,7 +776,14 @@ bool VDVideoDisplayMinidriverDirectDraw::Tick(int id) {
 	return !mbReset;
 }
 
+void VDVideoDisplayMinidriverDirectDraw::Poll() {
+	if (mbPresentPending)
+		InternalRefresh(mrClient, (UpdateMode)mPresentPendingFlags, false, true);
+}
+
 bool VDVideoDisplayMinidriverDirectDraw::Resize() {
+	GetClientRect(mhwnd, &mrClient);
+
 	if (mpddsOverlay)
 		UpdateOverlay(false);
 
@@ -942,6 +1036,11 @@ bool VDVideoDisplayMinidriverDirectDraw::Update(UpdateMode mode) {
 
 	mbValid = SUCCEEDED(hr);
 
+	if (mbValid) {
+		mbPresentPending = true;
+		mPresentPendingFlags = mode;
+	}
+
 	return !mbReset;
 }
 
@@ -953,16 +1052,13 @@ void VDVideoDisplayMinidriverDirectDraw::Refresh(UpdateMode mode) {
 				InvalidateRect(mhwnd, NULL, TRUE);
 				mbRepaintOnNextUpdate = false;
 			}
+
+			mbPresentPending = false;
+			mSource.mpCB->RequestNextFrame();
 		} else {
 			RECT r;
 			GetClientRect(mhwnd, &r);
-			InternalRefresh(r, mode);
-
-			// Workaround for Windows Vista DWM not adding window to composition tree immediately
-			if (mbFirstFrame) {
-				mbFirstFrame = false;
-				SetWindowPos(mhwnd, NULL, 0, 0, 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
-			}
+			InternalRefresh(r, mode, true, (mode & kModeVSync) != 0);
 		}
 	}
 }
@@ -974,7 +1070,7 @@ bool VDVideoDisplayMinidriverDirectDraw::Paint(HDC hdc, const RECT& rClient, Upd
 			ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rClient, "", 0, NULL);
 		}
 	} else {
-		InternalRefresh(rClient, mode);
+		InternalRefresh(rClient, mode, true, false);
 	}
 
 	// Workaround for Windows Vista DWM not adding window to composition tree immediately
@@ -999,18 +1095,19 @@ bool VDVideoDisplayMinidriverDirectDraw::SetSubrect(const vdrect32 *r) {
 	return true;
 }
 
-void VDVideoDisplayMinidriverDirectDraw::InternalRefresh(const RECT& rClient, UpdateMode mode) {
+bool VDVideoDisplayMinidriverDirectDraw::InternalRefresh(const RECT& rClient, UpdateMode mode, bool newFrame, bool doNotWait) {
 	RECT rDst = rClient;
 
 	// DirectX doesn't like null rects.
 	if (rDst.right <= rDst.left || rDst.bottom <= rDst.top)
-		return;
+		return true;
 
 	MapWindowPoints(mhwnd, NULL, (LPPOINT)&rDst, 2);
 
 	IDirectDrawSurface2 *pDest = mpddman->GetPrimary();
 
-	pDest->SetClipper(mpddc);
+	if (!pDest)
+		return true;
 
 	if (mColorOverride) {
 		// convert color to primary surface format
@@ -1034,6 +1131,7 @@ void VDVideoDisplayMinidriverDirectDraw::InternalRefresh(const RECT& rClient, Up
 		DDBLTFX fx = {sizeof(DDBLTFX)};
 		fx.dwFillColor = tmpbuf;
 
+		pDest->SetClipper(mpddc);
 		for(int i=0; i<5; ++i) {
 			HRESULT hr = pDest->Blt(&rDst, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &fx);
 
@@ -1048,25 +1146,135 @@ void VDVideoDisplayMinidriverDirectDraw::InternalRefresh(const RECT& rClient, Up
 				pDest = NULL;
 
 				if (!mpddman->Restore())
-					return;
+					return true;
 
 				if (mbReset)
-					return;
+					return true;
 
 				pDest = mpddman->GetPrimary();
 				pDest->SetClipper(mpddc);
 			}
 		}
 
-		return;
+		pDest->SetClipper(NULL);
+
+		// Workaround for Windows Vista DWM not adding window to composition tree immediately
+		if (mbFirstFrame) {
+			mbFirstFrame = false;
+			SetWindowPos(mhwnd, NULL, 0, 0, 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
+		}
+		return true;
 	}
 
+	// DDBLTFX_NOTEARING is ignored by DirectDraw in 2K/XP.
+	if (!(mode & kModeVSync)) {
+		mPresentHistory.mbPresentPending = false;
+	} else {
+		IDirectDraw2 *pDD = mpddman->GetDDraw();
+
+		if (newFrame && !mPresentHistory.mbPresentPending) {
+			int top = 0;
+			int bottom = GetSystemMetrics(SM_CYSCREEN);
+
+			// GetMonitorInfo() requires Windows 98. We might never fail on this because
+			// I think DirectX 9.0c requires 98+, but we have to dynamically link anyway
+			// to avoid a startup link failure on 95.
+			typedef BOOL (APIENTRY *tpGetMonitorInfo)(HMONITOR mon, LPMONITORINFO lpmi);
+			static tpGetMonitorInfo spGetMonitorInfo = (tpGetMonitorInfo)GetProcAddress(GetModuleHandle("user32"), "GetMonitorInfo");
+
+			if (spGetMonitorInfo) {
+				HMONITOR hmon = mpddman->GetMonitor();
+				MONITORINFO monInfo = {sizeof(MONITORINFO)};
+				if (spGetMonitorInfo(hmon, &monInfo)) {
+					top = monInfo.rcMonitor.top;
+					bottom = monInfo.rcMonitor.bottom;
+				}
+			}
+
+			RECT r(rDst);
+			if (r.top < top)
+				r.top = top;
+			if (r.bottom > bottom)
+				r.bottom = bottom;
+
+			r.top -= top;
+			r.bottom -= top;
+
+			mPresentHistory.mScanTop = r.top;
+			mPresentHistory.mScanBottom = r.bottom;
+
+			mPresentHistory.mbPresentPending = true;
+			mPresentHistory.mbPresentBlitStarted = false;
+
+			mPresentHistory.mLastScanline = -1;
+			mPresentHistory.mPresentStartTime = VDGetPreciseTick();
+		}
+
+		if (!mPresentHistory.mbPresentPending)
+			return S_OK;
+
+		// Poll raster status, and wait until we can safely blit. We assume that the
+		// blit can outrace the beam. 
+		++mPresentHistory.mPollCount;
+		for(;;) {
+			// if we've already started the blit, skip beam-following
+			if (mPresentHistory.mbPresentBlitStarted)
+				break;
+
+			DWORD scan;
+			bool inVBlank = false;
+			HRESULT hr = pDD->GetScanLine(&scan);
+			if (FAILED(hr)) {
+				scan = 0;
+				inVBlank = true;
+			}
+
+			sint32 y1 = (sint32)mPresentHistory.mLastScanline;
+			if (y1 < 0) {
+				y1 = scan;
+				mPresentHistory.mAverageStartScanline += ((float)y1 - mPresentHistory.mAverageStartScanline) * 0.01f;
+			}
+
+			sint32 y2 = (sint32)scan;
+
+			mPresentHistory.mbLastWasVBlank	= inVBlank ? true : false;
+			mPresentHistory.mLastScanline	= scan;
+
+			sint32 yt = (sint32)mPresentHistory.mScanlineTarget;
+
+			mPresentHistory.mLastBracketY1 = y1;
+			mPresentHistory.mLastBracketY2 = y2;
+
+			// check for yt in [y1, y2]... but we have to watch for a beam wrap (y1 > y2).
+			if (y1 <= y2) {
+				// non-wrap case
+				if (y1 <= yt && yt <= y2)
+					break;
+			} else {
+				// wrap case
+				if (y1 <= yt || yt <= y2)
+					break;
+			}
+
+			if (doNotWait)
+				return false;
+
+			::Sleep(1);
+		}
+
+		mPresentHistory.mbPresentBlitStarted = true;
+	}
+
+	pDest->SetClipper(mpddc);
+
+	bool success = true;
+	bool stillDrawing = false;
 	if (!mSource.bInterlaced) {
 		if (mbUseSubrect) {
 			RECT rSrc = { mSubrect.left, mSubrect.top, mSubrect.right, mSubrect.bottom };
-			InternalBlt(pDest, &rDst, &rSrc, mode);
+			success = InternalBlt(pDest, &rDst, &rSrc, doNotWait, stillDrawing);
 		} else
-			InternalBlt(pDest, &rDst, NULL, mode);
+			success = InternalBlt(pDest, &rDst, NULL, doNotWait, stillDrawing);
 	} else {
 		const VDPixmap& source = mSource.pixmap;
 		vdrect32 r;
@@ -1105,54 +1313,115 @@ void VDVideoDisplayMinidriverDirectDraw::InternalRefresh(const RECT& rClient, Up
 			RECT rDstTemp = { rDst.left, rDst.top+y, rDst.right, rDst.top+y+1 };
 			RECT rSrcTemp = { r.left, v, r.width(), v+1 };
 
-			if (!InternalBlt(pDest, &rDstTemp, &rSrcTemp, mode))
+			if (!InternalBlt(pDest, &rDstTemp, &rSrcTemp, doNotWait || y > fieldbase, stillDrawing)) {
+				success = false;
 				break;
+			}
 
 			vaccum += vinc;
 		}
 	}
+
+	if (doNotWait && stillDrawing)
+		return false;
 	
 	if (pDest)
 		pDest->SetClipper(NULL);
-}
 
-bool VDVideoDisplayMinidriverDirectDraw::InternalBlt(IDirectDrawSurface2 *&pDest, RECT *prDst, RECT *prSrc, UpdateMode mode) {
-	HRESULT hr;
+	mbPresentPending = false;
 
-	for(;;) {
-		// DDBLTFX_NOTEARING is ignored by DirectDraw in 2K/XP.
+	if (mode & kModeVSync) {
+		mPresentHistory.mbPresentPending = false;
 
-		if (mode & kModeVSync) {
-			IDirectDraw2 *pDD = mpddman->GetDDraw();
-			DWORD maxScan = 0;
-			
-			for(;;) {
-				DWORD scan;
-				hr = pDD->GetScanLine(&scan);
+		if (!success)
+			return true;
 
-				// Check if GetScanLine() failed -- it will do so if we're in VBlank.
-				if (FAILED(hr))
-					break;
+		mPresentHistory.mAverageEndScanline += ((float)mPresentHistory.mLastScanline - mPresentHistory.mAverageEndScanline) * 0.01f;
+		mPresentHistory.mAveragePresentTime += ((VDGetPreciseTick() - mPresentHistory.mPresentStartTime)*VDGetPreciseSecondsPerTick() - mPresentHistory.mAveragePresentTime) * 0.01f;
 
-				// Check if we are outside of the danger zone.
-				if ((int)scan < prDst->top || (int)scan >= prDst->bottom)
-					break;
-
-				// Check if we have looped around, which may mean the system is too
-				// busy to poll the beam reliably.
-				if (scan < maxScan)
-					break;
-
-				// We're in the danger zone. If the delta is greater than one tenth of the
-				// display, do a sleep.
-				if ((prDst->bottom - (int)scan) * 10 >= (int)mpddman->GetPrimaryDesc().dwHeight)
-					::Sleep(1);
-
-				maxScan = scan;
-			}
+		IDirectDraw2 *pDD = mpddman->GetDDraw();
+		DWORD scan2;
+		bool inVBlank2 = false;
+		HRESULT hr = pDD->GetScanLine(&scan2);
+		if (hr == DDERR_VERTICALBLANKINPROGRESS) {
+			scan2 = 0;
+			inVBlank2 = true;
+			hr = S_OK;
 		}
 
-		hr = pDest->Blt(prDst, mpddsBitmap, prSrc, DDBLT_ASYNC | DDBLT_WAIT, NULL);
+		float syncDelta = 0.0f;
+		if (SUCCEEDED(hr)) {
+			float yf = ((float)scan2 - (float)mPresentHistory.mScanTop) / ((float)mPresentHistory.mScanBottom - (float)mPresentHistory.mScanTop);
+
+			yf -= 0.2f;
+
+			if (yf < 0.0f)
+				yf = 0.0f;
+			if (yf > 1.0f)
+				yf = 1.0f;
+
+			if (yf > 0.5f)
+				yf -= 1.0f;
+
+			syncDelta = yf;
+
+			int displayHeight = mpddman->GetPrimaryDesc().dwHeight;
+
+			mPresentHistory.mScanlineTarget -= yf * 15.0f;
+			if (mPresentHistory.mScanlineTarget < 0.0f)
+				mPresentHistory.mScanlineTarget += (float)displayHeight;
+			else if (mPresentHistory.mScanlineTarget >= (float)displayHeight)
+				mPresentHistory.mScanlineTarget -= (float)displayHeight;
+
+			float success = inVBlank2 || (int)scan2 <= mPresentHistory.mScanTop || (int)scan2 >= mPresentHistory.mScanBottom ? 1.0f : 0.0f;
+
+			int zone = 0;
+			if (!mPresentHistory.mbLastWasVBlank)
+				zone = ((int)mPresentHistory.mLastScanline * 16) / displayHeight;
+
+			for(int i=0; i<17; ++i) {
+				if (i != zone)
+					mPresentHistory.mAttemptProb[i] *= 0.99f;
+			}
+
+			mPresentHistory.mAttemptProb[zone] += (1.0f - mPresentHistory.mAttemptProb[zone]) * 0.01f;
+			mPresentHistory.mSuccessProb[zone] += (success - mPresentHistory.mSuccessProb[zone]) * 0.01f;
+
+			if (mPresentHistory.mLastScanline < mPresentHistory.mScanTop) {
+				mPresentHistory.mVBlankSuccess += (success - mPresentHistory.mVBlankSuccess) * 0.01f;
+			}
+
+			if (!mPresentHistory.mbLastWasVBlank && !inVBlank2 && (int)scan2 > mPresentHistory.mLastScanline) {
+				float delta = (float)(int)(scan2 - mPresentHistory.mLastScanline);
+
+				mPresentHistory.mPresentDelay += (delta - mPresentHistory.mPresentDelay) * 0.01f;
+			}
+		}
+	}
+
+	// Workaround for Windows Vista DWM not adding window to composition tree immediately
+	if (mbFirstFrame) {
+		mbFirstFrame = false;
+		SetWindowPos(mhwnd, NULL, 0, 0, 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
+	}
+
+	mSource.mpCB->RequestNextFrame();
+
+	return true;
+}
+
+bool VDVideoDisplayMinidriverDirectDraw::InternalBlt(IDirectDrawSurface2 *&pDest, RECT *prDst, RECT *prSrc, bool doNotWait, bool& stillDrawing) {
+	HRESULT hr;
+	DWORD flags = doNotWait ? DDBLT_ASYNC : DDBLT_ASYNC | DDBLT_WAIT;
+
+	stillDrawing = false;
+	for(;;) {
+		hr = pDest->Blt(prDst, mpddsBitmap, prSrc, flags, NULL);
+
+		if (hr == DDERR_WASSTILLDRAWING) {
+			stillDrawing = true;
+			return true;
+		}
 
 		if (SUCCEEDED(hr))
 			break;

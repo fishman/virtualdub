@@ -153,7 +153,7 @@ bool VDPixmapResampler::Init(const vdrect32f& dstrect0, uint32 dw, uint32 dh, in
 
 	// compute plane 0 stepping parameters
 	float xoffset = (((float)mDstRectPlane0.left + 0.5f) - dstrect.left) * xfactor + srcrect.left;
-	float yoffset = (((float)mDstRectPlane0.top  + 0.5f) - dstrect.top ) * yfactor + srcrect.top ;
+	float yoffset = (((float)mDstRectPlane0.top  + 0.5f) - dstrect.top ) * yfactor + srcrect.top;
 
 	// compute plane 1/2 dest rect and stepping parameters
 	float xoffset2 = 0.0f;
@@ -199,7 +199,7 @@ bool VDPixmapResampler::Init(const vdrect32f& dstrect0, uint32 dw, uint32 dh, in
 		mDstRectPlane12.bottom	= VDCeilToInt(dstrect2.bottom	- 0.5f);
 
 		xoffset2 = (((float)mDstRectPlane12.left + 0.5f) - dstrect2.left) * xfactor + srcrect2.left;
-		yoffset2 = (((float)mDstRectPlane12.top  + 0.5f) - dstrect2.top ) * yfactor + srcrect2.top ;
+		yoffset2 = (((float)mDstRectPlane12.top  + 0.5f) - dstrect2.top ) * yfactor + srcrect2.top;
 	}
 
 	VDPixmapUberBlitterGenerator gen;

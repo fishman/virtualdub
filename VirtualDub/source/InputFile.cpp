@@ -274,8 +274,6 @@ IVDInputDriver *VDAutoselectInputDriverForFile(const wchar_t *fn, uint32 flags) 
 		file.read(endbuf, 64);
 	}
 
-	sint64 fileSize = file.size();
-
 	// The Avisynth script:
 	//
 	//	Version
@@ -300,7 +298,7 @@ IVDInputDriver *VDAutoselectInputDriverForFile(const wchar_t *fn, uint32 flags) 
 	for(; it!=itEnd; ++it) {
 		IVDInputDriver *pDriver = *it;
 
-		int result = pDriver->DetectBySignature(buf, dwActual, endbuf, dwActual, fileSize);
+		int result = pDriver->DetectBySignature(buf, dwActual, endbuf, dwActual, 0);
 
 		if (result > 0 && fitquality < 1) {
 			pSelectedDriver = pDriver;

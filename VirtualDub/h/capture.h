@@ -32,6 +32,7 @@
 #include <vector>
 
 struct VDPixmap;
+class VDFraction;
 
 #define	CAPSTOP_TIME			(0x00000001L)
 #define	CAPSTOP_FILESIZE		(0x00000002L)
@@ -246,6 +247,7 @@ public:
 
 	virtual void	SetFrameTime(sint32 lFrameTime) = 0;
 	virtual sint32	GetFrameTime() = 0;
+	virtual VDFraction GetFrameRate() = 0;
 
 	virtual void	SetTimingSetup(const VDCaptureTimingSetup& syncSetup) = 0;
 	virtual const VDCaptureTimingSetup&	GetTimingSetup() = 0;

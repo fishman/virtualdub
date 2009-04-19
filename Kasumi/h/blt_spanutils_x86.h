@@ -27,7 +27,9 @@
 
 namespace nsVDPixmapSpanUtils {
 	void horiz_expand2x_coaligned_ISSE(uint8 *dst, const uint8 *src, sint32 w);
+	void horiz_expand4x_coaligned_MMX(uint8 *dst, const uint8 *src, sint32 w);
 	void vert_expand2x_centered_ISSE(uint8 *dst, const uint8 *const *srcs, sint32 w, uint8 phase);
+	void vert_expand4x_centered_ISSE(uint8 *dst, const uint8 *const *srcs, sint32 w, uint8 phase);
 }
 
 #endif

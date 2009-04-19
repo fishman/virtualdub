@@ -269,6 +269,14 @@ public:
 		return ptr == p ? p : (T *)_InterlockedExchange((volatile long *)&ptr, (long)p);
 #endif
 	}
+
+	T *compareExchange(T *newValue, T *oldValue) {
+#ifdef _M_AMD64
+		return (T *)_InterlockedCompareExchangePointer((void *volatile *)&ptr, (void *)newValue, (void *)oldValue);
+#else
+		return (T *)_InterlockedCompareExchange((volatile long *)&ptr, (long)(size_t)newValue, (long)(size_t)oldValue);
+#endif
+	}
 };
 
 #endif

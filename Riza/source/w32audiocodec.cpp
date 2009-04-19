@@ -392,6 +392,9 @@ bool VDAudioCodecW32::Convert(bool flush, bool requireOutput) {
 		vdprotected2(isCompression ? "compressing audio" : "decompressing audio", const char *, mDriverName, const char *, mDriverFilename) {
 			DWORD flags = ACM_STREAMCONVERTF_BLOCKALIGN;
 
+			if (flush && !mBufferHdr.cbSrcLength)
+				mbFlushing = true;
+
 			if (mbFlushing)
 				flags = ACM_STREAMCONVERTF_END;
 

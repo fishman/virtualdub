@@ -172,6 +172,14 @@ VDFraction VDFraction::operator/(unsigned long b) const {
 	return reduce(hi, (uint64)lo * b);
 }
 
+VDFraction& VDFraction::operator*=(VDFraction b) {
+	return *this = reduce((uint64)hi * b.hi, (uint64)lo * b.lo);
+}
+
+VDFraction& VDFraction::operator/=(VDFraction b) {
+	return *this = reduce((uint64)hi * b.lo, (uint64)lo * b.hi);
+}
+
 VDFraction& VDFraction::operator*=(unsigned long b) {
 	return *this = reduce((uint64)hi * b, lo);
 }

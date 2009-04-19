@@ -40,6 +40,7 @@ public:
 	virtual VDAVIBitmapInfoHeader *getImageFormat() = 0;
 
 	virtual const void *getFrameBuffer() = 0;
+	virtual const VDFraction getPixelAspectRatio() const = 0;
 
 	virtual const VDPixmap& getTargetFormat() = 0;
 	virtual bool		setTargetFormat(int format) = 0;
@@ -55,6 +56,8 @@ public:
 	virtual uint32		streamGetDecodePadding() = 0;
 	virtual void		streamFillDecodePadding(void *buffer, uint32 data_len) = 0;
 
+	virtual bool		streamOwn(void *owner) = 0;
+	virtual void		streamDisown(void *owner) = 0;
 	virtual void		streamBegin(bool fRealTime, bool bForceReset) = 0;
 	virtual void		streamRestart() = 0;
 
@@ -101,6 +104,8 @@ protected:
 	VDPosition	stream_desired_frame;
 	VDPosition	stream_current_frame;
 
+	void		*mpStreamOwner;
+
 	uint32		mPalette[256];
 
 	void *AllocFrameBuffer(long size);
@@ -132,6 +137,8 @@ public:
 		return (VDAVIBitmapInfoHeader *)getFormat();
 	}
 
+	virtual const VDFraction getPixelAspectRatio() const;
+
 	virtual const void *getFrameBuffer() {
 		return mpFrameBuffer;
 	}
@@ -151,6 +158,8 @@ public:
 	virtual uint32 streamGetDecodePadding() { return 0; }
 	virtual void streamFillDecodePadding(void *inputBuffer, uint32 data_len) {}
 
+	virtual bool streamOwn(void *owner);
+	virtual void streamDisown(void *owner);
 	virtual void streamBegin(bool fRealTime, bool bForceReset);
 	virtual void streamRestart();
 

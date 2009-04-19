@@ -1,3 +1,20 @@
+//	VirtualDub - Video processing and capture application
+//	Copyright (C) 1998-2009 Avery Lee
+//
+//	This program is free software; you can redistribute it and/or modify
+//	it under the terms of the GNU General Public License as published by
+//	the Free Software Foundation; either version 2 of the License, or
+//	(at your option) any later version.
+//
+//	This program is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU General Public License for more details.
+//
+//	You should have received a copy of the GNU General Public License
+//	along with this program; if not, write to the Free Software
+//	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 #include "stdafx.h"
 
 #include <vd2/system/vdstl.h>
@@ -426,6 +443,8 @@ struct VDVideoFilterFieldBob2Config {
 		kModeBob,
 		kModeELA,
 		kModeAdaptiveELA,
+		kModeNoneHalf,
+		kModeNoneFull,
 		kModeCount
 	};
 
@@ -470,6 +489,8 @@ void VDVideoFilterFieldBob2ConfigDialog::OnDataExchange(bool write) {
 		CheckButton(IDC_DEINTERLACE_BOB, mConfig.mMode == VDVideoFilterFieldBob2Config::kModeBob);
 		CheckButton(IDC_DEINTERLACE_ELA, mConfig.mMode == VDVideoFilterFieldBob2Config::kModeELA);
 		CheckButton(IDC_DEINTERLACE_ADAPTIVEELA, mConfig.mMode == VDVideoFilterFieldBob2Config::kModeAdaptiveELA);
+		CheckButton(IDC_DEINTERLACE_NONEHALF, mConfig.mMode == VDVideoFilterFieldBob2Config::kModeNoneHalf);
+		CheckButton(IDC_DEINTERLACE_NONEFULL, mConfig.mMode == VDVideoFilterFieldBob2Config::kModeNoneFull);
 	}
 }
 
@@ -519,6 +540,20 @@ bool VDVideoFilterFieldBob2ConfigDialog::OnCommand(uint32 id, uint32 /*extcode*/
 				mifp2->RedoSystem();
 			}
 			return true;
+
+		case IDC_DEINTERLACE_NONEHALF:
+			if (mConfig.mMode != VDVideoFilterFieldBob2Config::kModeNoneHalf) {
+				mConfig.mMode = VDVideoFilterFieldBob2Config::kModeNoneHalf;
+				mifp2->RedoSystem();
+			}
+			return true;
+
+		case IDC_DEINTERLACE_NONEFULL:
+			if (mConfig.mMode != VDVideoFilterFieldBob2Config::kModeNoneFull) {
+				mConfig.mMode = VDVideoFilterFieldBob2Config::kModeNoneFull;
+				mifp2->RedoSystem();
+			}
+			return true;
 	}
 
 	return false;
@@ -565,6 +600,9 @@ uint32 VDVideoFilterFieldBob2::GetParams() {
 
 	fa->dst.h &= ~1;
 
+	if (mConfig.mMode == VDVideoFilterFieldBob2Config::kModeNoneHalf)
+		fa->dst.h >>= 1;
+
 	fr *= 2;
 	fa->dst.mFrameRateHi = fr.getHi();
 	fa->dst.mFrameRateLo = fr.getLo();
@@ -603,7 +641,23 @@ void VDVideoFilterFieldBob2::Run() {
 	if (mConfig.mbOddFieldFirst)
 		odd = !odd;
 
-	if (mConfig.mMode == VDVideoFilterFieldBob2Config::kModeBob) {
+	if (mConfig.mMode == VDVideoFilterFieldBob2Config::kModeNoneHalf) {
+		VDMemcpyRect(
+			vdptroffset(fa->dst.data, fa->dst.pitch * (fa->dst.h - 1)),
+			-fa->dst.pitch,
+			vdptroffset(fa->src.data, fa->src.pitch * (fa->src.h - 1 - odd)),
+			-fa->src.pitch * 2,
+			fa->dst.w * 4,
+			fa->dst.h);
+	} else if (mConfig.mMode == VDVideoFilterFieldBob2Config::kModeNoneFull) {
+		VDMemcpyRect(
+			vdptroffset(fa->dst.data, fa->dst.pitch * (fa->dst.h - 1)),
+			-fa->dst.pitch,
+			vdptroffset(fa->src.data, fa->src.pitch * (fa->src.h - 1)),
+			-fa->src.pitch,
+			fa->dst.w * 4,
+			fa->dst.h);
+	} else if (mConfig.mMode == VDVideoFilterFieldBob2Config::kModeBob) {
 		uint32 w = fa->dst.w;
 		uint32 h = fa->dst.h;
 
@@ -687,6 +741,8 @@ void VDVideoFilterFieldBob2::GetSettingString(char *buf, int maxlen) {
 		"bob",
 		"ELA",
 		"adaptive ELA",
+		"none-fields",
+		"none-frames",
 	};
 
 	SafePrintf(buf, maxlen, " (%s, %s)", mConfig.mbOddFieldFirst ? "BFF" : "TFF", kDeinterlaceModes[mConfig.mMode]);

@@ -749,6 +749,38 @@ static void dorow2(Pixel32 *dst, Pixel32 *src, PixDim w) {
 		   + ((((src[0] & 0x0000FF00) + (src[1] & 0x0000FF00)*4 + (src[2] & 0x0000FF00)*11 + 0x00000800)>>4) & 0x0000FF00);
 }
 
+static void dorow2_8(unsigned char *dst, unsigned char *src, PixDim w) {
+	if (w < 4)
+		return;
+
+	dst[0] = (uint8)((src[0]*11 + src[1]*4 + src[2] + 8) >> 4);
+	dst[1] = (uint8)((src[0]*5 + src[1]*6 + src[2]*4 + src[3] + 8) >> 4);
+
+	dst += 2;
+
+	w -= 4;
+	if (w) {
+		w = -w;
+		src = src-w;
+		dst = dst-w;
+		do {
+			unsigned s1, s2, s3, s4, s5;
+
+			s1 = src[w+0];
+			s2 = src[w+1];
+			s3 = src[w+2];
+			s4 = src[w+3];
+			s5 = src[w+4];
+
+			dst[w+0] = (uint8)((s1 + 4*s2 + 6*s3 + 4*s4 + s5 + 8) >> 4);
+
+		} while(++w);
+	}
+
+	dst[0] = (uint8)((src[0] + src[1]*4 + src[2]*6 + src[3]*5 + 8) >> 4);
+	dst[1] = (uint8)((src[0] + src[1]*4 + src[2]*11 + 8) >> 4);
+}
+
 #ifdef _M_IX86
 static void __declspec(naked) docol2_MMX(Pixel32 *dst, Pixel32 *src1, Pixel32 *src2, Pixel32 *src3, Pixel32 *src4, Pixel32 *src5, PixDim w) {
 	__asm {
@@ -840,7 +872,7 @@ static void docol2(Pixel32 *dst, Pixel32 *row1, Pixel32 *row2, Pixel32 *row3, Pi
 		s5 = row5[w];
 
 		dst[w+0]= ((((s1&0xFF00FF) + 4*(s2&0xFF00FF) + 6*(s3&0xFF00FF) + 4*(s4&0xFF00FF) + (s5&0xFF00FF) + 0x080008)>>4) & 0xFF00FF)
-				+ ((((s1&0x00FF00) + 4*(s2&0x00FF00) + 6*(s3&0x00FF00) + 4*(s4&0x00FF00) + (s5&0x00FF00) + 0x000800)>>4) & 0x00FF00);
+				+ ((((s1&0xFF00FF00)>>4) + ((s2&0xFF00FF00)>>2) + 3*((s3&0xFF00FF00)>>3) + ((s4&0xFF00FF00)>>2) + ((s5&0xFF00FF00)>>4) + 0x00800080) & 0xFF00FF00);
 
 	} while(++w);
 }
@@ -855,6 +887,8 @@ void VEffectBlurHi::run(const VBitmap *vbmdst, const VBitmap *vbm) {
 	PixDim h;
 	int crow = 4;
 
+	int rowdwords = (vbm->w * vbm->depth + 31) / 32;
+
 	if (vbm->h == 1) {
 		dorow(rows[0], srcr, vbm->w);
 		memcpy(srcr, rows[0], sizeof(Pixel32)*vbm->w);
@@ -868,24 +902,34 @@ void VEffectBlurHi::run(const VBitmap *vbmdst, const VBitmap *vbm) {
 
 	}
 
-	dorow2(rows[0], srcr, vbm->w);
-	memcpy(rows[1], rows[0], sizeof(Pixel32)*vbm->w);
-	memcpy(rows[2], rows[0], sizeof(Pixel32)*vbm->w);
-	dorow2(rows[3], (Pixel32 *)((char *)srcr + vbm->pitch), vbm->w);
+	if (vbm->depth == 8)
+		dorow2_8((unsigned char *)rows[0], (unsigned char *)srcr, vbm->w);
+	else
+		dorow2(rows[0], srcr, vbm->w);
+	memcpy(rows[1], rows[0], sizeof(Pixel32)*rowdwords);
+	memcpy(rows[2], rows[0], sizeof(Pixel32)*rowdwords);
+
+	if (vbm->depth == 8)
+		dorow2_8((unsigned char *)rows[3], (unsigned char *)((char *)srcr + vbm->pitch), vbm->w);
+	else
+		dorow2(rows[3], (Pixel32 *)((char *)srcr + vbm->pitch), vbm->w);
 
 	h = vbm->h;
 	do {
-		if (h>2)
-			dorow2(rows[crow], (Pixel32 *)((char *)srcr + vbm->pitch*2), vbm->w);
-		else
-			memcpy(rows[crow], rows[crow ? crow-1 : 4], vbm->w*sizeof(Pixel32));
+		if (h>2) {
+			if (vbm->depth == 8)
+				dorow2_8((unsigned char *)rows[crow], (unsigned char *)((char *)srcr + vbm->pitch*2), vbm->w);
+			else
+				dorow2(rows[crow], (Pixel32 *)((char *)srcr + vbm->pitch*2), vbm->w);
+		} else
+			memcpy(rows[crow], rows[crow ? crow-1 : 4], rowdwords*sizeof(Pixel32));
 
 		switch(crow) {
-		case 0:	docol2(dstr, rows[1], rows[2], rows[3], rows[4], rows[0], vbm->w); break;
-		case 1:	docol2(dstr, rows[2], rows[3], rows[4], rows[0], rows[1], vbm->w); break;
-		case 2:	docol2(dstr, rows[3], rows[4], rows[0], rows[1], rows[2], vbm->w); break;
-		case 3:	docol2(dstr, rows[4], rows[0], rows[1], rows[2], rows[3], vbm->w); break;
-		case 4:	docol2(dstr, rows[0], rows[1], rows[2], rows[3], rows[4], vbm->w); break;
+		case 0:	docol2(dstr, rows[1], rows[2], rows[3], rows[4], rows[0], rowdwords); break;
+		case 1:	docol2(dstr, rows[2], rows[3], rows[4], rows[0], rows[1], rowdwords); break;
+		case 2:	docol2(dstr, rows[3], rows[4], rows[0], rows[1], rows[2], rowdwords); break;
+		case 3:	docol2(dstr, rows[4], rows[0], rows[1], rows[2], rows[3], rowdwords); break;
+		case 4:	docol2(dstr, rows[0], rows[1], rows[2], rows[3], rows[4], rowdwords); break;
 		}
 
 		if (++crow >= 5)

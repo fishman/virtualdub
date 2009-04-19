@@ -32,6 +32,7 @@ struct VDAPITableWGL {
 	BOOL	(APIENTRY *wglMakeCurrent)(HDC  hdc, HGLRC hglrc);
 	PROC	(APIENTRY *wglGetProcAddress)(const char *lpszProc);
 	BOOL	(APIENTRY *wglSwapBuffers)(HDC  hdc);
+	BOOL	(APIENTRY *wglUseFontBitmapsA)(HDC hdc, DWORD first, DWORD count, DWORD listBase);
 };
 
 struct VDAPITableOpenGL {
@@ -45,6 +46,7 @@ struct VDAPITableOpenGL {
 	void	(APIENTRY *glClearColor)(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 	void	(APIENTRY *glColor4d)(GLdouble red, GLdouble green, GLdouble blue, GLdouble alpha);
 	void	(APIENTRY *glColor4f)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+	void	(APIENTRY *glColor4ub)(GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha);
 	void	(APIENTRY *glColorMask)(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
 	void	(APIENTRY *glCopyTexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 	void	(APIENTRY *glDeleteLists)(GLuint list, GLsizei range);
@@ -59,6 +61,7 @@ struct VDAPITableOpenGL {
 	void	(APIENTRY *glFeedbackBuffer)(GLsizei n, GLenum type, GLfloat *buffer);
 	void	(APIENTRY *glFinish)();
 	void	(APIENTRY *glFlush)();
+	void	(APIENTRY *glFrontFace)(GLenum mode);
 	GLenum	(APIENTRY *glGetError)();
 	void	(APIENTRY *glGetFloatv)(GLenum pname, GLfloat *params);
 	void	(APIENTRY *glGetIntegerv)(GLenum pname, GLint *params);
@@ -79,15 +82,19 @@ struct VDAPITableOpenGL {
 	GLint	(APIENTRY *glRenderMode)(GLenum);
 	void	(APIENTRY *glTexCoord2d)(GLdouble s, GLdouble t);
 	void	(APIENTRY *glTexCoord2f)(GLfloat s, GLfloat t);
+	void	(APIENTRY *glTexCoord2fv)(const GLfloat *v);
+	void	(APIENTRY *glTexEnvf)(GLenum target, GLenum pname, GLfloat param);
 	void	(APIENTRY *glTexEnvi)(GLenum target, GLenum pname, GLint param);
 	void	(APIENTRY *glTexImage1D)(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 	void	(APIENTRY *glTexImage2D)(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 	void	(APIENTRY *glTexParameterfv)(GLenum target, GLenum pname, const GLfloat *params);
 	void	(APIENTRY *glTexParameteri)(GLenum target, GLenum pname, GLint param);
+	void	(APIENTRY *glTexSubImage1D)(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels);
 	void	(APIENTRY *glTexSubImage2D)(GLenum target, GLint level, GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
 	void	(APIENTRY *glVertex2d)(GLdouble x, GLdouble y);
 	void	(APIENTRY *glVertex2f)(GLfloat x, GLfloat y);
 	void	(APIENTRY *glVertex2i)(GLint x, GLint y);
+	void	(APIENTRY *glVertex3fv)(const GLfloat *v);
 	void	(APIENTRY *glViewport)(GLint x, GLint y, GLsizei width, GLsizei height);
 };
 
@@ -102,6 +109,13 @@ struct VDAPITableOpenGL {
 #define		WGL_TEXTURE_FLOAT_RG_NV				0x20B6
 #define		WGL_TEXTURE_FLOAT_RGB_NV			0x20B7
 #define		WGL_TEXTURE_FLOAT_RGBA_NV			0x20B8
+
+#define		GL_FUNC_ADD_EXT						0x8006
+#define		GL_MIN_EXT							0x8007
+#define		GL_MAX_EXT							0x8008
+#define		GL_BLEND_EQUATION_EXT				0x8009
+#define		GL_FUNC_SUBTRACT_EXT				0x800A
+#define		GL_FUNC_REVERSE_SUBTRACT_EXT		0x800B
 
 #define		GL_PACK_SKIP_IMAGES_EXT				0x806B
 #define		GL_PACK_IMAGE_HEIGHT_EXT			0x806C
@@ -131,10 +145,22 @@ struct VDAPITableOpenGL {
 #define		GL_DEPTH_COMPONENT24_ARB			0x81A6
 #define		GL_DEPTH_COMPONENT32_ARB			0x81A7
 
+#ifndef		GL_UNSIGNED_SHORT_5_6_5
+#define		GL_UNSIGNED_SHORT_5_6_5				0x8363
+#endif
+#ifndef		GL_UNSIGNED_SHORT_5_6_5_REV
+#define		GL_UNSIGNED_SHORT_5_6_5_REV			0x8364
+#endif
+#ifndef		GL_UNSIGNED_SHORT_1_5_5_5_REV
+#define		GL_UNSIGNED_SHORT_1_5_5_5_REV		0x8366
+#endif
+
 #define		GL_COMPRESSED_RGB_S3TC_DXT1_EXT		0x83F0
 #define		GL_COMPRESSED_RGBA_S3TC_DXT1_EXT	0x83F1
 #define		GL_COMPRESSED_RGBA_S3TC_DXT3_EXT	0x83F2
 #define		GL_COMPRESSED_RGBA_S3TC_DXT5_EXT	0x83F3
+
+#define		GL_COLOR_SUM_ARB					0x8458
 
 #define		GL_TEXTURE0_ARB						0x84C0
 #define		GL_TEXTURE1_ARB						0x84C1
@@ -155,6 +181,10 @@ struct VDAPITableOpenGL {
 #define		GL_PROXY_TEXTURE_RECTANGLE_ARB		0x84F7
 #define		GL_MAX_RECTANGLE_TEXTURE_SIZE_NV	0x84F8
 #define		GL_MAX_RECTANGLE_TEXTURE_SIZE_ARB	0x84F8
+#define		GL_MAX_TEXTURE_LOD_BIAS_EXT			0x84FD
+
+#define		GL_TEXTURE_FILTER_CONTROL_EXT		0x8500
+#define		GL_TEXTURE_LOD_BIAS_EXT				0x8501
 
 #define		GL_NORMAL_MAP_ARB					0x8511
 #define		GL_REFLECTION_MAP_ARB				0x8512
@@ -245,6 +275,28 @@ struct VDAPITableOpenGL {
 #define		GL_OPERAND1_ALPHA_EXT				0x8599
 #define		GL_OPERAND2_ALPHA_EXT				0x859A
 
+#define		GL_VERTEX_PROGRAM_ARB				0x8620
+
+#define		GL_VERTEX_ATTRIB_ARRAY_ENABLED_ARB	0x8622
+#define		GL_VERTEX_ATTRIB_ARRAY_SIZE_ARB		0x8623
+#define		GL_VERTEX_ATTRIB_ARRAY_STRIDE_ARB	0x8624
+#define		GL_VERTEX_ATTRIB_ARRAY_TYPE_ARB		0x8625
+#define		GL_CURRENT_VERTEX_ATTRIB_ARB		0x8626
+
+#define		GL_PROGRAM_LENGTH_ARB				0x8627
+#define		GL_PROGRAM_STRING_ARB				0x8628
+#define		GL_MAX_PROGRAM_MATRIX_STACK_DEPTH_ARB	0x862E
+#define		GL_MAX_PROGRAM_MATRICES_ARB			0x862F
+
+#define		GL_CURRENT_MATRIX_STACK_DEPTH_ARB	0x8640
+#define		GL_CURRENT_MATRIX_ARB				0x8641
+#define		GL_VERTEX_PROGRAM_POINT_SIZE_ARB	0x8642
+#define		GL_VERTEX_PROGRAM_TWO_SIDE_ARB		0x8643
+#define		GL_VERTEX_ATTRIB_ARRAY_POINTER_ARB	0x8645
+#define		GL_PROGRAM_ERROR_POSITION_ARB		0x864B
+
+#define		GL_PROGRAM_BINDING_ARB				0x8677
+
 #define		GL_UNSIGNED_INT_S8_S8_8_8_NV		0x86DA
 #define		GL_UNSIGNED_INT_8_8_S8_S8_REV_NV	0x86DB
 #define		GL_DSDT_MAG_INTENSITY_NV			0x86DC
@@ -276,6 +328,20 @@ struct VDAPITableOpenGL {
 #define		GL_SIGNED_RGB8_UNSIGNED_ALPHA8_NV	0x870D
 #define		GL_DSDT8_MAG8_INTENSITY8_NV			0x870B
 
+#define		GL_FRAGMENT_PROGRAM_ARB				0x8804
+#define		GL_PROGRAM_ALU_INSTRUCTIONS_ARB		0x8805
+#define		GL_PROGRAM_TEX_INSTRUCTIONS_ARB		0x8806
+#define		GL_PROGRAM_TEX_INDIRECTIONS_ARB		0x8807
+#define		GL_PROGRAM_NATIVE_ALU_INSTRUCTIONS_ARB	0x8808
+#define		GL_PROGRAM_NATIVE_TEX_INSTRUCTIONS_ARB	0x8809
+#define		GL_PROGRAM_NATIVE_TEX_INDIRECTIONS_ARB	0x880A
+#define		GL_MAX_PROGRAM_ALU_INSTRUCTIONS_ARB	0x880B
+#define		GL_MAX_PROGRAM_TEX_INSTRUCTIONS_ARB	0x880C
+#define		GL_MAX_PROGRAM_TEX_INDIRECTIONS_ARB	0x880D
+#define		GL_MAX_PROGRAM_NATIVE_ALU_INSTRUCTIONS_ARB	0x880E
+#define		GL_MAX_PROGRAM_NATIVE_TEX_INSTRUCTIONS_ARB	0x880F
+#define		GL_MAX_PROGRAM_NATIVE_TEX_INDIRECTIONS_ARB	0x8810
+
 #define		GL_RGBA_FLOAT32_ATI					0x8814
 #define		GL_RGB_FLOAT32_ATI					0x8815
 #define		GL_ALPHA_FLOAT32_ATI				0x8816
@@ -296,6 +362,12 @@ struct VDAPITableOpenGL {
 #define		GL_CURRENT_OCCLUSION_QUERY_ID_NV	0x8865
 #define		GL_PIXEL_COUNT_NV					0x8866
 #define		GL_PIXEL_COUNT_AVAILABLE_NV			0x8867
+#define		GL_MAX_VERTEX_ATTRIBS_ARB			0x8869
+#define		GL_VERTEX_ATTRIB_ARRAY_NORMALIZED_ARB	0x886A
+
+#define		GL_PROGRAM_ERROR_STRING_ARB			0x8874
+#define		GL_PROGRAM_FORMAT_ASCII_ARB			0x8875
+#define		GL_PROGRAM_FORMAT_ARB				0x8876
 
 #define		GL_FLOAT_R_NV						0x8880
 #define		GL_FLOAT_RG_NV						0x8881
@@ -313,9 +385,72 @@ struct VDAPITableOpenGL {
 #define		GL_FLOAT_CLEAR_COLOR_VALUE_NV		0x888D
 #define		GL_FLOAT_RGBA_MODE_NV				0x888E
 
+#define		GL_PROGRAM_INSTRUCTIONS_ARB			0x88A0
+#define		GL_MAX_PROGRAM_INSTRUCTIONS_ARB		0x88A1
+#define		GL_PROGRAM_NATIVE_INSTRUCTIONS_ARB	0x88A2
+#define		GL_MAX_PROGRAM_NATIVE_INSTRUCTIONS_ARB	0x88A3
+#define		GL_PROGRAM_TEMPORARIES_ARB			0x88A4
+#define		GL_MAX_PROGRAM_TEMPORARIES_ARB		0x88A5
+#define		GL_PROGRAM_NATIVE_TEMPORARIES_ARB	0x88A6
+#define		GL_MAX_PROGRAM_NATIVE_TEMPORARIES_ARB	0x88A7
+#define		GL_PROGRAM_PARAMETERS_ARB			0x88A8
+#define		GL_MAX_PROGRAM_PARAMETERS_ARB		0x88A9
+#define		GL_PROGRAM_NATIVE_PARAMETERS_ARB	0x88AA
+#define		GL_MAX_PROGRAM_NATIVE_PARAMETERS_ARB	0x88AB
+#define		GL_PROGRAM_ATTRIBS_ARB				0x88AC
+#define		GL_MAX_PROGRAM_ATTRIBS_ARB			0x88AD
+#define		GL_PROGRAM_NATIVE_ATTRIBS_ARB		0x88AE
+#define		GL_MAX_PROGRAM_NATIVE_ATTRIBS_ARB	0x88AF
+#define		GL_PROGRAM_ADDRESS_REGISTERS_ARB	0x88B0
+#define		GL_MAX_PROGRAM_ADDRESS_REGISTERS_ARB	0x88B1
+#define		GL_PROGRAM_NATIVE_ADDRESS_REGISTERS_ARB	0x88B2
+#define		GL_MAX_PROGRAM_NATIVE_ADDRESS_REGISTERS_ARB	0x88B3
+#define		GL_MAX_PROGRAM_LOCAL_PARAMETERS_ARB	0x88B4
+#define		GL_MAX_PROGRAM_ENV_PARAMETERS_ARB	0x88B5
+#define		GL_PROGRAM_UNDER_NATIVE_LIMITS_ARB	0x88B6
+
+#define		GL_PROGRAM_ADDRESS_REGISTERS_ARB			0x88B0
+#define		GL_MAX_PROGRAM_ADDRESS_REGISTERS_ARB		0x88B1
+#define		GL_PROGRAM_NATIVE_ADDRESS_REGISTERS_ARB		0x88B2
+#define		GL_MAX_PROGRAM_NATIVE_ADDRESS_REGISTERS_ARB	0x88B3
+#define		GL_TRANSPOSE_CURRENT_MATRIX_ARB		0x88B7
 #define		GL_READ_ONLY_ARB					0x88B8
 #define		GL_WRITE_ONLY_ARB					0x88B9
 #define		GL_READ_WRITE_ARB					0x88BA
+
+#define		GL_MATRIX0_ARB						0x88C0
+#define		GL_MATRIX1_ARB						0x88C1
+#define		GL_MATRIX2_ARB						0x88C2
+#define		GL_MATRIX3_ARB						0x88C3
+#define		GL_MATRIX4_ARB						0x88C4
+#define		GL_MATRIX5_ARB						0x88C5
+#define		GL_MATRIX6_ARB						0x88C6
+#define		GL_MATRIX7_ARB						0x88C7
+#define		GL_MATRIX8_ARB						0x88C8
+#define		GL_MATRIX9_ARB						0x88C9
+#define		GL_MATRIX10_ARB						0x88CA
+#define		GL_MATRIX11_ARB						0x88CB
+#define		GL_MATRIX12_ARB						0x88CC
+#define		GL_MATRIX13_ARB						0x88CD
+#define		GL_MATRIX14_ARB						0x88CE
+#define		GL_MATRIX15_ARB						0x88CF
+#define		GL_MATRIX16_ARB						0x88D0
+#define		GL_MATRIX17_ARB						0x88D1
+#define		GL_MATRIX18_ARB						0x88D2
+#define		GL_MATRIX19_ARB						0x88D3
+#define		GL_MATRIX20_ARB						0x88D4
+#define		GL_MATRIX21_ARB						0x88D5
+#define		GL_MATRIX22_ARB						0x88D6
+#define		GL_MATRIX23_ARB						0x88D7
+#define		GL_MATRIX24_ARB						0x88D8
+#define		GL_MATRIX25_ARB						0x88D9
+#define		GL_MATRIX26_ARB						0x88DA
+#define		GL_MATRIX27_ARB						0x88DB
+#define		GL_MATRIX28_ARB						0x88DC
+#define		GL_MATRIX29_ARB						0x88DD
+#define		GL_MATRIX30_ARB						0x88DE
+#define		GL_MATRIX31_ARB						0x88DF
+
 #define		GL_STREAM_DRAW_ARB					0x88E0
 #define		GL_STREAM_READ_ARB					0x88E1
 #define		GL_STREAM_COPY_ARB					0x88E2
@@ -537,6 +672,107 @@ struct VDAPITableOpenGLEXT {
 	void (APIENTRY *glGetFramebufferAttachmentParameterivEXT)(GLenum target, GLenum attachment, GLenum pname, GLint *params);
 	void (APIENTRY *glGenerateMipmapEXT)(GLenum target);
 
+	// ARB_vertex_program
+    void (APIENTRY *glVertexAttrib1sARB)(GLuint index, GLshort x);
+    void (APIENTRY *glVertexAttrib1fARB)(GLuint index, GLfloat x);
+    void (APIENTRY *glVertexAttrib1dARB)(GLuint index, GLdouble x);
+    void (APIENTRY *glVertexAttrib2sARB)(GLuint index, GLshort x, GLshort y);
+    void (APIENTRY *glVertexAttrib2fARB)(GLuint index, GLfloat x, GLfloat y);
+    void (APIENTRY *glVertexAttrib2dARB)(GLuint index, GLdouble x, GLdouble y);
+    void (APIENTRY *glVertexAttrib3sARB)(GLuint index, GLshort x, GLshort y, GLshort z);
+    void (APIENTRY *glVertexAttrib3fARB)(GLuint index, GLfloat x, GLfloat y, GLfloat z);
+    void (APIENTRY *glVertexAttrib3dARB)(GLuint index, GLdouble x, GLdouble y, GLdouble z);
+    void (APIENTRY *glVertexAttrib4sARB)(GLuint index, GLshort x, GLshort y, GLshort z, GLshort w);
+    void (APIENTRY *glVertexAttrib4fARB)(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+    void (APIENTRY *glVertexAttrib4dARB)(GLuint index, GLdouble x, GLdouble y, GLdouble z, GLdouble w);
+    void (APIENTRY *glVertexAttrib4NubARB)(GLuint index, GLubyte x, GLubyte y, GLubyte z, GLubyte w);
+
+    void (APIENTRY *glVertexAttrib1svARB)(GLuint index, const GLshort *v);
+    void (APIENTRY *glVertexAttrib1fvARB)(GLuint index, const GLfloat *v);
+    void (APIENTRY *glVertexAttrib1dvARB)(GLuint index, const GLdouble *v);
+    void (APIENTRY *glVertexAttrib2svARB)(GLuint index, const GLshort *v);
+    void (APIENTRY *glVertexAttrib2fvARB)(GLuint index, const GLfloat *v);
+    void (APIENTRY *glVertexAttrib2dvARB)(GLuint index, const GLdouble *v);
+    void (APIENTRY *glVertexAttrib3svARB)(GLuint index, const GLshort *v);
+    void (APIENTRY *glVertexAttrib3fvARB)(GLuint index, const GLfloat *v);
+    void (APIENTRY *glVertexAttrib3dvARB)(GLuint index, const GLdouble *v);
+    void (APIENTRY *glVertexAttrib4bvARB)(GLuint index, const GLbyte *v);
+    void (APIENTRY *glVertexAttrib4svARB)(GLuint index, const GLshort *v);
+    void (APIENTRY *glVertexAttrib4ivARB)(GLuint index, const GLint *v);
+    void (APIENTRY *glVertexAttrib4ubvARB)(GLuint index, const GLubyte *v);
+    void (APIENTRY *glVertexAttrib4usvARB)(GLuint index, const GLushort *v);
+    void (APIENTRY *glVertexAttrib4uivARB)(GLuint index, const GLuint *v);
+    void (APIENTRY *glVertexAttrib4fvARB)(GLuint index, const GLfloat *v);
+    void (APIENTRY *glVertexAttrib4dvARB)(GLuint index, const GLdouble *v);
+    void (APIENTRY *glVertexAttrib4NbvARB)(GLuint index, const GLbyte *v);
+    void (APIENTRY *glVertexAttrib4NsvARB)(GLuint index, const GLshort *v);
+    void (APIENTRY *glVertexAttrib4NivARB)(GLuint index, const GLint *v);
+    void (APIENTRY *glVertexAttrib4NubvARB)(GLuint index, const GLubyte *v);
+    void (APIENTRY *glVertexAttrib4NusvARB)(GLuint index, const GLushort *v);
+    void (APIENTRY *glVertexAttrib4NuivARB)(GLuint index, const GLuint *v);
+
+    void (APIENTRY *glVertexAttribPointerARB)(GLuint index, GLint size, GLenum type, 
+                                GLboolean normalized, GLsizei stride,
+                                const void *pointer);
+
+    void (APIENTRY *glEnableVertexAttribArrayARB)(GLuint index);
+    void (APIENTRY *glDisableVertexAttribArrayARB)(GLuint index);
+
+    void (APIENTRY *glProgramStringARB)(GLenum target, GLenum format, GLsizei len, 
+                          const void *string); 
+
+    void (APIENTRY *glBindProgramARB)(GLenum target, GLuint program);
+
+    void (APIENTRY *glDeleteProgramsARB)(GLsizei n, const GLuint *programs);
+
+    void (APIENTRY *glGenProgramsARB)(GLsizei n, GLuint *programs);
+
+    void (APIENTRY *glProgramEnvParameter4dARB)(GLenum target, GLuint index,
+                                  GLdouble x, GLdouble y, GLdouble z, GLdouble w);
+    void (APIENTRY *glProgramEnvParameter4dvARB)(GLenum target, GLuint index,
+                                   const GLdouble *params);
+    void (APIENTRY *glProgramEnvParameter4fARB)(GLenum target, GLuint index,
+                                  GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+    void (APIENTRY *glProgramEnvParameter4fvARB)(GLenum target, GLuint index,
+                                   const GLfloat *params);
+
+    void (APIENTRY *glProgramLocalParameter4dARB)(GLenum target, GLuint index,
+                                    GLdouble x, GLdouble y, GLdouble z, GLdouble w);
+    void (APIENTRY *glProgramLocalParameter4dvARB)(GLenum target, GLuint index,
+                                     const GLdouble *params);
+    void (APIENTRY *glProgramLocalParameter4fARB)(GLenum target, GLuint index,
+                                    GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+    void (APIENTRY *glProgramLocalParameter4fvARB)(GLenum target, GLuint index,
+                                     const GLfloat *params);
+
+    void (APIENTRY *glGetProgramEnvParameterdvARB)(GLenum target, GLuint index,
+                                     GLdouble *params);
+    void (APIENTRY *glGetProgramEnvParameterfvARB)(GLenum target, GLuint index, 
+                                     GLfloat *params);
+
+    void (APIENTRY *glGetProgramLocalParameterdvARB)(GLenum target, GLuint index,
+                                       GLdouble *params);
+    void (APIENTRY *glGetProgramLocalParameterfvARB)(GLenum target, GLuint index, 
+                                       GLfloat *params);
+
+    void (APIENTRY *glGetProgramivARB)(GLenum target, GLenum pname, GLint *params);
+
+    void (APIENTRY *glGetProgramStringARB)(GLenum target, GLenum pname, void *string);
+
+    void (APIENTRY *glGetVertexAttribdvARB)(GLuint index, GLenum pname, GLdouble *params);
+    void (APIENTRY *glGetVertexAttribfvARB)(GLuint index, GLenum pname, GLfloat *params);
+    void (APIENTRY *glGetVertexAttribivARB)(GLuint index, GLenum pname, GLint *params);
+
+    void (APIENTRY *glGetVertexAttribPointervARB)(GLuint index, GLenum pname, void **pointer);
+
+    GLboolean (APIENTRY *glIsProgramARB)(GLuint program);
+
+	// EXT_blend_minmax
+	void (APIENTRY *glBlendEquationEXT)(GLenum mode);
+
+	// EXT_secondary_color
+	void (APIENTRY *glSecondaryColor3ub)(GLubyte red, GLubyte green, GLubyte blue);
+
 	// WGL_ARB_extensions_string
 	const char *(APIENTRY *wglGetExtensionsStringARB)(HDC hdc);
 
@@ -595,15 +831,21 @@ public:
 
 public:
 	// extension flags
+	bool ARB_fragment_program;
 	bool ARB_multitexture;
+	bool ARB_pixel_buffer_object;
+	bool ARB_vertex_program;
+	bool ATI_fragment_shader;
+	bool EXT_blend_minmax;
+	bool EXT_blend_subtract;
+	bool EXT_framebuffer_object;
+	bool EXT_pixel_buffer_object;
+	bool EXT_texture_edge_clamp;
+	bool EXT_texture_env_combine;
+	bool EXT_secondary_color;
+	bool NV_occlusion_query;
 	bool NV_register_combiners;
 	bool NV_register_combiners2;
-	bool NV_occlusion_query;
-	bool EXT_pixel_buffer_object;
-	bool ARB_pixel_buffer_object;
-	bool ATI_fragment_shader;
-	bool EXT_texture_env_combine;
-	bool EXT_framebuffer_object;
 
 	// WGL extension flags
 	bool ARB_make_current_read;

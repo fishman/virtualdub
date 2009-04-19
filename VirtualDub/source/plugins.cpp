@@ -15,7 +15,7 @@
 #include "plugins.h"
 #include "misc.h"
 
-extern VDXFilterFunctions g_filterFuncs;
+extern VDXFilterFunctions g_VDFilterCallbacks;
 
 namespace {
 	class VDShadowedPluginDescription : public VDPluginDescription, public vdrefcounted<IVDRefCount> {
@@ -212,7 +212,7 @@ void VDExternalModule::DisconnectOldPlugins() {
 	if (mModuleInfo.hInstModule) {
 		{
 			VDExternalCodeBracket bracket(mFilename.c_str(), __FILE__, __LINE__);
-			mModuleInfo.deinitProc(&mModuleInfo, &g_filterFuncs);
+			mModuleInfo.deinitProc(&mModuleInfo, &g_VDFilterCallbacks);
 		}
 
 		mModuleInfo.hInstModule = NULL;
@@ -249,11 +249,11 @@ void VDExternalModule::ReconnectOldPlugins() {
 			int ver_hi = VIRTUALDUB_FILTERDEF_VERSION;
 			int ver_lo = VIRTUALDUB_FILTERDEF_COMPATIBLE;
 
-			if (mModuleInfo.initProc(&mModuleInfo, &g_filterFuncs, ver_hi, ver_lo))
+			if (mModuleInfo.initProc(&mModuleInfo, &g_VDFilterCallbacks, ver_hi, ver_lo))
 				throw MyError("Error initializing module \"%s\".",nameA.c_str());
 
 			if (ver_hi < VIRTUALDUB_FILTERDEF_COMPATIBLE) {
-				mModuleInfo.deinitProc(&mModuleInfo, &g_filterFuncs);
+				mModuleInfo.deinitProc(&mModuleInfo, &g_VDFilterCallbacks);
 
 				throw MyError(
 					"This filter was created for an earlier, incompatible filter interface. As a result, it will not "
@@ -261,7 +261,7 @@ void VDExternalModule::ReconnectOldPlugins() {
 			}
 
 			if (ver_lo > VIRTUALDUB_FILTERDEF_VERSION) {
-				mModuleInfo.deinitProc(&mModuleInfo, &g_filterFuncs);
+				mModuleInfo.deinitProc(&mModuleInfo, &g_VDFilterCallbacks);
 
 				throw MyError(
 					"This filter uses too new of a filter interface!  You'll need to upgrade to a newer version of "

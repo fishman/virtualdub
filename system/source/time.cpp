@@ -98,11 +98,17 @@ bool VDCallbackTimer::Init(IVDTimerCallback *pCB, uint32 period_ms) {
 }
 
 bool VDCallbackTimer::Init2(IVDTimerCallback *pCB, uint32 period_100ns) {
+	return Init3(pCB, period_100ns, period_100ns >> 1, true);
+}
+
+bool VDCallbackTimer::Init3(IVDTimerCallback *pCB, uint32 period_100ns, uint32 accuracy_100ns, bool precise) {
 	Shutdown();
 
 	mpCB = pCB;
 	mbExit = false;
-	UINT accuracy = period_100ns / 20000;
+	mbPrecise = precise;
+
+	UINT accuracy = accuracy_100ns / 10000;
 	if (accuracy > 10)
 		accuracy = 10;
 
@@ -167,43 +173,54 @@ void VDCallbackTimer::ThreadRun() {
 
 	HANDLE hExit = msigExit.getHandle();
 
-	while(!mbExit) {
-		uint32 currentTime = VDGetAccurateTick();
-		sint32 delta = nextTimeHi - currentTime;
-
-		if (delta > 0) {
-			// safety guard against the clock going nuts
-			DWORD res;
-			if ((uint32)delta > maxDelay)
-				res = ::WaitForSingleObject(hExit, maxDelay);
-			else
-				res = ::WaitForSingleObject(hExit, nextTimeHi - currentTime);
+	if (!mbPrecise) {
+		while(!mbExit) {
+			DWORD res = ::WaitForSingleObject(hExit, periodHi);
 
 			if (res != WAIT_TIMEOUT)
 				break;
-		}
 
-		if ((uint32)abs(delta) > maxDelay) {
-			nextTimeHi = currentTime + periodHi;
-			nextTimeLo = periodLo;
-		} else {
-			nextTimeLo += periodLo;
-			nextTimeHi += periodHi;
-			if (nextTimeLo >= 10000) {
-				nextTimeLo -= 10000;
-				++nextTimeHi;
+			mpCB->TimerCallback();
+		}
+	} else {
+		while(!mbExit) {
+			uint32 currentTime = VDGetAccurateTick();
+			sint32 delta = nextTimeHi - currentTime;
+
+			if (delta > 0) {
+				// safety guard against the clock going nuts
+				DWORD res;
+				if ((uint32)delta > maxDelay)
+					res = ::WaitForSingleObject(hExit, maxDelay);
+				else
+					res = ::WaitForSingleObject(hExit, nextTimeHi - currentTime);
+
+				if (res != WAIT_TIMEOUT)
+					break;
 			}
-		}
 
-		mpCB->TimerCallback();
+			if ((uint32)abs(delta) > maxDelay) {
+				nextTimeHi = currentTime + periodHi;
+				nextTimeLo = periodLo;
+			} else {
+				nextTimeLo += periodLo;
+				nextTimeHi += periodHi;
+				if (nextTimeLo >= 10000) {
+					nextTimeLo -= 10000;
+					++nextTimeHi;
+				}
+			}
 
-		int adjust = mTimerPeriodAdjustment.xchg(0);
-		int perdelta = mTimerPeriodDelta;
+			mpCB->TimerCallback();
 
-		if (adjust || perdelta) {
-			timerPeriod += adjust;
-			periodHi = (timerPeriod+perdelta) / 10000;
-			periodLo = (timerPeriod+perdelta) % 10000;
+			int adjust = mTimerPeriodAdjustment.xchg(0);
+			int perdelta = mTimerPeriodDelta;
+
+			if (adjust || perdelta) {
+				timerPeriod += adjust;
+				periodHi = (timerPeriod+perdelta) / 10000;
+				periodLo = (timerPeriod+perdelta) % 10000;
+			}
 		}
 	}
 }

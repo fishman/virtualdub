@@ -44,6 +44,7 @@
 #include "InputFile.h"
 #include "project.h"
 #include "filters.h"
+#include "FilterInstance.h"
 
 #include "command.h"
 #include "dub.h"
@@ -340,41 +341,45 @@ static const VDScriptObject obj_VDParameterCurve={
 ///////////////////////////////////////////////////////////////////////////
 
 static void func_VDVFiltInst_Remove(IVDScriptInterpreter *isi, VDScriptValue *argv, int argc) {
-	FilterInstance *fa = static_cast<FilterInstance *>((VDFilterActivationImpl *)argv[-1].asObjectPtr());
+	FilterInstance *fa = (FilterInstance *)argv[-1].asObjectPtr();
 
 	fa->Remove();
-	fa->Destroy();
+	fa->Release();
 }
 
 static void func_VDVFiltInst_SetClipping(IVDScriptInterpreter *isi, VDScriptValue *argv, int argc) {
-	FilterInstance *fa = static_cast<FilterInstance *>((VDFilterActivationImpl *)argv[-1].asObjectPtr());
+	FilterInstance *fa = (FilterInstance *)argv[-1].asObjectPtr();
 
-	fa->mCropX1	= argv[0].asInt();
-	fa->mCropY1	= argv[1].asInt();
-	fa->mCropX2	= argv[2].asInt();
-	fa->mCropY2	= argv[3].asInt();
+	int x1 = std::max<int>(0, argv[0].asInt());
+	int y1 = std::max<int>(0, argv[1].asInt());
+	int x2 = std::max<int>(0, argv[2].asInt());
+	int y2 = std::max<int>(0, argv[3].asInt());
 
-	fa->mbPreciseCrop = true;
+	bool precise = true;
 	if (argc >= 5)
-		fa->mbPreciseCrop = (0 != argv[4].asInt());
+		precise = (0 != argv[4].asInt());
+
+	fa->SetCrop(x1, y1, x2, y2, precise);
 }
 
 static void func_VDVFiltInst_GetClipping(IVDScriptInterpreter *isi, VDScriptValue *argv, int argc) {
-	FilterInstance *fa = static_cast<FilterInstance *>((VDFilterActivationImpl *)argv[-1].asObjectPtr());
+	FilterInstance *fa = (FilterInstance *)argv[-1].asObjectPtr();
+
+	const vdrect32& r = fa->GetCropInsets();
 
 	switch(argv[0].asInt()) {
-	case 0:	argv[0] = (int)fa->mCropX1; break;
-	case 1: argv[0] = (int)fa->mCropY1; break;
-	case 2: argv[0] = (int)fa->mCropX2; break;
-	case 3: argv[0] = (int)fa->mCropY2; break;
-	case 4: argv[0] = (int)fa->mbPreciseCrop; break;
+	case 0:	argv[0] = r.left; break;
+	case 1: argv[0] = r.top; break;
+	case 2: argv[0] = r.right; break;
+	case 3: argv[0] = r.bottom; break;
+	case 4: argv[0] = fa->IsPreciseCroppingEnabled(); break;
 	default:
 		argv[0] = VDScriptValue(0);
 	}
 }
 
 static void func_VDVFiltInst_AddOpacityCurve(IVDScriptInterpreter *isi, VDScriptValue *argv, int argc) {
-	FilterInstance *fa = static_cast<FilterInstance *>((VDFilterActivationImpl *)argv[-1].asObjectPtr());
+	FilterInstance *fa = (FilterInstance *)argv[-1].asObjectPtr();
 
 	VDParameterCurve *curve = new VDParameterCurve;
 	curve->SetYRange(0, 1);
@@ -384,13 +389,13 @@ static void func_VDVFiltInst_AddOpacityCurve(IVDScriptInterpreter *isi, VDScript
 }
 
 static void func_VDVFiltInst_SetEnabled(IVDScriptInterpreter *isi, VDScriptValue *argv, int argc) {
-	FilterInstance *fa = static_cast<FilterInstance *>((VDFilterActivationImpl *)argv[-1].asObjectPtr());
+	FilterInstance *fa = (FilterInstance *)argv[-1].asObjectPtr();
 
 	fa->SetEnabled(argv[0].asInt() != 0);
 }
 
 static VDScriptValue obj_VDVFiltInst_lookup(IVDScriptInterpreter *isi, const VDScriptObject *thisPtr, void *lpVoid, char *szName) {
-	FilterInstance *pfi = static_cast<FilterInstance *>((VDFilterActivationImpl *)lpVoid);
+	FilterInstance *pfi = (FilterInstance *)lpVoid;
 	if (!(strcmp(szName, "__srcwidth"))) {
 		g_project->PrepareFilters();
 		return VDScriptValue((int)pfi->GetSourceFrameWidth());
@@ -431,8 +436,9 @@ static VDScriptValue obj_VDVFiltInst_lookup(IVDScriptInterpreter *isi, const VDS
 		return VDScriptValue((sint64)pfi->GetOutputFrameCount());
 	}
 
-	if (pfi->filter->script_obj)
-		return isi->LookupObjectMember(&pfi->mScriptObj, lpVoid, szName);
+	const VDScriptObject *scriptObj = pfi->GetScriptObject();
+	if (scriptObj)
+		return isi->LookupObjectMember(scriptObj, lpVoid, szName);
 
 	return VDScriptValue();
 }
@@ -462,7 +468,7 @@ static void func_VDVFilters_instance(IVDScriptInterpreter *isi, VDScriptValue *a
 
 	if (index!=-1 || !fa->next) VDSCRIPT_EXT_ERROR(VAR_NOT_FOUND);
 
-	argv[0] = VDScriptValue(static_cast<VDFilterActivationImpl *>(fa), &obj_VDVFiltInst);
+	argv[0] = VDScriptValue(fa, &obj_VDVFiltInst);
 }
 
 static const VDScriptFunctionDef obj_VDVFilters_instance_functbl[]={
@@ -480,7 +486,7 @@ static void func_VDVFilters_Clear(IVDScriptInterpreter *, VDScriptValue *, int) 
 	g_project->StopFilters();
 
 	while(fa = (FilterInstance *)g_listFA.RemoveHead()) {
-		fa->Destroy();
+		fa->Release();
 	}
 }
 
@@ -499,6 +505,7 @@ static void func_VDVFilters_Add(IVDScriptInterpreter *isi, VDScriptValue *argv, 
 
 			if (!fa) VDSCRIPT_EXT_ERROR(OUT_OF_MEMORY);
 
+			fa->AddRef();
 			g_listFA.AddHead(fa);
 
 			int count = 0;
@@ -639,7 +646,9 @@ static void func_VDVideo_GetFrameRate(IVDScriptInterpreter *, VDScriptValue *arg
 		else
 			arglist[0] = VDScriptValue(0);
 		return;
-	case 2: arglist[0] = VDScriptValue(g_dubOpts.video.fInvTelecine); return;
+	case 2:
+		arglist[0] = VDScriptValue(0);		// was IVTC enable
+		return;
 	}
 	arglist[0] = VDScriptValue(0);
 }
@@ -662,14 +671,8 @@ static void func_VDVideo_SetFrameRate(IVDScriptInterpreter *, VDScriptValue *arg
 	g_dubOpts.video.frameRateTargetHi = 0;
 
 	if (arg_count > 2) {
-		if (arglist[2].asInt()) {
-			g_dubOpts.video.fInvTelecine = true;
-			g_dubOpts.video.fIVTCMode = false;
-			g_dubOpts.video.nIVTCOffset = -1;
-			g_dubOpts.video.fIVTCPolarity = false;
-		} else {
-			g_dubOpts.video.fInvTelecine = false;
-		}
+		if (arglist[2].asInt())
+			throw MyError("Inverse telecine (IVTC) is no longer supported as a pipeline parameter and has been moved to a video filter.");
 	}
 
 	g_project->MarkTimelineRateDirty();
@@ -814,12 +817,8 @@ static void func_VDVideo_EnableIndeoQC(IVDScriptInterpreter *, VDScriptValue *ar
 }
 
 static void func_VDVideo_SetIVTC(IVDScriptInterpreter *, VDScriptValue *arglist, int arg_count) {
-	g_dubOpts.video.fInvTelecine = !!arglist[0].asInt();
-	g_dubOpts.video.fIVTCMode = !!arglist[1].asInt();
-	g_dubOpts.video.nIVTCOffset = arglist[2].asInt();
-	if (g_dubOpts.video.nIVTCOffset >= 0)
-		g_dubOpts.video.nIVTCOffset %= 5;
-	g_dubOpts.video.fIVTCPolarity = !!arglist[3].asInt();
+	if (!!arglist[0].asInt())
+		throw MyError("Inverse telecine (IVTC) is no longer supported as a pipeline parameter and has been moved to a video filter.");
 }
 
 static void func_VDVideo_intGetFramePrefix(IVDScriptInterpreter *isi, VDScriptValue *argv, int argc) {
@@ -1626,12 +1625,43 @@ static void func_VDSubset_AddMaskedRange(IVDScriptInterpreter *isi, VDScriptValu
 	s.addRange(arglist[0].asLong(), arglist[1].asLong(), true, 0);
 }
 
+static void func_VDSubset_LookupFrameAtFilter(IVDScriptInterpreter *isi, VDScriptValue *argv, int arg_count) {
+	FilterInstance *fa = (FilterInstance *)g_listFA.tail.next, *fa2;
+	int index = argv[0].asInt();
+
+	while((fa2 = (FilterInstance *)fa->next) && index--)
+		fa = fa2;
+
+	if (index!=-1 || !fa->next) VDSCRIPT_EXT_ERROR(VAR_NOT_FOUND);
+
+	VDProject *p = g_project;
+	
+	if (!p)
+		VDSCRIPT_EXT_ERROR(VAR_NOT_FOUND);
+
+	p->StartFilters();
+	FrameSubset& s = p->GetTimeline().GetSubset();
+
+	VDPosition frame = argv[1].asInt();
+	VDPosition n = s.getTotalFrames();
+
+	if (frame >= n)
+		frame = s.lookupFrame(n - 1) + (frame - n);
+	else if (frame < 0)
+		frame = s.lookupFrame(0) + frame;
+	else
+		frame = s.lookupFrame(frame);
+
+	argv[0] = VDScriptValue(filters.GetSymbolicFrame(frame, fa));
+}
+
 static const VDScriptFunctionDef obj_VDSubset_functbl[]={
 	{ func_VDSubset_Delete			, "Delete"				, "0"		},
 	{ func_VDSubset_Clear			, "Clear"				, "0"		},
 	{ func_VDSubset_AddRange		, "AddFrame"			, "0ll"		},	// DEPRECATED
 	{ func_VDSubset_AddRange		, "AddRange"			, "0ll"		},
 	{ func_VDSubset_AddMaskedRange	, "AddMaskedRange"		, "0ll"		},
+	{ func_VDSubset_LookupFrameAtFilter, "LookupFrameAtFilter"	, "lil"		},
 
 	{ NULL }
 };
@@ -1857,7 +1887,7 @@ static void func_VirtualDub_SaveImageSequence(IVDScriptInterpreter *, VDScriptVa
 static void func_VirtualDub_SaveWAV(IVDScriptInterpreter *, VDScriptValue *arglist, int arg_count) {
 	const VDStringW filename(VDTextU8ToW(VDStringA(*arglist[0].asString())));
 
-	SaveWAV(filename.c_str());
+	SaveWAV(filename.c_str(), true);
 }
 
 static void func_VirtualDub_SaveRawAudio(IVDScriptInterpreter *, VDScriptValue *arglist, int arg_count) {
@@ -1875,6 +1905,10 @@ static void func_VirtualDub_Log(IVDScriptInterpreter *, VDScriptValue *arglist, 
 static void func_VirtualDub_Exit(IVDScriptInterpreter *, VDScriptValue *arglist, int arg_count) {
 	g_returnCode = arglist[0].asInt();
 	PostQuitMessage(0);
+}
+
+static void func_VirtualDub_StartServer(IVDScriptInterpreter *, VDScriptValue *arglist, int arg_count) {
+	g_project->StartServer(*arglist[0].asString());
 }
 
 extern "C" unsigned long version_num;
@@ -1919,6 +1953,7 @@ static const VDScriptFunctionDef obj_VirtualDub_functbl[]={
 	{ func_VirtualDub_SaveRawAudio,		"SaveRawAudio",			"0s" },
 	{ func_VirtualDub_Log,				"Log",					"0s" },
 	{ func_VirtualDub_Exit,				"Exit",					"0i" },
+	{ func_VirtualDub_StartServer,		"StartServer",			"0s" },
 	{ NULL }
 };
 

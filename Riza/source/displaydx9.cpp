@@ -58,8 +58,63 @@ namespace {
 using namespace nsVDD3D9;
 
 bool VDCreateD3D9TextureGeneratorFullSizeRTT(IVDD3D9TextureGenerator **ppGenerator);
+bool VDCreateD3D9TextureGeneratorFullSizeRTT16F(IVDD3D9TextureGenerator **ppGenerator);
 
 ///////////////////////////////////////////////////////////////////////////
+
+class VDD3D9TextureGeneratorDither : public vdrefcounted<IVDD3D9TextureGenerator> {
+public:
+	bool GenerateTexture(VDD3D9Manager *pManager, IVDD3D9Texture *pTexture) {
+		static const uint8 dither[16][16]={
+			 35, 80,227,165, 64,199, 42,189,138, 74,238,111, 43,153, 13,211,
+			197,135, 20, 99,244,  4,162,105, 25,210, 38,134,225, 78,242, 87,
+			 63,249,126,192, 50,174, 82,251,116,148, 97,176, 19,167, 52,163,
+			187, 30, 85,142,219, 71,194, 45,169, 11,241, 58,216,106,204,  5,
+			 94,151,235,  9,112,155, 17,224, 91,206, 84,188,120, 36,132,233,
+			177, 48,124,201, 40,239,125, 66,180, 51,160,  7,152,255, 89, 56,
+			 16,209, 72,161,121, 59,208,150, 28,248, 75,229,101, 26,140,220,
+			170,110,226, 22,252,139,  1,109,195,115,172, 39,200,114,191, 68,
+			136, 34, 96,183, 44,175, 95,234, 81, 15,143,217, 62,164,  2,237,
+			 57,245,154, 61,203, 70,213, 37,137,243, 98, 23,179, 86,198,103,
+			184, 12,123,221,  6,129,156, 88,185, 53,127,228, 49,250, 31,130,
+			 77,205, 83,145,107,247, 29,223, 10,212,159, 79,168, 73,146,232,
+			173, 41,240, 24,190, 54,178,102,149,118, 33,202,  8,215,119, 18,
+			 92,158, 67,166, 76,207,133, 47,254, 65,230,100,131,157, 69,193,
+			253,  3,214,117,231, 14, 93,171, 21,182,144, 55,246, 27,222, 46,
+			141,181,104, 32,147,113,236, 60,218,122,  0,196, 90,186,128,108,
+		};
+
+		IDirect3DDevice9 *dev = pManager->GetDevice();
+		vdrefptr<IDirect3DTexture9> tex;
+		HRESULT hr = dev->CreateTexture(16, 16, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, ~tex, NULL);
+		if (FAILED(hr))
+			return false;
+
+		D3DLOCKED_RECT lr;
+		hr = tex->LockRect(0, &lr, NULL, 0);
+		VDASSERT(SUCCEEDED(hr));
+		if (FAILED(hr)) {
+			VDDEBUG_DX9DISP("VideoDisplay/DX9: Failed to load horizontal even/odd texture.\n");
+			return false;
+		}
+
+		char *dst = (char *)lr.pBits;
+		for(int y=0; y<16; ++y) {
+			const uint8 *srcrow = dither[y];
+			uint32 *dstrow = (uint32 *)dst;
+
+			for(int x=0; x<16; ++x)
+				dstrow[x] = 0x01010101 * srcrow[x];
+
+			dst += lr.Pitch;
+		}
+
+		VDVERIFY(SUCCEEDED(tex->UnlockRect(0)));
+
+		pTexture->SetD3DTexture(tex);
+		return true;
+	}
+};
 
 class VDD3D9TextureGeneratorHEvenOdd : public vdrefcounted<IVDD3D9TextureGenerator> {
 public:
@@ -569,6 +624,7 @@ public:
 		IDirect3DTexture9 *mpSourceTexture1;
 		IDirect3DTexture9 *mpSourceTexture2;
 		IDirect3DTexture9 *mpSourceTexture3;
+		IDirect3DTexture9 *mpPaletteTexture;
 		IDirect3DTexture9 *mpInterpFilterH;
 		IDirect3DTexture9 *mpInterpFilterV;
 		uint32 mSourceW;
@@ -579,7 +635,10 @@ public:
 		uint32 mInterpHTexH;
 		uint32 mInterpVTexW;
 		uint32 mInterpVTexH;
+		float mDefaultUVScaleCorrectionX;
+		float mDefaultUVScaleCorrectionY;
 		float mFieldOffset;
+		bool mbHighPrecision;
 	};
 
 	VDVideoDisplayDX9Manager(VDThreadID tid);
@@ -593,6 +652,11 @@ public:
 
 	CubicMode InitBicubic();
 	void ShutdownBicubic();
+
+	bool InitBicubicTempSurfaces(bool highPrecision);
+	void ShutdownBicubicTempSurfaces(bool highPrecision);
+
+	bool Is16FEnabled() const { return mbIs16FEnabled; }
 
 	VDThreadID GetThreadId() const { return mThreadId; }
 
@@ -617,13 +681,16 @@ protected:
 	VDD3D9Manager		*mpManager;
 	vdrefptr<IVDD3D9Texture>	mpFilterTexture;
 	vdrefptr<IVDD3D9Texture>	mpHEvenOddTexture;
-	vdrefptr<IVDD3D9Texture>	mpRTTs[2];
+	vdrefptr<IVDD3D9Texture>	mpDitherTexture;
+	vdrefptr<IVDD3D9Texture>	mpRTTs[3];
 
 	vdfastvector<IDirect3DVertexShader9 *>	mVertexShaders;
 	vdfastvector<IDirect3DPixelShader9 *>	mPixelShaders;
 
 	CubicMode			mCubicMode;
 	int					mCubicRefCount;
+	int					mCubicTempSurfacesRefCount[2];
+	bool				mbIs16FEnabled;
 
 	const VDThreadID	mThreadId;
 	int					mRefCount;
@@ -688,11 +755,15 @@ VDVideoDisplayDX9Manager::VDVideoDisplayDX9Manager(VDThreadID tid)
 	, mThreadId(tid)
 	, mRefCount(0)
 {
+	mCubicTempSurfacesRefCount[0] = 0;
+	mCubicTempSurfacesRefCount[1] = 0;
 }
 
 VDVideoDisplayDX9Manager::~VDVideoDisplayDX9Manager() {
 	VDASSERT(!mRefCount);
 	VDASSERT(!mCubicRefCount);
+	VDASSERT(!mCubicTempSurfacesRefCount[0]);
+	VDASSERT(!mCubicTempSurfacesRefCount[1]);
 
 	vdsynchronized(g_csVDDisplayDX9Managers) {
 		g_VDDisplayDX9Managers.erase(this);
@@ -718,6 +789,31 @@ bool VDVideoDisplayDX9Manager::Init() {
 	if (!mpManager)
 		return false;
 
+	// Check for 16F capability.
+	//
+	// We need:
+	//	* Vertex and pixel shader 2.0.
+	//	* 16F texture support.
+	//	* 16F blending.
+
+	const D3DCAPS9& caps = mpManager->GetCaps();
+
+	mbIs16FEnabled = false;
+	if (caps.VertexShaderVersion >= D3DVS_VERSION(2, 0) &&
+		caps.PixelShaderVersion >= D3DPS_VERSION(2, 0))
+	{
+		if (mpManager->CheckResourceFormat(0, D3DRTYPE_TEXTURE, D3DFMT_A16B16G16R16F) &&
+			mpManager->CheckResourceFormat(D3DUSAGE_QUERY_FILTER, D3DRTYPE_TEXTURE, D3DFMT_A16B16G16R16F))
+		{
+			mbIs16FEnabled = true;
+		}
+	}
+
+	if (!mpManager->CreateSharedTexture<VDD3D9TextureGeneratorDither>("dither", ~mpDitherTexture)) {
+		Shutdown();
+		return false;
+	}
+
 	if (!mpManager->CreateSharedTexture<VDD3D9TextureGeneratorHEvenOdd>("hevenodd", ~mpHEvenOddTexture)) {
 		Shutdown();
 		return false;
@@ -733,7 +829,10 @@ bool VDVideoDisplayDX9Manager::Init() {
 
 void VDVideoDisplayDX9Manager::Shutdown() {
 	VDASSERT(!mCubicRefCount);
+	VDASSERT(!mCubicTempSurfacesRefCount[0]);
+	VDASSERT(!mCubicTempSurfacesRefCount[1]);
 
+	mpDitherTexture = NULL;
 	mpHEvenOddTexture = NULL;
 
 	ShutdownEffect();
@@ -809,6 +908,7 @@ void VDVideoDisplayDX9Manager::ShutdownEffect() {
 
 VDVideoDisplayDX9Manager::CubicMode VDVideoDisplayDX9Manager::InitBicubic() {
 	VDASSERT(mRefCount > 0);
+	VDASSERT(mCubicRefCount >= 0);
 
 	if (++mCubicRefCount > 1)
 		return mCubicMode;
@@ -845,21 +945,6 @@ VDVideoDisplayDX9Manager::CubicMode VDVideoDisplayDX9Manager::InitBicubic() {
 		return kCubicNotPossible;
 	}
 
-	// create horizontal resampling texture
-	if (!mpManager->CreateSharedTexture("rtt1", VDCreateD3D9TextureGeneratorFullSizeRTT, ~mpRTTs[0])) {
-		ShutdownBicubic();
-		return kCubicNotPossible;
-	}
-
-	// create vertical resampling texture
-	if (mCubicMode < kCubicUsePS1_1Path) {
-		if (!mpManager->CreateSharedTexture("rtt2", VDCreateD3D9TextureGeneratorFullSizeRTT, ~mpRTTs[1])) {
-			ShutdownBicubic();
-			return kCubicNotPossible;
-		}
-	}
-
-
 	return mCubicMode;
 }
 
@@ -869,8 +954,55 @@ void VDVideoDisplayDX9Manager::ShutdownBicubic() {
 		return;
 
 	mpFilterTexture = NULL;
-	mpRTTs[1] = NULL;
-	mpRTTs[0] = NULL;
+}
+
+bool VDVideoDisplayDX9Manager::InitBicubicTempSurfaces(bool highPrecision) {
+	VDASSERT(mRefCount > 0);
+	VDASSERT(mCubicTempSurfacesRefCount[highPrecision] >= 0);
+
+	if (++mCubicTempSurfacesRefCount[highPrecision] > 1)
+		return true;
+
+	if (highPrecision) {
+		if (!mbIs16FEnabled) {
+			ShutdownBicubicTempSurfaces(highPrecision);
+			return false;
+		}
+
+		if (!mpManager->CreateSharedTexture("rtt3", VDCreateD3D9TextureGeneratorFullSizeRTT16F, ~mpRTTs[2])) {
+			ShutdownBicubicTempSurfaces(highPrecision);
+			return false;
+		}
+	} else {
+		// create horizontal resampling texture
+		if (!mpManager->CreateSharedTexture("rtt1", VDCreateD3D9TextureGeneratorFullSizeRTT, ~mpRTTs[0])) {
+			ShutdownBicubicTempSurfaces(highPrecision);
+			return false;
+		}
+
+		// create vertical resampling texture
+		if (mCubicMode < kCubicUsePS1_1Path) {
+			if (!mpManager->CreateSharedTexture("rtt2", VDCreateD3D9TextureGeneratorFullSizeRTT, ~mpRTTs[1])) {
+				ShutdownBicubicTempSurfaces(highPrecision);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void VDVideoDisplayDX9Manager::ShutdownBicubicTempSurfaces(bool highPrecision) {
+	VDASSERT(mCubicTempSurfacesRefCount[highPrecision] > 0);
+	if (--mCubicTempSurfacesRefCount[highPrecision])
+		return;
+
+	if (highPrecision) {
+		mpRTTs[2] = NULL;
+	} else {
+		mpRTTs[1] = NULL;
+		mpRTTs[0] = NULL;
+	}
 }
 
 namespace {
@@ -1055,15 +1187,19 @@ bool VDVideoDisplayDX9Manager::ValidateBicubicShader(CubicMode mode) {
 }
 
 bool VDVideoDisplayDX9Manager::RunEffect(const EffectContext& ctx, const RECT& rClient, const TechniqueInfo& technique, IDirect3DSurface9 *pRTOverride) {
-	IDirect3DTexture9 *const textures[10]={
+	const int firstRTTIndex = ctx.mbHighPrecision ? 2 : 0;
+
+	IDirect3DTexture9 *const textures[12]={
 		NULL,
 		ctx.mpSourceTexture1,
 		ctx.mpSourceTexture2,
 		ctx.mpSourceTexture3,
-		mpRTTs[0] ? mpRTTs[0]->GetD3DTexture() : NULL,
+		ctx.mpPaletteTexture,
+		mpRTTs[firstRTTIndex] ? mpRTTs[firstRTTIndex]->GetD3DTexture() : NULL,
 		mpRTTs[1] ? mpRTTs[1]->GetD3DTexture() : NULL,
 		mpFilterTexture ? mpFilterTexture->GetD3DTexture() : NULL,
 		mpHEvenOddTexture ? mpHEvenOddTexture->GetD3DTexture() : NULL,
+		mpDitherTexture ? mpDitherTexture->GetD3DTexture() : NULL,
 		ctx.mpInterpFilterH,
 		ctx.mpInterpFilterV
 	};
@@ -1206,9 +1342,9 @@ bool VDVideoDisplayDX9Manager::RunEffect(const EffectContext& ctx, const RECT& r
 		data.tex2size[3] = 1.0f / w;
 	}
 
-	if (mpRTTs[0]) {
-		data.tempsize[0] = (float)mpRTTs[0]->GetWidth();
-		data.tempsize[1] = (float)mpRTTs[0]->GetHeight();
+	if (mpRTTs[firstRTTIndex]) {
+		data.tempsize[0] = (float)mpRTTs[firstRTTIndex]->GetWidth();
+		data.tempsize[1] = (float)mpRTTs[firstRTTIndex]->GetHeight();
 		data.tempsize[2] = 1.0f / data.tempsize[1];
 		data.tempsize[3] = 1.0f / data.tempsize[0];
 		data.tvpcorrect[0] = 2.0f * data.tempsize[3];
@@ -1312,7 +1448,7 @@ bool VDVideoDisplayDX9Manager::RunEffect(const EffectContext& ctx, const RECT& r
 					hr = dev->SetSamplerState((token >> 24)&15, (D3DSAMPLERSTATETYPE)tokenIndex, tokenValue);
 					break;
 				case 3:		// texture
-					VDASSERT(tokenValue < 10);
+					VDASSERT(tokenValue < sizeof(textures)/sizeof(textures[0]));
 					hr = dev->SetTexture(tokenIndex, textures[tokenValue]);
 					break;
 				case 8:		// vertex bool constant
@@ -1346,15 +1482,15 @@ bool VDVideoDisplayDX9Manager::RunEffect(const EffectContext& ctx, const RECT& r
 			if (!mpManager->EndScene())
 				return false;
 
-			HRESULT hr;
+			HRESULT hr = E_FAIL;
 			switch(pi.mRenderTarget) {
 				case 0:
 					hr = dev->SetRenderTarget(0, pRTOverride ? pRTOverride : mpManager->GetRenderTarget());
 					break;
 				case 1:
-					if (mpRTTs[0]) {
+					if (mpRTTs[firstRTTIndex]) {
 						IDirect3DSurface9 *pSurf;
-						hr = mpRTTs[0]->GetD3DTexture()->GetSurfaceLevel(0, &pSurf);
+						hr = mpRTTs[firstRTTIndex]->GetD3DTexture()->GetSurfaceLevel(0, &pSurf);
 						if (SUCCEEDED(hr)) {
 							hr = dev->SetRenderTarget(0, pSurf);
 							pSurf->Release();
@@ -1430,8 +1566,8 @@ bool VDVideoDisplayDX9Manager::RunEffect(const EffectContext& ctx, const RECT& r
 		bool validDraw = true;
 
 		if (Vertex *pvx = mpManager->LockVertices(4)) {
-			const float ustep = 1.0f / (float)(int)ctx.mSourceTexW;
-			const float vstep = 1.0f / (float)(int)ctx.mSourceTexH;
+			const float ustep = 1.0f / (float)(int)ctx.mSourceTexW * ctx.mDefaultUVScaleCorrectionX;
+			const float vstep = 1.0f / (float)(int)ctx.mSourceTexH * ctx.mDefaultUVScaleCorrectionY;
 			const float u0 = 0.0f;
 			const float v0 = pi.mbClipPosition ? ctx.mFieldOffset * vstep * -0.25f : 0.0f;
 			const float u1 = u0 + (int)ctx.mSourceW * ustep;
@@ -1488,7 +1624,7 @@ public:
 
 	IDirect3DTexture9 *GetD3DTexture(int i = 0) { return mpD3DConversionTextures[0] ? mpD3DConversionTextures[i] : mpD3DImageTextures[i]; }
 
-	bool Init(const VDPixmap& source, bool allowConversion, int buffers = 1);
+	bool Init(const VDPixmap& source, bool allowConversion, bool highPrecision, int buffers);
 	void Shutdown();
 
 	bool Update(const VDPixmap& source, int fieldMask);
@@ -1504,16 +1640,20 @@ protected:
 	enum UploadMode {
 		kUploadModeNormal,
 		kUploadModeDirect8,
-		kUploadModeDirect16
+		kUploadModeDirect16,
+		kUploadModeDirectV210,
+		kUploadModeDirectNV12
 	} mUploadMode;
 
 	int mBufferCount;
 	int	mConversionTexW;
 	int	mConversionTexH;
+	bool mbHighPrecision;
 
 	VDPixmap			mTexFmt;
 
 	IDirect3DTexture9	*mpD3DImageTextures[3];
+	IDirect3DTexture9	*mpD3DPaletteTexture;
 	IDirect3DTexture9	*mpD3DImageTexture2a;
 	IDirect3DTexture9	*mpD3DImageTexture2b;
 	IDirect3DTexture9	*mpD3DConversionTextures[3];
@@ -1525,8 +1665,10 @@ bool VDCreateVideoUploadContextD3D9(IVDVideoUploadContextD3D9 **ppContext) {
 
 VDVideoUploadContextD3D9::VDVideoUploadContextD3D9()
 	: mpManager(NULL)
+	, mpD3DPaletteTexture(NULL)
 	, mpD3DImageTexture2a(NULL)
 	, mpD3DImageTexture2b(NULL)
+	, mbHighPrecision(false)
 {
 	for(int i=0; i<3; ++i) {
 		mpD3DImageTextures[i] = NULL;
@@ -1538,8 +1680,9 @@ VDVideoUploadContextD3D9::~VDVideoUploadContextD3D9() {
 	Shutdown();
 }
 
-bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion, int buffers) {
+bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion, bool highPrecision, int buffers) {
 	mBufferCount = buffers;
+	mbHighPrecision = highPrecision;
 
 	VDASSERT(!mpManager);
 	mpManager = VDInitDirect3D9(this);
@@ -1568,8 +1711,6 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 
 	memset(&mTexFmt, 0, sizeof mTexFmt);
 	mTexFmt.format		= nsVDPixmap::kPixFormat_XRGB8888;
-	mTexFmt.w			= texw;
-	mTexFmt.h			= texh;
 
 	HRESULT hr;
 	D3DFORMAT d3dfmt;
@@ -1578,7 +1719,8 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 	if ((	source.format == nsVDPixmap::kPixFormat_YUV410_Planar ||
 			source.format == nsVDPixmap::kPixFormat_YUV420_Planar ||
 			source.format == nsVDPixmap::kPixFormat_YUV422_Planar ||
-			source.format == nsVDPixmap::kPixFormat_YUV444_Planar)
+			source.format == nsVDPixmap::kPixFormat_YUV444_Planar ||
+			source.format == nsVDPixmap::kPixFormat_Pal8)
 		&& mpManager->IsTextureFormatAvailable(D3DFMT_L8) && caps.PixelShaderVersion >= D3DPS_VERSION(1, 1))
 	{
 		mUploadMode = kUploadModeDirect8;
@@ -1588,6 +1730,7 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 		uint32 subh = texh;
 
 		switch(source.format) {
+			case nsVDPixmap::kPixFormat_Pal8:
 			case nsVDPixmap::kPixFormat_YUV444_Planar:
 				break;
 			case nsVDPixmap::kPixFormat_YUV422_Planar:
@@ -1608,6 +1751,14 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 		if (subh < 1)
 			subh = 1;
 
+		if (source.format == nsVDPixmap::kPixFormat_Pal8) {
+			hr = dev->CreateTexture(256, 1, 1, 0, D3DFMT_X8R8G8B8, D3DPOOL_MANAGED, &mpD3DPaletteTexture, NULL);
+			if (FAILED(hr)) {
+				Shutdown();
+				return false;
+			}
+		}
+
 		hr = dev->CreateTexture(subw, subh, 1, 0, D3DFMT_L8, D3DPOOL_MANAGED, &mpD3DImageTexture2a, NULL);
 		if (FAILED(hr)) {
 			Shutdown();
@@ -1619,13 +1770,37 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 			Shutdown();
 			return false;
 		}
+	} else if (
+			source.format == nsVDPixmap::kPixFormat_YUV420_NV12 &&
+			mpManager->IsTextureFormatAvailable(D3DFMT_L8) &&
+			mpManager->IsTextureFormatAvailable(D3DFMT_A8L8) &&
+			caps.PixelShaderVersion >= D3DPS_VERSION(1, 1)) {
+		mUploadMode = kUploadModeDirectNV12;
+		d3dfmt = D3DFMT_L8;
+
+		uint32 subw = (texw + 1) >> 1;
+		uint32 subh = (texh + 1) >> 1;
+
+		if (subw < 1)
+			subw = 1;
+		if (subh < 1)
+			subh = 1;
+
+		hr = dev->CreateTexture(subw, subh, 1, 0, D3DFMT_A8L8, D3DPOOL_MANAGED, &mpD3DImageTexture2a, NULL);
+		if (FAILED(hr)) {
+			Shutdown();
+			return false;
+		}
+	} else if (source.format == nsVDPixmap::kPixFormat_YUV422_V210 && mpManager->IsTextureFormatAvailable(D3DFMT_A2B10G10R10) && caps.PixelShaderVersion >= D3DPS_VERSION(2, 0)) {
+		mUploadMode = kUploadModeDirectV210;
+		d3dfmt = D3DFMT_A2B10G10R10;
 	} else {
 		mpVideoManager->DetermineBestTextureFormat(source.format, mTexFmt.format, d3dfmt);
 
 		mUploadMode = kUploadModeNormal;
 
 		if (source.format != mTexFmt.format) {
-			if ((source.format == nsVDPixmap::kPixFormat_YUV422_UYVY || source.format == nsVDPixmap::kPixFormat_YUV422_YUYV)
+			if ((source.format == nsVDPixmap::kPixFormat_YUV422_UYVY || source.format == nsVDPixmap::kPixFormat_YUV422_YUYV || source.format == nsVDPixmap::kPixFormat_YUV422_UYVY_709)
 				&& caps.PixelShaderVersion >= D3DPS_VERSION(1,1))
 			{
 				if (mpManager->IsTextureFormatAvailable(D3DFMT_A8R8G8B8)) {
@@ -1646,11 +1821,18 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 		return false;
 	}
 
-	if (mUploadMode == kUploadModeDirect16) {
+	if (mUploadMode == kUploadModeDirectV210) {
+		texw = ((source.w + 5) / 6) * 4;
+		texh = source.h;
+		mpManager->AdjustTextureSize(texw, texh);
+	} else if (mUploadMode == kUploadModeDirect16) {
 		texw = (source.w + 1) >> 1;
 		texh = source.h;
 		mpManager->AdjustTextureSize(texw, texh);
 	}
+
+	mTexFmt.w			= texw;
+	mTexFmt.h			= texh;
 
 	hr = dev->CreateTexture(texw, texh, 1, 0, d3dfmt, D3DPOOL_MANAGED, &mpD3DImageTextures[0], NULL);
 	if (FAILED(hr)) {
@@ -1672,11 +1854,38 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 	for(int i=0; i<buffers; ++i) {
 		D3DLOCKED_RECT lr;
 		if (mpD3DImageTextures[i] && SUCCEEDED(mpD3DImageTextures[i]->LockRect(0, &lr, NULL, 0))) {
-			void *p = lr.pBits;
-			for(int h=0; h<texh; ++h) {
-				memset(p, 0, 4*texw);
-				vdptroffset(p, lr.Pitch);
+			uint32 fillValue = 0;
+
+			switch(source.format) {
+				case nsVDPixmap::kPixFormat_YUV422_UYVY:
+					VDMemset32Rect(lr.pBits, lr.Pitch, 0x80108010, (texw + 1) >> 1, texh);
+					break;
+				case nsVDPixmap::kPixFormat_YUV422_YUYV:
+					VDMemset32Rect(lr.pBits, lr.Pitch, 0x10801080, (texw + 1) >> 1, texh);
+					break;
+				case nsVDPixmap::kPixFormat_YUV444_Planar:
+				case nsVDPixmap::kPixFormat_YUV422_Planar:
+				case nsVDPixmap::kPixFormat_YUV420_Planar:
+				case nsVDPixmap::kPixFormat_YUV411_Planar:
+				case nsVDPixmap::kPixFormat_YUV410_Planar:
+				case nsVDPixmap::kPixFormat_YUV420_NV12:
+					VDMemset8Rect(lr.pBits, lr.Pitch, 0x10, texw, texh);
+					break;
+				case nsVDPixmap::kPixFormat_YUV422_V210:
+					VDMemset32Rect(lr.pBits, lr.Pitch, 0x20080200, ((texw + 5) / 6) * 4, texh);
+					break;
+				case nsVDPixmap::kPixFormat_XRGB1555:
+				case nsVDPixmap::kPixFormat_RGB565:
+					VDMemset16Rect(lr.pBits, lr.Pitch, 0, texw, texh);
+					break;
+				case nsVDPixmap::kPixFormat_Pal8:
+					VDMemset8Rect(lr.pBits, lr.Pitch, 0, texw, texh);
+					break;
+				default:
+					VDMemset32Rect(lr.pBits, lr.Pitch, 0, texw, texh);
+					break;
 			}
+
 			mpD3DImageTextures[i]->UnlockRect(0);
 		}
 	}
@@ -1686,6 +1895,11 @@ bool VDVideoUploadContextD3D9::Init(const VDPixmap& source, bool allowConversion
 }
 
 void VDVideoUploadContextD3D9::Shutdown() {
+	if (mpD3DPaletteTexture) {
+		mpD3DPaletteTexture->Release();
+		mpD3DPaletteTexture = NULL;
+	}
+
 	for(int i=0; i<3; ++i) {
 		if (mpD3DConversionTextures[i]) {
 			mpD3DConversionTextures[i]->Release();
@@ -1728,6 +1942,25 @@ bool VDVideoUploadContextD3D9::Update(const VDPixmap& source, int fieldMask) {
 
 	D3DLOCKED_RECT lr;
 	HRESULT hr;
+
+	if (mpD3DPaletteTexture) {
+		hr = mpD3DPaletteTexture->LockRect(0, &lr, NULL, 0);
+		if (FAILED(hr))
+			return false;
+
+		if (source.palette) {
+			memcpy(lr.pBits, source.palette, 256*4);
+		} else {
+			uint32 *dst = (uint32 *)lr.pBits;
+			uint32 v = 0;
+			for(uint32 i=0; i<256; ++i) {
+				*dst++ = v;
+				v += 0x010101;
+			}
+		}
+
+		VDVERIFY(SUCCEEDED(mpD3DPaletteTexture->UnlockRect(0)));
+	}
 	
 	hr = mpD3DImageTextures[0]->LockRect(0, &lr, NULL, 0);
 	if (FAILED(hr))
@@ -1753,9 +1986,11 @@ bool VDVideoUploadContextD3D9::Update(const VDPixmap& source, int fieldMask) {
 		src.h >>= 1;
 	}
 
-	if (mUploadMode == kUploadModeDirect16) {
+	if (mUploadMode == kUploadModeDirectV210) {
+		VDMemcpyRect(dst.data, dst.pitch, src.data, src.pitch, ((src.w + 5) / 6) * 16, src.h);
+	} else if (mUploadMode == kUploadModeDirect16) {
 		VDMemcpyRect(dst.data, dst.pitch, src.data, src.pitch, src.w * 2, src.h);
-	} else if (mUploadMode == kUploadModeDirect8) {
+	} else if (mUploadMode == kUploadModeDirect8 || mUploadMode == kUploadModeDirectNV12) {
 		VDMemcpyRect(dst.data, dst.pitch, src.data, src.pitch, src.w, src.h);
 	} else {
 		VDPixmapBlt(dst, src);
@@ -1763,7 +1998,25 @@ bool VDVideoUploadContextD3D9::Update(const VDPixmap& source, int fieldMask) {
 
 	VDVERIFY(SUCCEEDED(mpD3DImageTextures[0]->UnlockRect(0)));
 
-	if (mUploadMode == kUploadModeDirect8) {
+	if (mUploadMode == kUploadModeDirectNV12) {
+		uint32 subw = (source.w + 1) >> 1;
+		uint32 subh = (source.h + 1) >> 1;
+
+		if (subw < 1)
+			subw = 1;
+		if (subh < 1)
+			subh = 1;
+
+		// upload chroma plane
+		hr = mpD3DImageTexture2a->LockRect(0, &lr, NULL, 0);
+		if (FAILED(hr))
+			return false;
+
+		VDMemcpyRect(lr.pBits, lr.Pitch, source.data2, source.pitch2, subw*2, subh);
+
+		VDVERIFY(SUCCEEDED(mpD3DImageTexture2a->UnlockRect(0)));
+
+	} else if (mUploadMode == kUploadModeDirect8) {
 		uint32 subw = source.w;
 		uint32 subh = source.h;
 
@@ -1788,23 +2041,25 @@ bool VDVideoUploadContextD3D9::Update(const VDPixmap& source, int fieldMask) {
 		if (subh < 1)
 			subh = 1;
 
-		// upload Cb plane
-		hr = mpD3DImageTexture2a->LockRect(0, &lr, NULL, 0);
-		if (FAILED(hr))
-			return false;
+		if (source.format != nsVDPixmap::kPixFormat_Pal8) {
+			// upload Cb plane
+			hr = mpD3DImageTexture2a->LockRect(0, &lr, NULL, 0);
+			if (FAILED(hr))
+				return false;
 
-		VDMemcpyRect(lr.pBits, lr.Pitch, source.data2, source.pitch2, subw, subh);
+			VDMemcpyRect(lr.pBits, lr.Pitch, source.data2, source.pitch2, subw, subh);
 
-		VDVERIFY(SUCCEEDED(mpD3DImageTexture2a->UnlockRect(0)));
+			VDVERIFY(SUCCEEDED(mpD3DImageTexture2a->UnlockRect(0)));
 
-		// upload Cr plane
-		hr = mpD3DImageTexture2b->LockRect(0, &lr, NULL, 0);
-		if (FAILED(hr))
-			return false;
+			// upload Cr plane
+			hr = mpD3DImageTexture2b->LockRect(0, &lr, NULL, 0);
+			if (FAILED(hr))
+				return false;
 
-		VDMemcpyRect(lr.pBits, lr.Pitch, source.data3, source.pitch3, subw, subh);
+			VDMemcpyRect(lr.pBits, lr.Pitch, source.data3, source.pitch3, subw, subh);
 
-		VDVERIFY(SUCCEEDED(mpD3DImageTexture2b->UnlockRect(0)));
+			VDVERIFY(SUCCEEDED(mpD3DImageTexture2b->UnlockRect(0)));
+		}
 	}
 
 	if (mUploadMode != kUploadModeNormal) {
@@ -1864,6 +2119,7 @@ bool VDVideoUploadContextD3D9::Update(const VDPixmap& source, int fieldMask) {
 				ctx.mpSourceTexture1 = mpD3DImageTextures[0];
 				ctx.mpSourceTexture2 = mpD3DImageTexture2a;
 				ctx.mpSourceTexture3 = mpD3DImageTexture2b;
+				ctx.mpPaletteTexture = mpD3DPaletteTexture;
 				ctx.mpInterpFilterH = NULL;
 				ctx.mpInterpFilterV = NULL;
 				ctx.mSourceW = source.w;
@@ -1874,38 +2130,113 @@ bool VDVideoUploadContextD3D9::Update(const VDPixmap& source, int fieldMask) {
 				ctx.mInterpHTexH = 0;
 				ctx.mInterpVTexW = 0;
 				ctx.mInterpVTexH = 0;
+				ctx.mDefaultUVScaleCorrectionX = 1.0f;
+				ctx.mDefaultUVScaleCorrectionY = 1.0f;
+				ctx.mbHighPrecision = mbHighPrecision;
 
-				switch(source.format) {
-					case nsVDPixmap::kPixFormat_YUV422_UYVY:
-						if (!mpVideoManager->RunEffect(ctx, r, g_technique_uyvy_to_rgb_1_1, rtsurface))
-							success = false;
-						break;
+				if (source.format == nsVDPixmap::kPixFormat_YUV422_V210) {
+					if (!mpVideoManager->RunEffect(ctx, r, g_technique_v210_to_rgb_2_0, rtsurface))
+						success = false;
+				} else if (mbHighPrecision) {
+					switch(source.format) {
+						case nsVDPixmap::kPixFormat_YUV422_UYVY:
+							ctx.mDefaultUVScaleCorrectionX = 0.5f;
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_uyvy_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
 
-					case nsVDPixmap::kPixFormat_YUV422_YUYV:
-						if (!mpVideoManager->RunEffect(ctx, r, g_technique_yuy2_to_rgb_1_1, rtsurface))
-							success = false;
-						break;
+						case nsVDPixmap::kPixFormat_YUV422_UYVY_709:
+							ctx.mDefaultUVScaleCorrectionX = 0.5f;
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_hdyc_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
 
-					case nsVDPixmap::kPixFormat_YUV444_Planar:
-						if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv24_to_rgb_1_1, rtsurface))
-							success = false;
-						break;
+						case nsVDPixmap::kPixFormat_YUV422_YUYV:
+							ctx.mDefaultUVScaleCorrectionX = 0.5f;
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yuy2_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
 
-					case nsVDPixmap::kPixFormat_YUV422_Planar:
-						if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv16_to_rgb_1_1, rtsurface))
-							success = false;
-						break;
+						case nsVDPixmap::kPixFormat_YUV444_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv24_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
 
-					case nsVDPixmap::kPixFormat_YUV420_Planar:
-						if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv12_to_rgb_1_1, rtsurface))
-							success = false;
-						break;
+						case nsVDPixmap::kPixFormat_YUV422_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv16_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
 
-					case nsVDPixmap::kPixFormat_YUV410_Planar:
-						if (!mpVideoManager->RunEffect(ctx, r, g_technique_yvu9_to_rgb_1_1, rtsurface))
-							success = false;
-						break;
+						case nsVDPixmap::kPixFormat_YUV420_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv12_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
 
+						case nsVDPixmap::kPixFormat_YUV410_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yvu9_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_Pal8:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_pal8_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV420_NV12:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_nv12_to_rgb_2_0, rtsurface))
+								success = false;
+							break;
+					}
+				} else {
+					switch(source.format) {
+						case nsVDPixmap::kPixFormat_YUV422_UYVY:
+							ctx.mDefaultUVScaleCorrectionX = 0.5f;
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_uyvy_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV422_UYVY_709:
+							ctx.mDefaultUVScaleCorrectionX = 0.5f;
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_hdyc_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV422_YUYV:
+							ctx.mDefaultUVScaleCorrectionX = 0.5f;
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yuy2_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV444_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv24_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV422_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv16_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV420_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yv12_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV410_Planar:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_yvu9_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_Pal8:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_pal8_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+
+						case nsVDPixmap::kPixFormat_YUV420_NV12:
+							if (!mpVideoManager->RunEffect(ctx, r, g_technique_nv12_to_rgb_1_1, rtsurface))
+								success = false;
+							break;
+					}
 				}
 			}
 
@@ -1944,7 +2275,7 @@ bool VDVideoUploadContextD3D9::ReinitVRAMTextures() {
 				mpD3DConversionTextures[i] = NULL;
 			}
 
-			HRESULT hr = dev->CreateTexture(mConversionTexW, mConversionTexH, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &mpD3DConversionTextures[i], NULL);
+			HRESULT hr = dev->CreateTexture(mConversionTexW, mConversionTexH, 1, D3DUSAGE_RENDERTARGET, mbHighPrecision ? D3DFMT_A16B16G16R16F : D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &mpD3DConversionTextures[i], NULL);
 			if (FAILED(hr))
 				return false;
 
@@ -2023,18 +2354,18 @@ protected:
 	VDVideoDisplayDX9Manager::CubicMode	mCubicMode;
 	bool				mbCubicInitialized;
 	bool				mbCubicAttempted;
+	bool				mbCubicUsingHighPrecision;
+	bool				mbCubicTempSurfacesInitialized;
 	FilterMode			mPreferredFilter;
 	float				mSyncDelta;
 	VDD3DPresentHistory	mPresentHistory;
 
 	VDPixmap					mTexFmt;
-	enum UploadMode {
-		kUploadModeNormal,
-		kUploadModeDirect8,
-		kUploadModeDirect16
-	} mUploadMode;
 
 	VDVideoDisplaySourceInfo	mSource;
+
+	VDStringA		mFormatString;
+	VDStringA		mDebugString;
 };
 
 IVDVideoDisplayMinidriver *VDCreateVideoDisplayMinidriverDX9() {
@@ -2059,6 +2390,8 @@ VDVideoDisplayMinidriverDX9::VDVideoDisplayMinidriverDX9()
 	, mbFullScreenSet(false)
 	, mbCubicInitialized(false)
 	, mbCubicAttempted(false)
+	, mbCubicUsingHighPrecision(false)
+	, mbCubicTempSurfacesInitialized(false)
 	, mPreferredFilter(kFilterAnySuitable)
 	, mSyncDelta(0.0f)
 {
@@ -2105,7 +2438,7 @@ bool VDVideoDisplayMinidriverDX9::Init(HWND hwnd, const VDVideoDisplaySourceInfo
 	}
 
 	mpUploadContext = new_nothrow VDVideoUploadContextD3D9;
-	if (!mpUploadContext || !mpUploadContext->Init(info.pixmap, info.bAllowConversion, 1)) {
+	if (!mpUploadContext || !mpUploadContext->Init(info.pixmap, info.bAllowConversion, mbHighPrecision && mpVideoManager->Is16FEnabled(), 1)) {
 		Shutdown();
 		return false;
 	}
@@ -2125,34 +2458,48 @@ void VDVideoDisplayMinidriverDX9::OnPreDeviceReset() {
 }
 
 void VDVideoDisplayMinidriverDX9::InitBicubic() {
-	if (!mbCubicInitialized && !mbCubicAttempted) {
-		mbCubicAttempted = true;
+	if (mbCubicInitialized || mbCubicAttempted)
+		return;
 
-		mCubicMode = mpVideoManager->InitBicubic();
+	mbCubicAttempted = true;
 
-		if (mCubicMode != VDVideoDisplayDX9Manager::kCubicNotPossible) {
-			if (mCubicMode == VDVideoDisplayDX9Manager::kCubicNotPossible) {
-				VDDEBUG_DX9DISP("VideoDisplay/DX9: Bicubic initialization failed -- falling back to bilinear path.\n");
-			} else {
-				VDDEBUG_DX9DISP("VideoDisplay/DX9: Bicubic initialization complete.\n");
-				if (mCubicMode == VDVideoDisplayDX9Manager::kCubicUsePS1_4Path)
-					VDDEBUG_DX9DISP("VideoDisplay/DX9: Using pixel shader 1.4, 5 texture (RADEON 8xxx+ / GeForceFX+) pixel path.\n");
-				else if (mCubicMode == VDVideoDisplayDX9Manager::kCubicUsePS1_1Path)
-					VDDEBUG_DX9DISP("VideoDisplay/DX9: Using pixel shader 1.1, 4 texture (GeForce3/4) pixel path.\n");
-				else if (mCubicMode == VDVideoDisplayDX9Manager::kCubicUseFF3Path)
-					VDDEBUG_DX9DISP("VideoDisplay/DX9: Using fixed function, 3 texture (RADEON 7xxx) pixel path.\n");
-				else
-					VDDEBUG_DX9DISP("VideoDisplay/DX9: Using fixed function, 2 texture (GeForce2) pixel path.\n");
+	mCubicMode = mpVideoManager->InitBicubic();
 
-				mbCubicInitialized = true;
-			}
-		}
+	if (mCubicMode == VDVideoDisplayDX9Manager::kCubicNotPossible)
+		return;
+
+	VDASSERT(!mbCubicTempSurfacesInitialized);
+	mbCubicUsingHighPrecision = mbHighPrecision;
+	mbCubicTempSurfacesInitialized = mpVideoManager->InitBicubicTempSurfaces(mbCubicUsingHighPrecision);
+	if (!mbCubicTempSurfacesInitialized) {
+		mpVideoManager->ShutdownBicubic();
+		mCubicMode = VDVideoDisplayDX9Manager::kCubicNotPossible;
+		return;
 	}
+
+	VDDEBUG_DX9DISP("VideoDisplay/DX9: Bicubic initialization complete.\n");
+	if (mCubicMode == VDVideoDisplayDX9Manager::kCubicUsePS1_4Path)
+		VDDEBUG_DX9DISP("VideoDisplay/DX9: Using pixel shader 1.4, 5 texture (RADEON 8xxx+ / GeForceFX+) pixel path.\n");
+	else if (mCubicMode == VDVideoDisplayDX9Manager::kCubicUsePS1_1Path)
+		VDDEBUG_DX9DISP("VideoDisplay/DX9: Using pixel shader 1.1, 4 texture (GeForce3/4) pixel path.\n");
+	else if (mCubicMode == VDVideoDisplayDX9Manager::kCubicUseFF3Path)
+		VDDEBUG_DX9DISP("VideoDisplay/DX9: Using fixed function, 3 texture (RADEON 7xxx) pixel path.\n");
+	else
+		VDDEBUG_DX9DISP("VideoDisplay/DX9: Using fixed function, 2 texture (GeForce2) pixel path.\n");
+
+	mbCubicInitialized = true;
 }
 
 void VDVideoDisplayMinidriverDX9::ShutdownBicubic() {
 	if (mbCubicInitialized) {
 		mbCubicInitialized = mbCubicAttempted = false;
+
+		if (mbCubicTempSurfacesInitialized) {
+			mbCubicTempSurfacesInitialized = false;
+
+			mpVideoManager->ShutdownBicubicTempSurfaces(mbCubicUsingHighPrecision);
+		}
+
 		mpVideoManager->ShutdownBicubic();
 	}
 }
@@ -2558,6 +2905,9 @@ bool VDVideoDisplayMinidriverDX9::UpdateBackbuffer(const RECT& rClient0, UpdateM
 	ctx.mInterpVTexW = 1;
 	ctx.mInterpVTexH = 1;
 	ctx.mFieldOffset = 0.0f;
+	ctx.mDefaultUVScaleCorrectionX = 1.0f;
+	ctx.mDefaultUVScaleCorrectionY = 1.0f;
+	ctx.mbHighPrecision = mbHighPrecision;
 
 	if (updateMode & kModeBobEven)
 		ctx.mFieldOffset = -1.0f;
@@ -2615,33 +2965,42 @@ bool VDVideoDisplayMinidriverDX9::UpdateBackbuffer(const RECT& rClient0, UpdateM
 			}
 		}
 
-		switch(cubicMode) {
-		case VDVideoDisplayDX9Manager::kCubicUsePS1_4Path:
-			bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubic1_4, pRTMain);
-			break;
-		case VDVideoDisplayDX9Manager::kCubicUsePS1_1Path:
-			bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubic1_1, pRTMain);
-			break;
-		case VDVideoDisplayDX9Manager::kCubicUseFF3Path:
-			bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubicFF3, pRTMain);
-			break;
-		case VDVideoDisplayDX9Manager::kCubicUseFF2Path:
-			bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubicFF2, pRTMain);
-			break;
+		if (mbHighPrecision && mpVideoManager->Is16FEnabled()) {
+			bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubic_2_0, pRTMain);
+		} else {
+			switch(cubicMode) {
+			case VDVideoDisplayDX9Manager::kCubicUsePS1_4Path:
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubic1_4, pRTMain);
+				break;
+			case VDVideoDisplayDX9Manager::kCubicUsePS1_1Path:
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubic1_1, pRTMain);
+				break;
+			case VDVideoDisplayDX9Manager::kCubicUseFF3Path:
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubicFF3, pRTMain);
+				break;
+			case VDVideoDisplayDX9Manager::kCubicUseFF2Path:
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bicubicFF2, pRTMain);
+				break;
+			}
 		}
 	} else {
-		if (mPreferredFilter == kFilterPoint)
-			bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_point, pRTMain);
-		else
-			bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bilinear, pRTMain);
+		if (mbHighPrecision && mpVideoManager->Is16FEnabled()) {
+			if (mPreferredFilter == kFilterPoint)
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_point_2_0, pRTMain);
+			else
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bilinear_2_0, pRTMain);
+		} else {
+			if (mPreferredFilter == kFilterPoint)
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_point, pRTMain);
+			else
+				bSuccess = mpVideoManager->RunEffect(ctx, rClient, g_technique_bilinear, pRTMain);
+		}
 	}
 
 	pRTMain = NULL;
 
 	if (mbDisplayDebugInfo && mpFontRenderer) {
-		if (mpFontRenderer->Begin()) {
-			VDStringA s;
-
+		if (mpManager->BeginScene() && mpFontRenderer->Begin()) {
 			const char *modestr = "point";
 
 			switch(mode) {
@@ -2653,12 +3012,11 @@ bool VDVideoDisplayMinidriverDX9::UpdateBackbuffer(const RECT& rClient0, UpdateM
 					break;
 			}
 
-			VDStringA desc;
-			GetFormatString(mSource, desc);
-			s.sprintf("Direct3D9 minidriver - %s (%s)  Average present time: %6.2fms", desc.c_str(), modestr, mPresentHistory.mAveragePresentTime * 1000.0);
-			mpFontRenderer->DrawTextLine(10, rClient.bottom - 40, 0xFFFFFF00, 0, s.c_str());
+			GetFormatString(mSource, mFormatString);
+			mDebugString.sprintf("Direct3D9 minidriver - %s (%s%s)  Average present time: %6.2fms", mFormatString.c_str(), modestr, mbHighPrecision && mpVideoManager->Is16FEnabled() ? "-16F" : "", mPresentHistory.mAveragePresentTime * 1000.0);
+			mpFontRenderer->DrawTextLine(10, rClient.bottom - 40, 0xFFFFFF00, 0, mDebugString.c_str());
 
-			s.sprintf("Target scanline: %7.2f  Average bracket [%7.2f,%7.2f]  Last bracket [%4d,%4d]  Poll count %5d"
+			mDebugString.sprintf("Target scanline: %7.2f  Average bracket [%7.2f,%7.2f]  Last bracket [%4d,%4d]  Poll count %5d"
 					, mPresentHistory.mScanlineTarget
 					, mPresentHistory.mAverageStartScanline
 					, mPresentHistory.mAverageEndScanline
@@ -2666,7 +3024,7 @@ bool VDVideoDisplayMinidriverDX9::UpdateBackbuffer(const RECT& rClient0, UpdateM
 					, mPresentHistory.mLastBracketY2
 					, mPresentHistory.mPollCount);
 			mPresentHistory.mPollCount = 0;
-			mpFontRenderer->DrawTextLine(10, rClient.bottom - 20, 0xFFFFFF00, 0, s.c_str());
+			mpFontRenderer->DrawTextLine(10, rClient.bottom - 20, 0xFFFFFF00, 0, mDebugString.c_str());
 
 			mpFontRenderer->End();
 		}

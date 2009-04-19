@@ -79,3 +79,21 @@ size_t vdwcslcpy(wchar_t *dst, const wchar_t *src, size_t size) {
 	}
 	return len;
 }
+
+size_t vdstrlcat(char *dst, const char *src, size_t size) {
+	size_t dlen = strlen(dst);
+	size_t slen = strlen(src);
+
+	if (dlen < size) {
+		size_t maxappend = size - dlen - 1;
+		if (maxappend > slen)
+			maxappend = slen;
+
+		if (maxappend) {
+			memcpy(dst + dlen, src, maxappend);
+			dst[dlen+maxappend] = 0;
+		}
+	}
+
+	return dlen+slen;
+}

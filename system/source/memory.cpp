@@ -38,13 +38,21 @@ void VDAlignedFree(void *p) {
 	_aligned_free(p);
 }
 
-void VDSwapMemory(void *p0, void *p1, unsigned bytes) {
-	long *dst0 = (long *)p0;
-	long *dst1 = (long *)p1;
+void *VDAlignedVirtualAlloc(size_t n) {
+	return VirtualAlloc(NULL, n, MEM_COMMIT, PAGE_READWRITE);
+}
+
+void VDAlignedVirtualFree(void *p) {
+	VirtualFree(p, 0, MEM_RELEASE);
+}
+
+void VDSwapMemoryScalar(void *p0, void *p1, size_t bytes) {
+	uint32 *dst0 = (uint32 *)p0;
+	uint32 *dst1 = (uint32 *)p1;
 
 	while(bytes >= 4) {
-		long a = *dst0;
-		long b = *dst1;
+		uint32 a = *dst0;
+		uint32 b = *dst1;
 
 		*dst0++ = b;
 		*dst1++ = a;
@@ -63,6 +71,42 @@ void VDSwapMemory(void *p0, void *p1, unsigned bytes) {
 		*dstb1++ = a;
 	}
 }
+
+#if defined(VD_CPU_AMD64) || defined(VD_CPU_X86)
+	void VDSwapMemorySSE(void *p0, void *p1, size_t bytes) {
+		if (((uint32)(size_t)p0 | (uint32)(size_t)p1) & 15)
+			return VDSwapMemoryScalar(p0, p1, bytes);
+
+		__m128 *pv0 = (__m128 *)p0;
+		__m128 *pv1 = (__m128 *)p1;
+
+		size_t veccount = bytes >> 4;
+		if (veccount) {
+			do {
+				__m128 v0 = *pv0;
+				__m128 v1 = *pv1;
+
+				*pv0++ = v1;
+				*pv1++ = v0;
+			} while(--veccount);
+		}
+
+		uint32 left = bytes & 15;
+		if (left) {
+			uint8 *pb0 = (uint8 *)pv0;
+			uint8 *pb1 = (uint8 *)pv1;
+			do {
+				uint8 b0 = *pb0;
+				uint8 b1 = *pb1;
+
+				*pb0++ = b1;
+				*pb1++ = b0;
+			} while(--left);
+		}
+	}
+#endif
+
+void (__cdecl *VDSwapMemory)(void *p0, void *p1, size_t bytes) = VDSwapMemoryScalar;
 
 void VDInvertMemory(void *p, unsigned bytes) {
 	char *dst = (char *)p;
@@ -347,15 +391,22 @@ void VDMemset32Rect(void *dst, ptrdiff_t pitch, uint32 value, size_t w, size_t h
 	void VDFastMemcpyAutodetect() {
 		long exts = CPUGetEnabledExtensions();
 
-		if (exts & CPUF_SUPPORTS_INTEGER_SSE) {
+		if (exts & CPUF_SUPPORTS_SSE) {
 			VDFastMemcpyPartial = VDFastMemcpyPartialMMX2;
 			VDFastMemcpyFinish	= VDFastMemcpyFinishMMX2;
+			VDSwapMemory		= VDSwapMemorySSE;
+		} else if (exts & CPUF_SUPPORTS_INTEGER_SSE) {
+			VDFastMemcpyPartial = VDFastMemcpyPartialMMX2;
+			VDFastMemcpyFinish	= VDFastMemcpyFinishMMX2;
+			VDSwapMemory		= VDSwapMemoryScalar;
 		} else if (exts & CPUF_SUPPORTS_MMX) {
 			VDFastMemcpyPartial = VDFastMemcpyPartialMMX;
 			VDFastMemcpyFinish	= VDFastMemcpyFinishMMX;
+			VDSwapMemory		= VDSwapMemoryScalar;
 		} else {
 			VDFastMemcpyPartial = VDFastMemcpyPartialScalar;
 			VDFastMemcpyFinish	= VDFastMemcpyFinishScalar;
+			VDSwapMemory		= VDSwapMemoryScalar;
 		}
 	}
 

@@ -3,12 +3,13 @@
 
 #define CHECK(cond) if (!(cond)) { VDASSERT((cond)); return 5; } else
 
-DEFINE_TEST(FastVector) {
-	vdfastvector<int> v;
+template<class C>
+int RunVectorTest(bool checkCapacity) {
+	C v;
 
 	CHECK(v.empty());
 	CHECK(v.size() == 0);
-	CHECK(v.capacity() == 0);
+	CHECK(!checkCapacity || v.capacity() == 0);
 
 	v.push_back(1);
 	CHECK(v[0] == 1);
@@ -20,12 +21,13 @@ DEFINE_TEST(FastVector) {
 	CHECK(v[1] == 2);
 	CHECK(!v.empty());
 	CHECK(v.size() == 2);
-	CHECK(v.capacity() >= 2);
+	CHECK(!checkCapacity || v.capacity() >= 2);
 
-	v.swap(vdfastvector<int>());
+	v.swap(C());
+	CHECK(v.size() == 0);
 	v.reserve(2);
 	CHECK(v.size() == 0);
-	CHECK(v.capacity() == 2);
+	CHECK(!checkCapacity || v.capacity() == 2);
 	static const int k[2]={10,11};
 	v.assign(k, k+2);
 	v.insert(v.begin(), v[1]);
@@ -33,7 +35,7 @@ DEFINE_TEST(FastVector) {
 	CHECK(v[1] == 10);
 	CHECK(v[2] == 11);
 	CHECK(v.size() == 3);
-	CHECK(v.capacity() >= 3);
+	CHECK(!checkCapacity || v.capacity() >= 3);
 
 	// range erase
 	v.clear();
@@ -78,3 +80,11 @@ DEFINE_TEST(FastVector) {
 	return 0;
 }
 
+DEFINE_TEST(FastVector) {
+	int e = RunVectorTest<vdfastvector<int> >(true);
+	e += RunVectorTest<vdfastfixedvector<int, 1> >(false);
+	e += RunVectorTest<vdfastfixedvector<int, 2> >(false);
+	e += RunVectorTest<vdfastfixedvector<int, 4> >(false);
+	e += RunVectorTest<vdfastfixedvector<int, 8> >(false);
+	return e;
+}

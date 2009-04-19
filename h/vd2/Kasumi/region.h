@@ -36,7 +36,10 @@ public:
 class VDPixmapPathRasterizer {
 public:
 	VDPixmapPathRasterizer();
+	VDPixmapPathRasterizer(const VDPixmapPathRasterizer&);	// no-op
 	~VDPixmapPathRasterizer();
+
+	VDPixmapPathRasterizer& operator=(const VDPixmapPathRasterizer&);	// no-op
 
 	void Clear();
 	void QuadraticBezier(const vdint2 pts[4]);
@@ -48,6 +51,7 @@ public:
 
 protected:
 	void ClearEdgeList();
+	void FreeEdgeLists();
 	void ClearScanBuffer();
 	void ReallocateScanBuffer(int ymin, int ymax);
 
@@ -71,6 +75,7 @@ protected:
 	};
 
 	EdgeBlock *mpEdgeBlocks;
+	EdgeBlock *mpFreeEdgeBlocks;
 	int mEdgeBlockIdx;
 	Scan *mpScanBuffer;
 	Scan *mpScanBufferBiased;

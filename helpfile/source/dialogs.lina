@@ -95,6 +95,13 @@
 					</lina:note>
 				</dd>
 				
+				<dt>Alignment marker</dt>
+				<dd>
+					A <tt>[A]</tt> marker appears beside a filter when VirtualDub has to perform memory realignment
+					on entry to the filter. This doesn't change quality in any way, but does lower performance
+					a tiny bit.
+				</dd>
+				
 				<dt>Conversion marker</dt>
 				<dd>
 					A <tt>[C]</tt> marker appears beside a filter when VirtualDub has to perform a conversion

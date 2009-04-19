@@ -63,6 +63,7 @@ public:
 
 IVDVideoDecompressor *VDCreateVideoDecompressorVCM(const void *srcFormat, uint32 srcFormatSize, const void *pHIC);
 IVDVideoDecompressor *VDCreateVideoDecompressorDV(int w, int h);
+IVDVideoDecompressor *VDCreateVideoDecompressorHuffyuv(uint32 w, uint32 h, uint32 depth, const uint8 *extradata, uint32 extralen);
 
 IVDVideoDecompressor *VDFindVideoDecompressor(uint32 preferredCodec, const void *srcFormat, uint32 srcFormatSize);
 

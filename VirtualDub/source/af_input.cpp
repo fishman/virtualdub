@@ -34,6 +34,7 @@
 #include "af_input.h"
 
 bool VDPreferencesIsPreferInternalAudioDecodersEnabled();
+const VDStringW& VDPreferencesGetAudioPlaybackDeviceKey();
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -285,7 +286,7 @@ void VDAudioFilterPlayback::Start() {
 	const VDAudioFilterPin& pin = *mpContext->mpInputs[0];
 	const VDXWaveFormat& format = *pin.mpFormat;
 
-	if (!mpAudioOut->Init(32768, 4, (WAVEFORMATEX *)&format))
+	if (!mpAudioOut->Init(32768, 4, (WAVEFORMATEX *)&format, VDPreferencesGetAudioPlaybackDeviceKey().c_str()))
 		mpAudioOut->GoSilent();
 	mpAudioOut->Start();
 }

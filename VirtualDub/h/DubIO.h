@@ -23,6 +23,7 @@
 #include <vd2/system/thread.h>
 #include <vd2/system/vdstl.h>
 #include "DubUtils.h"
+#include "DubFrameRequestQueue.h"
 
 class VDAtomicInt;
 class IVDStreamSource;
@@ -54,23 +55,21 @@ namespace nsVDDub {
 }
 
 class VDDubIOThread : public VDThread {
+	VDDubIOThread(const VDDubIOThread&);
+	VDDubIOThread& operator=(const VDDubIOThread&);
 public:
 	VDDubIOThread(
 		IDubberInternal		*pParent,
-		bool				bPhantom,
 		const vdfastvector<IVDVideoSource *>& videoSources,
-		VDRenderFrameIterator& videoFrameIterator,
 		AudioStream			*pAudio,
 		AVIPipe				*const pVideoPipe,
 		VDAudioPipeline		*const pAudioPipe,
-		VDAtomicInt&		bAbort,
 		DubAudioStreamInfo&	_aInfo,
 		DubVideoStreamInfo& _vInfo,
-		VDAtomicInt&		threadCounter
+		VDAtomicInt&		threadCounter,
+		VDDubFrameRequestQueue *videoRequestQueue
 		);
 	~VDDubIOThread();
-
-	bool IsCompleted() const { return mbCompleted; }
 
 	bool GetError(MyError& e) {
 		if (mbError) {
@@ -86,11 +85,15 @@ public:
 
 	void SetThrottle(float f);
 
+	float GetActivityRatio() const { return mLoopThrottle.GetActivityRatio(); }
+
+	void Abort();
+
 protected:
 	void ThreadRun();
-	void ReadVideoFrame(int sourceIndex, VDPosition stream_frame, VDPosition target_frame, VDPosition orig_display_frame, VDPosition display_frame, VDPosition timeline_frame, VDPosition sequence_frame, bool preload, bool direct, bool sameAsLast);
-	void ReadNullVideoFrame(int sourceIndex, VDPosition orig_display_frame, VDPosition displayFrame, VDPosition timelineFrame, VDPosition sequence_frame, bool direct, bool sameAsLast);
 	bool MainAddVideoFrame();
+	void ReadRawVideoFrame(int sourceIndex, VDPosition streamFrame, VDPosition displayFrame, VDPosition targetSample, bool preload, bool direct);
+	void ReadNullVideoFrame(int sourceIndex, VDPosition displayFrame, VDPosition targetSample);
 	bool MainAddAudioFrame();
 
 	IDubberInternal		*mpParent;
@@ -99,21 +102,29 @@ protected:
 
 	vdfastvector<char>	mAudioBuffer;
 
+	VDDubFrameRequest	mVideoRequest;
+	bool				mbVideoRequestActive;
+	bool				mbVideoRequestFirstSample;
+	VDPosition			mVideoRequestTargetSample;
+	IVDVideoSource		*mpVideoRequestSource;
+
+	bool				mbVideoWaitingForSpace;
+	bool				mbVideoWaitingForRequest;
+
 	VDLoopThrottle		mLoopThrottle;
 
 	// config vars (ick)
-
-	bool				mbPhantom;
-	bool				mbCompleted;
 	const vdfastvector<IVDVideoSource *>& mVideoSources;
-	VDRenderFrameIterator& mVideoFrameIterator;
 	AudioStream			*const mpAudio;
 	AVIPipe				*const mpVideoPipe;
 	VDAudioPipeline		*const mpAudioPipe;
-	VDAtomicInt&		mbAbort;
 	DubAudioStreamInfo&	aInfo;
 	DubVideoStreamInfo& vInfo;
 	VDAtomicInt&		mThreadCounter;
+	VDDubFrameRequestQueue *mpVideoRequestQueue;
+
+	VDAtomicInt			mbAbort;
+	VDSignal			mAbortSignal;
 
 	const char			*volatile mpCurrentAction;
 };

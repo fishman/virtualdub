@@ -9,6 +9,7 @@ extern const char g_szVideoWindowClass[];
 
 ATOM RegisterVideoWindow();
 
+class VDFraction;
 class IVDVideoDisplay;
 
 class VDINTERFACE IVDVideoWindow {
@@ -18,6 +19,7 @@ public:
 	virtual void Resize() = 0;
 	virtual void SetChild(HWND hwnd) = 0;
 	virtual void SetDisplay(IVDVideoDisplay *) = 0;
+	virtual void SetSourcePAR(const VDFraction& fr) = 0;
 };
 
 IVDVideoWindow *VDGetIVideoWindow(HWND hwnd);

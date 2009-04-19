@@ -237,13 +237,13 @@ INT_PTR CALLBACK AnnounceExperimentalDlgProc( HWND hDlg, UINT message, WPARAM wP
 }
 
 void AnnounceExperimental() {
-#if 0
+#if 1
 	DWORD dwSeenIt;
 
-	if (!QueryConfigDword(NULL, "SeenExperimental 1.8.X", &dwSeenIt) || !dwSeenIt) {
+	if (!QueryConfigDword(NULL, "SeenExperimental 1.9.X", &dwSeenIt) || !dwSeenIt) {
 		DialogBox(g_hInst, MAKEINTRESOURCE(IDD_EXPERIMENTAL), NULL, AnnounceExperimentalDlgProc);
 
-		SetConfigDword(NULL, "SeenExperimental 1.8.X", 1);
+		SetConfigDword(NULL, "SeenExperimental 1.9.X", 1);
 	}
 #endif
 }
@@ -389,7 +389,7 @@ namespace {
 		stream.insert(stream.end(), string, string+strlen(string));
 	}
 
-	void append_cooked(tTextStream& stream, const char *string, const char *stringEnd) {
+	void append_cooked(tTextStream& stream, const char *string, const char *stringEnd, bool rtfEscape) {
 		while(string != stringEnd) {
 			const char *s = string;
 
@@ -419,12 +419,18 @@ namespace {
 				continue;
 			}
 
-			if (*s == '{' || *s == '\\' || *s == '}')
-				stream.push_back('\\');
+			if (rtfEscape) {
+				if (*s == '{' || *s == '\\' || *s == '}')
+					stream.push_back('\\');
 
-			++s;
-			while(s != stringEnd && *s != '{' && *s != '\\' && *s != '}' && *s != '%')
 				++s;
+				while(s != stringEnd && *s != '{' && *s != '\\' && *s != '}' && *s != '%')
+					++s;
+			} else {
+				++s;
+				while(s != stringEnd && *s != '%')
+					++s;
+			}
 
 			stream.insert(stream.end(), string, s);
 			string = s;
@@ -488,7 +494,7 @@ namespace {
 					++t;
 
 				append(rtf, "\\cf1\\li300\\i ");
-				append_cooked(rtf, s, t);
+				append_cooked(rtf, s, t, true);
 				append(rtf, "\\i0\\cf0\\par ");
 			} else {
 				if (*s == '*') {
@@ -498,7 +504,7 @@ namespace {
 					} else
 						append(rtf, "\\par ");
 
-					append_cooked(rtf, s + 2, end);
+					append_cooked(rtf, s + 2, end, true);
 				} else {
 					if (list_active) {
 						rtf.push_back(' ');
@@ -515,7 +521,7 @@ namespace {
 							append(rtf, "\\li0 ");
 					}
 
-					append_cooked(rtf, s, end);
+					append_cooked(rtf, s, end, true);
 
 					if (!list_active)
 						append(rtf, "\\par ");
@@ -576,4 +582,100 @@ void VDShowReleaseNotes(VDGUIHandle hParent) {
 	HMODULE hmod = LoadLibrary("riched32.dll");
 	DialogBoxParam(g_hInst, MAKEINTRESOURCE(IDD_CHANGE_LOG), (HWND)hParent, VDShowChangeLogDlgProcW32, (LPARAM)MAKEINTRESOURCE(IDR_RELEASE_NOTES));
 	FreeLibrary(hmod);
+}
+
+void VDDumpChangeLog() {
+	HRSRC hResource = FindResource(NULL, MAKEINTRESOURCE(IDR_CHANGES), "STUFF");
+
+	if (!hResource)
+		return;
+
+	HGLOBAL hGlobal = LoadResource(NULL, hResource);
+	if (!hGlobal)
+		return;
+
+	LPVOID lpData = LockResource(hGlobal);
+	if (!lpData)
+		return;
+
+	const char *s = (const char *)lpData;
+
+	while(*s!='\r') ++s;
+
+	s+=2;
+
+	tTextStream lineBuffer;
+	VDStringA breakLineBuffer;
+
+	bool foundNonIndentedLine = false;
+
+	while(*s) {
+		// parse line
+		if (*s != ' ') {
+			if (foundNonIndentedLine)
+				break;
+
+			foundNonIndentedLine = true;
+		}
+
+		const char *end = s;
+		while(*end && *end != '\r' && *end != '\n')
+			++end;
+
+		lineBuffer.clear();
+		append_cooked(lineBuffer, s, end, false);
+
+		// skip line termination
+		s = end;
+		if (*s == '\r' || *s == '\n') {
+			++s;
+			if ((s[0] ^ s[-1]) == ('\r' ^ '\n'))
+				++s;
+		}
+
+		lineBuffer.push_back(0);
+
+		// break into lines
+		const char *t = lineBuffer.data();
+		int maxLine = 78;
+
+		breakLineBuffer.clear();
+
+		do {
+			const char *lineStart = t;
+			const char *break1 = NULL;
+			const char *break2 = NULL;
+
+			do {
+				while(*t && *t != ' ')
+					++t;
+
+				const char *u = t;
+
+				while(*t && *t == ' ')
+					++t;
+
+				if (u - lineStart > maxLine) {
+					if (!break1) {
+						break1 = u + maxLine;
+						break2 = break1;
+					}
+
+					break;
+				}
+
+				break1 = u;
+				break2 = t;
+			} while(*t);
+
+			breakLineBuffer.append(lineStart, break1);
+			VDLog(kVDLogInfo, VDTextAToW(breakLineBuffer.data(), breakLineBuffer.size()));
+
+			t = break2;
+			breakLineBuffer.clear();
+			breakLineBuffer.resize(5, ' ');
+
+			maxLine = 73;
+		} while(*t);
+	}
 }

@@ -265,10 +265,6 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="2"
-				EnableIntrinsicFunctions="true"
-				FavorSizeOrSpeed="1"
 				AdditionalIncludeDirectories=".\h,.\res,..\h,..\vdsvrlnk,..\sylia"
 				PreprocessorDefinitions="NDEBUG;_USE_NON_INTEL_COMPILER;WIN32;_WINDOWS;WIN32_LEAN_AND_MEAN;NOMINMAX"
 				StringPooling="true"
@@ -305,7 +301,9 @@
 				MapFileName="$(TargetDir)$(TargetName).map"
 				SubSystem="2"
 				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
 				OptimizeForWindows98="1"
+				SetChecksum="true"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -372,10 +370,6 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="2"
-				EnableIntrinsicFunctions="true"
-				FavorSizeOrSpeed="1"
 				AdditionalIncludeDirectories=".\h,.\res,..\h,..\vdsvrlnk,..\sylia"
 				PreprocessorDefinitions="NDEBUG;_USE_NON_INTEL_COMPILER;WIN32;_WINDOWS;WIN32_LEAN_AND_MEAN;NOMINMAX"
 				StringPooling="true"
@@ -412,7 +406,9 @@
 				MapFileName="$(TargetDir)$(TargetName).map"
 				SubSystem="2"
 				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
 				OptimizeForWindows98="1"
+				SetChecksum="true"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -478,7 +474,6 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""
 					/>
@@ -488,2321 +483,11 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
-			<File
-				RelativePath="source\AsyncBlitter.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\Audio.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\DynamicCode.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\e_blur.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\FrameSubset.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\source\Histogram.cpp"
-				>
-			</File>
-			<File
-				RelativePath="source\image.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\source\imageiff.cpp"
-				>
-			</File>
-			<File
-				RelativePath="source\imagejpeg.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\imagejpegdec.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\SceneDetector.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\test_pal8.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\test_videodecode.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\timeline.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\VBitmap.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\source\version.cpp"
-				>
-			</File>
-			<File
-				RelativePath="source\VideoTelecineRemover.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-		</Filter>
-		<Filter
-			Name="Header Files"
-			Filter="h;hpp;hxx;hm;inl;fi;fd"
-			>
-			<File
-				RelativePath="h\AsyncBlitter.h"
-				>
-			</File>
-			<File
-				RelativePath="h\Audio.h"
-				>
-			</File>
-			<File
-				RelativePath="h\Avisynth.h"
-				>
-			</File>
-			<File
-				RelativePath="h\backface.h"
-				>
-			</File>
-			<File
-				RelativePath="h\convert.h"
-				>
-			</File>
-			<File
-				RelativePath="h\DynamicCode.h"
-				>
-			</File>
-			<File
-				RelativePath="h\e_blur.h"
-				>
-			</File>
-			<File
-				RelativePath="h\effect.h"
-				>
-			</File>
-			<File
-				RelativePath="h\f_convolute.h"
-				>
-			</File>
-			<File
-				RelativePath="h\filter.h"
-				>
-			</File>
-			<File
-				RelativePath=".\h\FilterPreview.h"
-				>
-			</File>
-			<File
-				RelativePath="h\Fixes.h"
-				>
-			</File>
-			<File
-				RelativePath="h\FrameSubset.h"
-				>
-			</File>
-			<File
-				RelativePath="h\helpcoach.h"
-				>
-			</File>
-			<File
-				RelativePath="h\helpfile.h"
-				>
-			</File>
-			<File
-				RelativePath=".\h\Histogram.h"
-				>
-			</File>
-			<File
-				RelativePath="h\image.h"
-				>
-			</File>
-			<File
-				RelativePath=".\h\imageiff.h"
-				>
-			</File>
-			<File
-				RelativePath="h\imagejpeg.h"
-				>
-			</File>
-			<File
-				RelativePath="h\imagejpegdec.h"
-				>
-			</File>
-			<File
-				RelativePath="h\indeo_if.h"
-				>
-			</File>
-			<File
-				RelativePath="h\plugins.h"
-				>
-			</File>
-			<File
-				RelativePath="res\resource.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Riza\res\resource.h"
-				>
-			</File>
-			<File
-				RelativePath="h\SceneDetector.h"
-				>
-			</File>
-			<File
-				RelativePath="h\timeline.h"
-				>
-			</File>
-			<File
-				RelativePath="h\VBitmap.h"
-				>
-			</File>
-			<File
-				RelativePath=".\h\version.h"
-				>
-			</File>
-			<File
-				RelativePath="h\VideoTelecineRemover.h"
-				>
-			</File>
-			<File
-				RelativePath="h\VirtualDub.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Resource Files"
-			Filter="ico;cur;bmp;dlg;rc2;rct;bin;cnt;rtf;gif;jpg;jpeg;jpe;ami"
-			>
-			<File
-				RelativePath=".\res\addpoint.cur"
-				>
-			</File>
-			<File
-				RelativePath="res\Changes.bin"
-				>
-			</File>
-			<File
-				RelativePath=".\res\dragpoint.cur"
-				>
-			</File>
-			<File
-				RelativePath="res\ico00001.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\icon1.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\license.bin"
-				>
-			</File>
-			<File
-				RelativePath=".\res\modifypoint.cur"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_back.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_end.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_mark.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_markout.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_next.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_play.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_prev.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_star.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\pos_stop.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\rel_notes.bin"
-				>
-			</File>
-			<File
-				RelativePath=".\res\removepoint.cur"
-				>
-			</File>
-			<File
-				RelativePath="res\scenefwd.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\scenerev.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\virtuald.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\virtualdub.ami"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Compiling program resources...."
-						CommandLine="&quot;$(TargetDir)ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
-						Outputs="$(IntDir)\virtualdub.vdres"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Compiling program resources...."
-						CommandLine="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
-						Outputs="$(IntDir)\virtualdub.vdres"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Compiling program resources...."
-						CommandLine="&quot;$(TargetDir)ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
-						Outputs="$(IntDir)\virtualdub.vdres"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Compiling program resources...."
-						CommandLine="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
-						Outputs="$(IntDir)\virtualdub.vdres"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="res\VirtualDub.rc"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="res;$(IntDir)"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="res;$(IntDir)"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="res;$(IntDir)"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="res;$(IntDir)"
-					/>
-				</FileConfiguration>
-			</File>
-		</Filter>
-		<Filter
-			Name="Source - Capture"
-			>
-			<File
-				RelativePath="source\capbt848.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\capclip.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\capclip.h"
-				>
-			</File>
-			<File
-				RelativePath="source\capdialogs.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\capdialogs.h"
-				>
-			</File>
-			<File
-				RelativePath="source\capemu.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\capfilter.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\capfilter.h"
-				>
-			</File>
-			<File
-				RelativePath="source\capgraph.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\capgraph.h"
-				>
-			</File>
-			<File
-				RelativePath="source\Caphisto.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\caphisto.h"
-				>
-			</File>
-			<File
-				RelativePath="source\capspill.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\capspill.h"
-				>
-			</File>
-			<File
-				RelativePath="source\capture.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\capture.h"
-				>
-			</File>
-			<File
-				RelativePath="source\captureui.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\captureui.h"
-				>
-			</File>
-			<File
-				RelativePath="source\caputils.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\caputils.h"
-				>
-			</File>
-			<File
-				RelativePath="source\capvumeter.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\capvumeter.h"
-				>
-			</File>
-			<File
-				RelativePath="source\capwarn.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-		</Filter>
-		<Filter
-			Name="Source - MPEG/MJPEG support"
-			>
-			<File
-				RelativePath="source\MJPEGDecoder.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\Mpeg.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-		</Filter>
-		<Filter
-			Name="Headers - MPEG/MJPEG support"
-			>
-			<File
-				RelativePath="h\mjpeg_color.inl"
-				>
-			</File>
-			<File
-				RelativePath="h\MJPEGDecoder.h"
-				>
-			</File>
-			<File
-				RelativePath="h\mpeg.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Text resources"
-			Filter=".txt"
-			>
-			<File
-				RelativePath="res\Changes.txt"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="res\credits.txt"
-				>
-			</File>
-			<File
-				RelativePath="res\rel_notes.txt"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Building resource text..."
-						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
-						Outputs="$(InputDir)$(InputName).bin"
-					/>
-				</FileConfiguration>
-			</File>
-		</Filter>
-		<Filter
-			Name="Source - User Interface"
-			>
-			<File
-				RelativePath="source\AudioDisplay.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\ClippingControl.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\FilterGraph.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\HexViewer.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\LevelControl.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\LogWindow.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\source\ParameterCurveControl.cpp"
-				>
-			</File>
-			<File
-				RelativePath="source\PositionControl.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\ProgressDialog.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\RTProfileDisplay.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="source\VideoWindow.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-		</Filter>
-		<Filter
-			Name="Headers - User Interface"
-			>
-			<File
-				RelativePath="h\AudioDisplay.h"
-				>
-			</File>
-			<File
-				RelativePath="h\ClippingControl.h"
-				>
-			</File>
-			<File
-				RelativePath="h\FilterGraph.h"
-				>
-			</File>
-			<File
-				RelativePath="h\HexViewer.h"
-				>
-			</File>
-			<File
-				RelativePath="h\LevelControl.h"
-				>
-			</File>
-			<File
-				RelativePath=".\h\ParameterCurveControl.h"
-				>
-			</File>
-			<File
-				RelativePath="h\PositionControl.h"
-				>
-			</File>
-			<File
-				RelativePath="h\ProgressDialog.h"
-				>
-			</File>
-			<File
-				RelativePath="h\RTProfileDisplay.h"
-				>
-			</File>
-			<File
-				RelativePath="h\VideoWindow.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Files - YUV codec"
-			>
-			<File
-				RelativePath="source\CVideoCompressor.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\CVideoCompressor.h"
-				>
-			</File>
-			<File
-				RelativePath="source\icdriver.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\IVideoCompressor.h"
-				>
-			</File>
-			<File
-				RelativePath="h\IVideoDriver.h"
-				>
-			</File>
-			<File
-				RelativePath="source\yuvcodec.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="h\yuvcodec.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Headers - dTV"
-			>
-			<File
-				RelativePath="h\dTVdrv.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Source - Size optimized"
-			>
 			<File
 				RelativePath="source\acompchoose.cpp"
 				>
@@ -2845,6 +530,86 @@
 			</File>
 			<File
 				RelativePath="source\afiltdlg.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\AsyncBlitter.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\Audio.cpp"
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
@@ -3088,6 +853,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\BatchWizard.cpp"
+				>
+			</File>
+			<File
 				RelativePath="source\Command.cpp"
 				>
 				<FileConfiguration
@@ -3288,6 +1057,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\DubFrameRequestQueue.cpp"
+				>
+			</File>
+			<File
 				RelativePath="source\DubIO.cpp"
 				>
 				<FileConfiguration
@@ -3368,7 +1141,15 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\DubPreviewClock.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\DubProcess.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\DubProcessVideo.cpp"
 				>
 			</File>
 			<File
@@ -3413,6 +1194,86 @@
 			</File>
 			<File
 				RelativePath="source\DubUtils.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\DynamicCode.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\e_blur.cpp"
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
@@ -3532,6 +1393,46 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\FilterCallbacks.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrame.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrameAllocator.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrameCache.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrameManualSource.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrameQueue.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrameRequest.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrameSharingPredictor.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterFrameVideoSource.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\FilterInstance.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\FilterPreview.cpp"
 				>
 			</File>
@@ -3616,7 +1517,175 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="source\FrameSubset.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="source\gui.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\Histogram.cpp"
+				>
+			</File>
+			<File
+				RelativePath="source\image.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\imageiff.cpp"
+				>
+			</File>
+			<File
+				RelativePath="source\imagejpeg.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\imagejpegdec.cpp"
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
@@ -4264,6 +2333,46 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="source\SceneDetector.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="source\Script.cpp"
 				>
 				<FileConfiguration
@@ -4392,6 +2501,46 @@
 				>
 			</File>
 			<File
+				RelativePath="source\test_pal8.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="source\test_pixmaps.cpp"
 				>
 				<FileConfiguration
@@ -4472,7 +2621,91 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="source\test_videodecode.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="source\test_videofilt.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\ThreadedVideoCompressor.cpp"
+				>
+			</File>
+			<File
+				RelativePath="source\timeline.cpp"
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
@@ -4552,6 +2785,50 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="source\VBitmap.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\version.cpp"
+				>
+			</File>
+			<File
 				RelativePath="source\VideoSequenceCompressor.cpp"
 				>
 				<FileConfiguration
@@ -4593,10 +2870,19 @@
 			</File>
 		</Filter>
 		<Filter
-			Name="Headers - Size optimized"
+			Name="Header Files"
+			Filter="h;hpp;hxx;hm;inl;fi;fd"
 			>
 			<File
 				RelativePath="h\afiltdlg.h"
+				>
+			</File>
+			<File
+				RelativePath="h\AsyncBlitter.h"
+				>
+			</File>
+			<File
+				RelativePath="h\Audio.h"
 				>
 			</File>
 			<File
@@ -4620,7 +2906,19 @@
 				>
 			</File>
 			<File
+				RelativePath="h\Avisynth.h"
+				>
+			</File>
+			<File
+				RelativePath="h\backface.h"
+				>
+			</File>
+			<File
 				RelativePath="h\command.h"
+				>
+			</File>
+			<File
+				RelativePath="h\convert.h"
 				>
 			</File>
 			<File
@@ -4636,6 +2934,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\h\DubFrameRequestQueue.h"
+				>
+			</File>
+			<File
 				RelativePath="h\DubIO.h"
 				>
 			</File>
@@ -4644,7 +2946,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\h\DubPreviewClock.h"
+				>
+			</File>
+			<File
 				RelativePath=".\h\DubProcess.h"
+				>
+			</File>
+			<File
+				RelativePath=".\source\DubProcessVideo.h"
 				>
 			</File>
 			<File
@@ -4656,11 +2966,71 @@
 				>
 			</File>
 			<File
+				RelativePath="h\DynamicCode.h"
+				>
+			</File>
+			<File
+				RelativePath="h\e_blur.h"
+				>
+			</File>
+			<File
+				RelativePath="h\effect.h"
+				>
+			</File>
+			<File
+				RelativePath="h\f_convolute.h"
+				>
+			</File>
+			<File
 				RelativePath="h\FastReadStream.h"
 				>
 			</File>
 			<File
 				RelativePath="h\filtdlg.h"
+				>
+			</File>
+			<File
+				RelativePath="h\filter.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrame.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrameAllocator.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrameCache.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrameManualSource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrameQueue.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrameRequest.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrameSharingPredictor.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterFrameVideoSource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterInstance.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\FilterPreview.h"
 				>
 			</File>
 			<File
@@ -4672,7 +3042,47 @@
 				>
 			</File>
 			<File
+				RelativePath="h\Fixes.h"
+				>
+			</File>
+			<File
+				RelativePath="h\FrameSubset.h"
+				>
+			</File>
+			<File
 				RelativePath="h\gui.h"
+				>
+			</File>
+			<File
+				RelativePath="h\helpcoach.h"
+				>
+			</File>
+			<File
+				RelativePath="h\helpfile.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\Histogram.h"
+				>
+			</File>
+			<File
+				RelativePath="h\image.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\imageiff.h"
+				>
+			</File>
+			<File
+				RelativePath="h\imagejpeg.h"
+				>
+			</File>
+			<File
+				RelativePath="h\imagejpegdec.h"
+				>
+			</File>
+			<File
+				RelativePath="h\indeo_if.h"
 				>
 			</File>
 			<File
@@ -4704,6 +3114,10 @@
 				>
 			</File>
 			<File
+				RelativePath="h\plugins.h"
+				>
+			</File>
+			<File
 				RelativePath="h\prefs.h"
 				>
 			</File>
@@ -4716,6 +3130,18 @@
 				>
 			</File>
 			<File
+				RelativePath="res\resource.h"
+				>
+			</File>
+			<File
+				RelativePath="..\Riza\res\resource.h"
+				>
+			</File>
+			<File
+				RelativePath="h\SceneDetector.h"
+				>
+			</File>
+			<File
 				RelativePath="h\script.h"
 				>
 			</File>
@@ -4724,11 +3150,1579 @@
 				>
 			</File>
 			<File
+				RelativePath=".\h\ThreadedVideoCompressor.h"
+				>
+			</File>
+			<File
+				RelativePath="h\timeline.h"
+				>
+			</File>
+			<File
 				RelativePath="h\uiframe.h"
 				>
 			</File>
 			<File
+				RelativePath="h\VBitmap.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\version.h"
+				>
+			</File>
+			<File
 				RelativePath="h\VideoSequenceCompressor.h"
+				>
+			</File>
+			<File
+				RelativePath="h\VirtualDub.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Resource Files"
+			Filter="ico;cur;bmp;dlg;rc2;rct;bin;cnt;rtf;gif;jpg;jpeg;jpe;ami"
+			>
+			<File
+				RelativePath=".\res\addpoint.cur"
+				>
+			</File>
+			<File
+				RelativePath="res\Changes.bin"
+				>
+			</File>
+			<File
+				RelativePath=".\res\dragpoint.cur"
+				>
+			</File>
+			<File
+				RelativePath="res\ico00001.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\icon1.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\license.bin"
+				>
+			</File>
+			<File
+				RelativePath=".\res\modifypoint.cur"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_back.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_end.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_mark.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_markout.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_next.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_play.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_prev.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_star.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\pos_stop.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\rel_notes.bin"
+				>
+			</File>
+			<File
+				RelativePath=".\res\removepoint.cur"
+				>
+			</File>
+			<File
+				RelativePath="res\scenefwd.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\scenerev.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\virtuald.ico"
+				>
+			</File>
+			<File
+				RelativePath="res\virtualdub.ami"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Compiling program resources...."
+						CommandLine="&quot;$(TargetDir)ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
+						Outputs="$(IntDir)\virtualdub.vdres"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Compiling program resources...."
+						CommandLine="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
+						Outputs="$(IntDir)\virtualdub.vdres"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Compiling program resources...."
+						CommandLine="&quot;$(TargetDir)ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
+						Outputs="$(IntDir)\virtualdub.vdres"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Compiling program resources...."
+						CommandLine="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\ami&quot; &quot;$(InputPath)&quot; &quot;$(IntDir)\virtualdub.vdres&quot;&#x0D;&#x0A;"
+						Outputs="$(IntDir)\virtualdub.vdres"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="res\VirtualDub.rc"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions=""
+						AdditionalIncludeDirectories="res;$(IntDir)"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions=""
+						AdditionalIncludeDirectories="res;$(IntDir)"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions=""
+						AdditionalIncludeDirectories="res;$(IntDir)"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions=""
+						AdditionalIncludeDirectories="res;$(IntDir)"
+					/>
+				</FileConfiguration>
+			</File>
+		</Filter>
+		<Filter
+			Name="Source - Capture"
+			>
+			<File
+				RelativePath="source\capbt848.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capclip.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capdialogs.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capemu.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capfilter.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capgraph.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\Caphisto.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capspill.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capture.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\captureui.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\caputils.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capvumeter.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\capwarn.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+		</Filter>
+		<Filter
+			Name="Source - MPEG/MJPEG support"
+			>
+			<File
+				RelativePath="source\MJPEGDecoder.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\Mpeg.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+		</Filter>
+		<Filter
+			Name="Headers - MPEG/MJPEG support"
+			>
+			<File
+				RelativePath="h\mjpeg_color.inl"
+				>
+			</File>
+			<File
+				RelativePath="h\MJPEGDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath="h\mpeg.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Text resources"
+			Filter=".txt"
+			>
+			<File
+				RelativePath="res\Changes.txt"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="res\credits.txt"
+				>
+			</File>
+			<File
+				RelativePath="res\rel_notes.txt"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building resource text..."
+						CommandLine="copy /b $(InputDir)$(InputName).txt+$(InputDir)null.bin $(InputDir)$(InputName).bin&#x0D;&#x0A;"
+						Outputs="$(InputDir)$(InputName).bin"
+					/>
+				</FileConfiguration>
+			</File>
+		</Filter>
+		<Filter
+			Name="Source - Controls"
+			>
+			<File
+				RelativePath="source\AudioDisplay.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\ClippingControl.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\FilterGraph.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\HexViewer.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\LevelControl.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\LogWindow.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\ParameterCurveControl.cpp"
+				>
+			</File>
+			<File
+				RelativePath="source\PositionControl.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\ProgressDialog.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\RTProfileDisplay.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="source\VideoWindow.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+		</Filter>
+		<Filter
+			Name="Headers - Controls"
+			>
+			<File
+				RelativePath="h\AudioDisplay.h"
+				>
+			</File>
+			<File
+				RelativePath="h\ClippingControl.h"
+				>
+			</File>
+			<File
+				RelativePath="h\FilterGraph.h"
+				>
+			</File>
+			<File
+				RelativePath="h\HexViewer.h"
+				>
+			</File>
+			<File
+				RelativePath="h\LevelControl.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\ParameterCurveControl.h"
+				>
+			</File>
+			<File
+				RelativePath="h\PositionControl.h"
+				>
+			</File>
+			<File
+				RelativePath="h\ProgressDialog.h"
+				>
+			</File>
+			<File
+				RelativePath="h\RTProfileDisplay.h"
+				>
+			</File>
+			<File
+				RelativePath="h\VideoWindow.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Files - YUV codec"
+			>
+			<File
+				RelativePath="source\CVideoCompressor.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="h\CVideoCompressor.h"
+				>
+			</File>
+			<File
+				RelativePath="source\icdriver.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="h\IVideoCompressor.h"
+				>
+			</File>
+			<File
+				RelativePath="h\IVideoDriver.h"
+				>
+			</File>
+			<File
+				RelativePath="source\yuvcodec.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="h\yuvcodec.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Headers - dTV"
+			>
+			<File
+				RelativePath="h\dTVdrv.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Headers - Capture"
+			>
+			<File
+				RelativePath="h\capclip.h"
+				>
+			</File>
+			<File
+				RelativePath="h\capdialogs.h"
+				>
+			</File>
+			<File
+				RelativePath="h\capfilter.h"
+				>
+			</File>
+			<File
+				RelativePath="h\capgraph.h"
+				>
+			</File>
+			<File
+				RelativePath="h\caphisto.h"
+				>
+			</File>
+			<File
+				RelativePath="h\capspill.h"
+				>
+			</File>
+			<File
+				RelativePath="h\capture.h"
+				>
+			</File>
+			<File
+				RelativePath="h\captureui.h"
+				>
+			</File>
+			<File
+				RelativePath="h\caputils.h"
+				>
+			</File>
+			<File
+				RelativePath="h\capvumeter.h"
 				>
 			</File>
 		</Filter>
@@ -4763,7 +4757,6 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""
 						UsePrecompiledHeader="1"
@@ -4775,7 +4768,6 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""
 						UsePrecompiledHeader="1"
@@ -5808,10 +5800,6 @@
 				Name="Source - Filters"
 				>
 				<File
-					RelativePath=".\source\f_base.cpp"
-					>
-				</File>
-				<File
 					RelativePath="source\F_blur.cpp"
 					>
 					<FileConfiguration
@@ -5837,7 +5825,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -5847,7 +5834,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -5879,7 +5865,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -5889,7 +5874,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -5921,7 +5905,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -5931,7 +5914,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -5963,7 +5945,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -5973,7 +5954,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6010,7 +5990,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6021,11 +6000,14 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
 					</FileConfiguration>
+				</File>
+				<File
+					RelativePath=".\source\f_debugerror.cpp"
+					>
 				</File>
 				<File
 					RelativePath="source\f_deinterlace.cpp"
@@ -6053,7 +6035,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6063,7 +6044,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6096,7 +6076,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6107,7 +6086,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6139,7 +6117,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6149,7 +6126,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6185,7 +6161,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6195,7 +6170,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6227,7 +6201,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6237,7 +6210,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6269,7 +6241,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6279,7 +6250,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6311,7 +6281,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6321,7 +6290,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6353,7 +6321,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6363,11 +6330,18 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
 					</FileConfiguration>
+				</File>
+				<File
+					RelativePath=".\source\f_interlace.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\source\f_interpolate.cpp"
+					>
 				</File>
 				<File
 					RelativePath="source\f_invert.cpp"
@@ -6395,7 +6369,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6405,11 +6378,14 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
 					</FileConfiguration>
+				</File>
+				<File
+					RelativePath=".\source\f_ivtc.cpp"
+					>
 				</File>
 				<File
 					RelativePath="source\f_levels.cpp"
@@ -6437,7 +6413,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6447,7 +6422,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6479,7 +6453,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6489,7 +6462,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6521,7 +6493,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6531,7 +6502,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6563,7 +6533,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6573,7 +6542,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6605,7 +6573,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6615,7 +6582,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6648,7 +6614,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6659,7 +6624,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6692,7 +6656,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6703,7 +6666,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6735,7 +6697,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6745,7 +6706,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6777,7 +6737,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6787,7 +6746,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6820,7 +6778,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6831,7 +6788,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6864,7 +6820,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6875,11 +6830,14 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
 					</FileConfiguration>
+				</File>
+				<File
+					RelativePath=".\source\f_showinfo.cpp"
+					>
 				</File>
 				<File
 					RelativePath="source\f_smoother.cpp"
@@ -6907,7 +6865,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							OmitFramePointers="true"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
@@ -6918,7 +6875,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							OmitFramePointers="true"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
@@ -6951,7 +6907,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6961,7 +6916,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -6993,7 +6947,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7003,7 +6956,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7035,7 +6987,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7045,7 +6996,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7078,7 +7028,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7089,7 +7038,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7097,6 +7045,10 @@
 				</File>
 				<File
 					RelativePath=".\source\f_warpresize.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\source\f_warpsharp.cpp"
 					>
 				</File>
 			</Filter>
@@ -7141,7 +7093,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7151,7 +7102,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7183,7 +7133,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7193,7 +7142,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7225,7 +7173,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7235,7 +7182,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7267,7 +7213,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7277,7 +7222,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7309,7 +7253,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7319,7 +7262,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7351,7 +7293,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7361,7 +7302,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7393,7 +7333,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7403,7 +7342,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7435,7 +7373,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7445,7 +7382,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7477,7 +7413,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7487,7 +7422,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7519,7 +7453,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7529,7 +7462,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7561,7 +7493,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7571,7 +7502,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7607,7 +7537,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7617,7 +7546,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7649,7 +7577,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7659,7 +7586,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7691,7 +7617,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7701,7 +7626,6 @@
 						>
 						<Tool
 							Name="VCCLCompilerTool"
-							Optimization="2"
 							AdditionalIncludeDirectories=""
 							PreprocessorDefinitions=""
 						/>
@@ -7963,10 +7887,6 @@
 			<Filter
 				Name="Headers - Filters"
 				>
-				<File
-					RelativePath=".\h\f_base.h"
-					>
-				</File>
 			</Filter>
 			<Filter
 				Name="Interface headers - plugins"

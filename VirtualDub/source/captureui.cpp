@@ -1646,7 +1646,7 @@ void VDCaptureProjectUI::UICaptureDriversUpdated() {
 	}
 
 	if (!driversFound)
-		VDAppendMenuW32(hmenu, 0, 0, L"No drivers found");
+		VDAppendMenuW32(hmenu, 0, ID_VIDEO_CAPTURE_DRIVER, L"No drivers found");
 }
 
 void VDCaptureProjectUI::UICaptureAudioDriverChanged(int idx) {
@@ -1723,7 +1723,7 @@ void VDCaptureProjectUI::UICaptureAudioDriversUpdated() {
 	}
 
 	if (!driversFound)
-		VDAppendMenuW32(hmenu, 0, 0, L"No drivers found");
+		VDAppendMenuW32(hmenu, 0, ID_AUDIO_CAPTURE_DRIVER, L"No drivers found");
 }
 
 void VDCaptureProjectUI::UICaptureAudioInputChanged(int input) {
@@ -3222,9 +3222,9 @@ bool VDCaptureProjectUI::OnCommand(UINT id) {
 
 				if (mpProject->GetVideoFormat(bih)) {
 					int format = VDBitmapFormatToPixmapFormat(*bih);
-					VDShowDialogVideoFilters(mhwnd, bih->biWidth, bih->biHeight, format, VDFraction(10000000, mpProject->GetFrameTime()), 100);
+					VDShowDialogVideoFilters(mhwnd, bih->biWidth, bih->biHeight, format, VDFraction(10000000, mpProject->GetFrameTime()), 100, -1);
 				} else {
-					VDShowDialogVideoFilters(mhwnd, NULL);
+					VDShowDialogVideoFilters(mhwnd, NULL, -1);
 				}
 			}
 
@@ -3419,9 +3419,15 @@ bool VDCaptureProjectUI::OnCommand(UINT id) {
 
 		default:
 			if (id >= ID_VIDEO_CAPTURE_DRIVER && id < ID_VIDEO_CAPTURE_DRIVER+50) {
-				mpProject->SelectDriver(id - ID_VIDEO_CAPTURE_DRIVER);
+				int offset = id - ID_VIDEO_CAPTURE_DRIVER;
+
+				if (offset < mpProject->GetDriverCount())
+					mpProject->SelectDriver(offset);
 			} else if (id >= ID_AUDIO_CAPTURE_DRIVER && id < ID_AUDIO_CAPTURE_DRIVER+50) {
-				mpProject->SetAudioDevice(id - ID_AUDIO_CAPTURE_DRIVER);
+				int offset = id - ID_AUDIO_CAPTURE_DRIVER;
+
+				if (offset < mpProject->GetAudioDeviceCount())
+					mpProject->SetAudioDevice(offset);
 			} else if (id >= ID_AUDIO_CAPTURE_INPUT && id < ID_AUDIO_CAPTURE_INPUT+50) {
 				mpProject->SetAudioInput(id - ID_AUDIO_CAPTURE_INPUT - 1);
 			} else if (id >= ID_AUDIO_CAPTURE_SOURCE && id < ID_AUDIO_CAPTURE_SOURCE+50) {
@@ -4012,9 +4018,11 @@ static INT_PTR CALLBACK CaptureCustomVidSizeDlgProc(HWND hdlg, UINT msg, WPARAM 
 		{ RV('I420'),	12, "I420\tYUV 4:2:0 planar" },
 		{ RV('IYUV'),	12, "IYUV\tYUV 4:2:0 planar" },
 		{ RV('Y41P'),	12, "Y41P\tYUV 4:1:1 planar" },
-		{ RV('YVU9'),	9, "YVU9\t9-bit YUV planar" },
+		{ RV('YVU9'),	9,  "YVU9\t9-bit YUV planar" },
 		{ RV('MJPG'),	16, "MJPG\tMotion JPEG" },
 		{ RV('dmb1'),	16, "dmb1\tMatrox MJPEG" },
+		{ RV('HDYC'),	16, "HDYC\tYUV 4:2:2 interleaved (Rec. 701)" },
+		{ RV('v210'),	20, "HDYC\tYUV 4:2:2 interleaved (10-bit)" },
 	};
 #undef RV
 

@@ -6,6 +6,7 @@
 #include <vd2/system/fraction.h>
 #include <vd2/system/event.h>
 #include "FrameSubset.h"
+#include "FilterFrameVideoSource.h"
 #include "filter.h"
 #include "timeline.h"
 #include <list>
@@ -30,8 +31,8 @@ enum VDAudioSourceMode {
 
 class IVDProjectUICallback {
 public:
-	virtual void UIRefreshInputFrame(bool bValid) = 0;
-	virtual void UIRefreshOutputFrame(bool bValid) = 0;
+	virtual void UIRefreshInputFrame(const VDPixmap *px) = 0;
+	virtual void UIRefreshOutputFrame(const VDPixmap *px) = 0;
 	virtual void UISetDubbingMode(bool bActive, bool bIsPreview) = 0;
 	virtual bool UIRunDubMessageLoop() = 0;
 	virtual void UIAbortDubMessageLoop() = 0;		// Note: multithreaded
@@ -50,6 +51,16 @@ enum {
 	kVDProjectCmd_Null,
 	kVDProjectCmd_GoToStart,
 	kVDProjectCmd_GoToEnd,
+	kVDProjectCmd_GoToPrevFrame,
+	kVDProjectCmd_GoToNextFrame,
+	kVDProjectCmd_GoToPrevUnit,
+	kVDProjectCmd_GoToNextUnit,
+	kVDProjectCmd_GoToPrevKey,
+	kVDProjectCmd_GoToNextKey,
+	kVDProjectCmd_GoToPrevDrop,
+	kVDProjectCmd_GoToNextDrop,
+	kVDProjectCmd_GoToSelectionStart,
+	kVDProjectCmd_GoToSelectionEnd,
 	kVDProjectCmd_ScrubBegin,
 	kVDProjectCmd_ScrubEnd,
 	kVDProjectCmd_ScrubUpdate,
@@ -117,6 +128,7 @@ public:
 	void Paste();
 	void Delete();
 	void DeleteInternal(bool tagAsCut, bool noTag);
+	void CropToSelection();
 	void MaskSelection(bool bMasked);
 
 	void DisplayFrame(bool bDispInput = true);
@@ -136,6 +148,7 @@ public:
 	void Preview(DubOptions *options);
 	void PreviewRestart();
 	void RunNullVideoPass();
+	void QueueNullVideoPass();
 	void CloseAVI();			// to be removed later....
 	void Close();
 
@@ -144,7 +157,7 @@ public:
 	void SaveAnimatedGIF(const wchar_t *pFilename, int loopCount);
 	void SaveRawAudio(const wchar_t *pFilename);
 
-	void StartServer();
+	void StartServer(const char *name = NULL);
 	void ShowInputInfo();
 	void SetVideoMode(int mode);
 	void CopySourceFrameToClipboard();
@@ -194,7 +207,7 @@ public:
 protected:
 	void SceneShuttleStep();
 	bool UpdateFrame();
-	bool RefilterFrame(VDPosition outPos, VDPosition timelinePos);
+	bool RefilterFrame(VDPosition timelinePos);
 	void LockFilterChain(bool enableLock);
 
 	static void StaticPositionCallback(VDPosition start, VDPosition cur, VDPosition end, int progress, void *cookie);
@@ -239,18 +252,22 @@ protected:
 	bool		mbTimelineRateDirty;
 
 	VDXFilterStateInfo mfsi;
-	VDPosition		mDesiredInputFrame;
-	VDPosition		mDesiredInputSample;
 	VDPosition		mDesiredOutputFrame;
 	VDPosition		mDesiredTimelineFrame;
 	VDPosition		mDesiredNextInputFrame;
-	VDPosition		mDesiredNextInputSample;
 	VDPosition		mDesiredNextOutputFrame;
 	VDPosition		mDesiredNextTimelineFrame;
 	VDPosition		mLastDisplayedInputFrame;
 	VDPosition		mLastDisplayedTimelineFrame;
 	bool			mbUpdateInputFrame;
-	bool			mbUpdateOutputFrame;
+
+	vdrefptr<IVDFilterFrameClientRequest> mpCurrentInputFrame;
+	vdrefptr<IVDFilterFrameClientRequest> mpPendingInputFrame;
+	vdrefptr<IVDFilterFrameClientRequest> mpCurrentOutputFrame;
+	vdrefptr<IVDFilterFrameClientRequest> mpPendingOutputFrame;
+	bool			mbPendingInputFrameValid;
+	bool			mbPendingOutputFrameValid;
+
 	bool			mbUpdateLong;
 	int				mFramesDecoded;
 	uint32			mLastDecodeUpdate;
@@ -267,6 +284,8 @@ protected:
 	VDFraction		mVideoInputFrameRate;
 	VDFraction		mVideoOutputFrameRate;
 	VDFraction		mVideoTimelineFrameRate;
+
+	vdrefptr<VDFilterFrameVideoSource>	mpVideoFrameSource;
 
 	std::list<std::pair<uint32, VDStringA> >	mTextInfo;
 

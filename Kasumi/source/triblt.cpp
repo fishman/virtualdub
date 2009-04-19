@@ -1,10 +1,31 @@
+//	VirtualDub - Video processing and capture application
+//	Graphics support library
+//	Copyright (C) 1998-2008 Avery Lee
+//
+//	This program is free software; you can redistribute it and/or modify
+//	it under the terms of the GNU General Public License as published by
+//	the Free Software Foundation; either version 2 of the License, or
+//	(at your option) any later version.
+//
+//	This program is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU General Public License for more details.
+//
+//	You should have received a copy of the GNU General Public License
+//	along with this program; if not, write to the Free Software
+//	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
 #include <math.h>
 #include <vector>
 #include <vd2/system/math.h>
 #include <vd2/system/cpuaccel.h>
+#include <vd2/system/vdalloc.h>
 #include <vd2/Kasumi/pixmap.h>
 #include <vd2/Kasumi/pixmaputils.h>
 #include <vd2/Kasumi/pixmapops.h>
+#include <vd2/Kasumi/resample.h>
+#include <vd2/Kasumi/tables.h>
 #include <vd2/Kasumi/triblt.h>
 
 namespace {
@@ -39,6 +60,60 @@ namespace {
 		const uint32 final_g  = (top_g  + (((bot_g  - top_g )*y) >> 8)) & 0x00ff00;
 
 		return final_rb + final_g;
+	}
+
+	uint32 bicubic_RGB888(const uint32 *src0, const uint32 *src1, const uint32 *src2, const uint32 *src3, sint32 x, sint32 y) {
+		const uint32 p00 = src0[0];
+		const uint32 p01 = src0[1];
+		const uint32 p02 = src0[2];
+		const uint32 p03 = src0[3];
+		const uint32 p10 = src1[0];
+		const uint32 p11 = src1[1];
+		const uint32 p12 = src1[2];
+		const uint32 p13 = src1[3];
+		const uint32 p20 = src2[0];
+		const uint32 p21 = src2[1];
+		const uint32 p22 = src2[2];
+		const uint32 p23 = src2[3];
+		const uint32 p30 = src3[0];
+		const uint32 p31 = src3[1];
+		const uint32 p32 = src3[2];
+		const uint32 p33 = src3[3];
+
+		const sint32 *htab = kVDCubicInterpTableFX14_075[x];
+		const sint32 *vtab = kVDCubicInterpTableFX14_075[y];
+
+		const int ch0 = htab[0];
+		const int ch1 = htab[1];
+		const int ch2 = htab[2];
+		const int ch3 = htab[3];
+		const int cv0 = vtab[0];
+		const int cv1 = vtab[1];
+		const int cv2 = vtab[2];
+		const int cv3 = vtab[3];
+
+		int r0 = ((int)((p00>>16)&0xff) * ch0 + (int)((p01>>16)&0xff) * ch1 + (int)((p02>>16)&0xff) * ch2 + (int)((p03>>16)&0xff) * ch3 + 128) >> 8;
+		int g0 = ((int)((p00>> 8)&0xff) * ch0 + (int)((p01>> 8)&0xff) * ch1 + (int)((p02>> 8)&0xff) * ch2 + (int)((p03>> 8)&0xff) * ch3 + 128) >> 8;
+		int b0 = ((int)((p00    )&0xff) * ch0 + (int)((p01    )&0xff) * ch1 + (int)((p02    )&0xff) * ch2 + (int)((p03    )&0xff) * ch3 + 128) >> 8;
+		int r1 = ((int)((p10>>16)&0xff) * ch0 + (int)((p11>>16)&0xff) * ch1 + (int)((p12>>16)&0xff) * ch2 + (int)((p13>>16)&0xff) * ch3 + 128) >> 8;
+		int g1 = ((int)((p10>> 8)&0xff) * ch0 + (int)((p11>> 8)&0xff) * ch1 + (int)((p12>> 8)&0xff) * ch2 + (int)((p13>> 8)&0xff) * ch3 + 128) >> 8;
+		int b1 = ((int)((p10    )&0xff) * ch0 + (int)((p11    )&0xff) * ch1 + (int)((p12    )&0xff) * ch2 + (int)((p13    )&0xff) * ch3 + 128) >> 8;
+		int r2 = ((int)((p20>>16)&0xff) * ch0 + (int)((p21>>16)&0xff) * ch1 + (int)((p22>>16)&0xff) * ch2 + (int)((p23>>16)&0xff) * ch3 + 128) >> 8;
+		int g2 = ((int)((p20>> 8)&0xff) * ch0 + (int)((p21>> 8)&0xff) * ch1 + (int)((p22>> 8)&0xff) * ch2 + (int)((p23>> 8)&0xff) * ch3 + 128) >> 8;
+		int b2 = ((int)((p20    )&0xff) * ch0 + (int)((p21    )&0xff) * ch1 + (int)((p22    )&0xff) * ch2 + (int)((p23    )&0xff) * ch3 + 128) >> 8;
+		int r3 = ((int)((p30>>16)&0xff) * ch0 + (int)((p31>>16)&0xff) * ch1 + (int)((p32>>16)&0xff) * ch2 + (int)((p33>>16)&0xff) * ch3 + 128) >> 8;
+		int g3 = ((int)((p30>> 8)&0xff) * ch0 + (int)((p31>> 8)&0xff) * ch1 + (int)((p32>> 8)&0xff) * ch2 + (int)((p33>> 8)&0xff) * ch3 + 128) >> 8;
+		int b3 = ((int)((p30    )&0xff) * ch0 + (int)((p31    )&0xff) * ch1 + (int)((p32    )&0xff) * ch2 + (int)((p33    )&0xff) * ch3 + 128) >> 8;
+
+		int r = (r0 * cv0 + r1 * cv1 + r2 * cv2 + r3 * cv3 + (1<<19)) >> 20;
+		int g = (g0 * cv0 + g1 * cv1 + g2 * cv2 + g3 * cv3 + (1<<19)) >> 20;
+		int b = (b0 * cv0 + b1 * cv1 + b2 * cv2 + b3 * cv3 + (1<<19)) >> 20;
+
+		if (r<0) r=0; else if (r>255) r=255;
+		if (g<0) g=0; else if (g>255) g=255;
+		if (b<0) b=0; else if (b>255) b=255;
+
+		return (r<<16) + (g<<8) + b;
 	}
 }
 
@@ -148,9 +223,54 @@ namespace {
 		} while(++w);
 	}
 
+	void vd_triblt_span_bicubic_mip_linear(const VDTriBltInfo *pInfo) {
+		sint32 w = -pInfo->width;
+		uint32 *dst = pInfo->dst + pInfo->width;
+		const uint32 *src = pInfo->src;
+
+		do {
+			sint32 u = src[0];
+			sint32 v = src[1];
+			const sint32 lambda = src[2];
+			src += 3;
+
+			const sint32 lod = lambda >> 8;
+
+			const uint32 *texture1 = pInfo->mips[lod].mip;
+			const ptrdiff_t texpitch1 = pInfo->mips[lod].pitch;
+			const uint32 *texture2 = pInfo->mips[lod+1].mip;
+			const ptrdiff_t texpitch2 = pInfo->mips[lod+1].pitch;
+
+			u >>= lod;
+			v >>= lod;
+
+			u += 128;
+			v += 128;
+
+			const uint32 *src1 = vdptroffset(texture1, texpitch1 * (v>>8)) + (u>>8);
+			const uint32 *src2 = vdptroffset(src1, texpitch1);
+			const uint32 *src3 = vdptroffset(src2, texpitch1);
+			const uint32 *src4 = vdptroffset(src3, texpitch1);
+			const uint32 p1 = bicubic_RGB888(src1, src2, src3, src4, u&255, v&255);
+
+			u += 128;
+			v += 128;
+
+			const uint32 *src5 = vdptroffset(texture2, texpitch2 * (v>>9)) + (u>>9);
+			const uint32 *src6 = vdptroffset(src5, texpitch2);
+			const uint32 *src7 = vdptroffset(src6, texpitch2);
+			const uint32 *src8 = vdptroffset(src7, texpitch2);
+			const uint32 p2 = bicubic_RGB888(src5, src6, src7, src8, (u>>1)&255, (v>>1)&255);
+
+			dst[w] = lerp_RGB888(p1, p2, lambda & 255);
+		} while(++w);
+	}
+
 #ifdef _M_IX86
 	extern "C" void vdasm_triblt_span_bilinear_mmx(const VDTriBltInfo *pInfo);
 	extern "C" void vdasm_triblt_span_trilinear_mmx(const VDTriBltInfo *pInfo);
+	extern "C" void vdasm_triblt_span_bicubic_mip_linear_mmx(const VDTriBltInfo *pInfo);
+	extern "C" void vdasm_triblt_span_bicubic_mip_linear_sse2(const VDTriBltInfo *pInfo);
 	extern "C" void vdasm_triblt_span_point(const VDTriBltInfo *pInfo);
 #endif
 
@@ -187,7 +307,7 @@ namespace {
 		}
 	};
 
-	void TransformVerts(VDTriBltTransformedVertex *dst, const VDTriBltVertex *src, int nVerts, const float xform[16], float width, float height) {
+	void TransformVerts(VDTriBltTransformedVertex *dst, const VDTriBltVertex *src, int nVerts, const float xform[16]) {
 		const float xflocal[16]={
 			xform[ 0],	xform[ 1],	xform[ 2],	xform[ 3],
 			xform[ 4],	xform[ 5],	xform[ 6],	xform[ 7],
@@ -234,7 +354,7 @@ namespace {
 		} while(--nVerts);
 	}
 
-	void TransformVerts(VDTriBltTransformedVertex *dst, const VDTriColorVertex *src, int nVerts, const float xform[16], float width, float height) {
+	void TransformVerts(VDTriBltTransformedVertex *dst, const VDTriColorVertex *src, int nVerts, const float xform[16]) {
 		const float xflocal[16]={
 			xform[ 0],	xform[ 1],	xform[ 2],	xform[ 3],
 			xform[ 4],	xform[ 5],	xform[ 6],	xform[ 7],
@@ -310,6 +430,7 @@ namespace {
 				setup.tmp2.u += 0.5f;
 				setup.tmp2.v += 0.5f;
 			case kTriBltFilterTrilinear:
+			case kTriBltFilterBicubicMipLinear:
 				setup.tmp0.u *= 256.0f;
 				setup.tmp0.v *= 256.0f;
 				setup.tmp1.u *= 256.0f;
@@ -406,9 +527,8 @@ namespace {
 							const VDTriBltTransformedVertex *vx1,
 							const VDTriBltTransformedVertex *vx2,
 							VDTriBltFilterMode filterMode,
-							bool border)
+							float mipMapLODBias)
 	{
-
 		VDTriangleSetupInfo setup;
 
 		SetupTri(setup, dst, vx0, vx1, vx2, &filterMode);
@@ -554,6 +674,18 @@ namespace {
 		bool triBlt16 = false;
 
 		switch(filterMode) {
+		case kTriBltFilterBicubicMipLinear:
+#ifdef _M_IX86
+			if (cpuflags & CPUF_SUPPORTS_SSE2) {
+				drawSpan = vdasm_triblt_span_bicubic_mip_linear_sse2;
+				triBlt16 = true;
+			} else if (cpuflags & CPUF_SUPPORTS_MMX) {
+				drawSpan = vdasm_triblt_span_bicubic_mip_linear_mmx;
+				triBlt16 = true;
+			} else
+#endif
+				drawSpan = vd_triblt_span_bicubic_mip_linear;
+			break;
 		case kTriBltFilterTrilinear:
 #ifdef _M_IX86
 			if (cpuflags & CPUF_SUPPORTS_MMX) {
@@ -577,7 +709,7 @@ namespace {
 			break;
 		}
 
-		float rhobase = sqrt(std::max<float>(dudx*dudx + dvdx*dvdx, dudy*dudy + dvdy*dvdy) * (1.0f / 65536.0f));
+		float rhobase = sqrtf(std::max<float>(dudx*dudx + dvdx*dvdx, dudy*dudy + dvdy*dvdy) * (1.0f / 65536.0f)) * powf(2.0f, mipMapLODBias);
 
 		if (triBlt16) {
 			ul *= 256.0f;
@@ -1167,7 +1299,7 @@ namespace {
 							const VDTriBltTransformedVertex *vx1,
 							const VDTriBltTransformedVertex *vx2,
 							VDTriBltFilterMode filterMode,
-							bool border,
+							float mipMapLODBias,
 							int orflags)
 	{
 
@@ -1239,7 +1371,7 @@ namespace {
 		VDTriBltTransformedVertex **src = vxlastheap+1;
 
 		while(src[1]) {
-			RenderTri(dst, pSources, nMipmaps, vxlastheap[0], src[0], src[1], filterMode, border);
+			RenderTri(dst, pSources, nMipmaps, vxlastheap[0], src[0], src[1], filterMode, mipMapLODBias);
 			++src;
 		}
 	}
@@ -1256,7 +1388,7 @@ bool VDPixmapTriFill(VDPixmap& dst, const uint32 c, const VDTriBltVertex *pVerti
 	if (!pTransform)
 		pTransform = xf_ident;
 
-	TransformVerts(xverts.data(), pVertices, nVertices, pTransform, (float)dst.w, (float)dst.h);
+	TransformVerts(xverts.data(), pVertices, nVertices, pTransform);
 
 	const VDTriBltTransformedVertex *xsrc = xverts.data();
 
@@ -1338,6 +1470,9 @@ bool VDPixmapTriFill(VDPixmap& dst, const VDTriColorVertex *pVertices, int nVert
 		} else if (dst.format == nsVDPixmap::kPixFormat_YUV422_Planar) {
 			pxCr.w = pxCb.w = dst.w >> 1;
 			ycbcr_xoffset = 0.5f / (float)pxCr.w;
+		} else if (dst.format == nsVDPixmap::kPixFormat_YUV444_Planar) {
+			pxCr.w = pxCb.w = dst.w;
+			ycbcr_xoffset = 0.0f;
 		}
 
 		ycbcr = true;
@@ -1361,80 +1496,70 @@ bool VDPixmapTriFill(VDPixmap& dst, const VDTriColorVertex *pVertices, int nVert
 	if (!pTransform)
 		pTransform = xf_ident;
 
-	TransformVerts(xsrc, pVertices, nVertices, pTransform, (float)dst.w, (float)dst.h);
-
 	VDTriClipWorkspace clipws;
+	for(int plane=0; plane<(ycbcr?3:1); ++plane) {
+		VDPixmap& pxPlane = ycbcr ? plane == 0 ? pxY : plane == 1 ? pxCb : pxCr : dst;
 
-	while(nIndices >= 3) {
-		const int idx0 = pIndices[0];
-		const int idx1 = pIndices[1];
-		const int idx2 = pIndices[2];
-		const VDTriBltTransformedVertex *xv0 = &xsrc[idx0];
-		const VDTriBltTransformedVertex *xv1 = &xsrc[idx1];
-		const VDTriBltTransformedVertex *xv2 = &xsrc[idx2];
-		const int kode0 = xv0->outcode;
-		const int kode1 = xv1->outcode;
-		const int kode2 = xv2->outcode;
+		if (ycbcr && plane) {
+			float xf_ycbcr[16];
+			memcpy(xf_ycbcr, pTransform, sizeof(float) * 16);
 
-		if (!(kode0 & kode1 & kode2)) {
-			if (int orflags = kode0 | kode1 | kode2) {
-				VDTriBltTransformedVertex **src = VDClipTriangle(clipws, xv0, xv1, xv2, orflags);
+			// translate in x by ycbcr_xoffset
+			xf_ycbcr[0] += xf_ycbcr[12]*ycbcr_xoffset;
+			xf_ycbcr[1] += xf_ycbcr[13]*ycbcr_xoffset;
+			xf_ycbcr[2] += xf_ycbcr[14]*ycbcr_xoffset;
+			xf_ycbcr[3] += xf_ycbcr[15]*ycbcr_xoffset;
 
-				if (src) {
-					VDTriBltTransformedVertex *src0 = *src++;
+			TransformVerts(xsrc, pVertices, nVertices, xf_ycbcr);
 
-					// fan out triangles
-					if (ycbcr) {
+			switch(plane) {
+				case 1:
+					for(int i=0; i<nVertices; ++i)
+						xsrc[i].g = xsrc[i].b;
+					break;
+				case 2:
+					for(int i=0; i<nVertices; ++i)
+						xsrc[i].g = xsrc[i].r;
+					break;
+			}
+		} else {
+			TransformVerts(xsrc, pVertices, nVertices, pTransform);
+		}
+
+		const int *nextIndex = pIndices;
+		int indicesLeft = nIndices;
+		while(indicesLeft >= 3) {
+			const int idx0 = nextIndex[0];
+			const int idx1 = nextIndex[1];
+			const int idx2 = nextIndex[2];
+			const VDTriBltTransformedVertex *xv0 = &xsrc[idx0];
+			const VDTriBltTransformedVertex *xv1 = &xsrc[idx1];
+			const VDTriBltTransformedVertex *xv2 = &xsrc[idx2];
+			const int kode0 = xv0->outcode;
+			const int kode1 = xv1->outcode;
+			const int kode2 = xv2->outcode;
+
+			if (!(kode0 & kode1 & kode2)) {
+				if (int orflags = kode0 | kode1 | kode2) {
+					VDTriBltTransformedVertex **src = VDClipTriangle(clipws, xv0, xv1, xv2, orflags);
+
+					if (src) {
+						VDTriBltTransformedVertex *src0 = *src++;
+
+						// fan out triangles
 						while(src[1]) {
-							VDTriBltTransformedVertex t0 = *src0;
-							VDTriBltTransformedVertex t1 = *src[0];
-							VDTriBltTransformedVertex t2 = *src[1];
-
-							FillTriGrad(pxY, &t0, &t1, &t2);
-							t0.g = t0.b;
-							t1.g = t1.b;
-							t2.g = t2.b;
-							FillTriGrad(pxCb, &t0, &t1, &t2);
-							t0.g = t0.r;
-							t1.g = t1.r;
-							t2.g = t2.r;
-							FillTriGrad(pxCr, &t0, &t1, &t2);
-
-							++src;
-						}
-					} else {
-						while(src[1]) {
-							FillTriGrad(dst, src0, src[0], src[1]);
+							FillTriGrad(pxPlane, src0, src[0], src[1]);
 							++src;
 						}
 					}
-				}
-			} else {
-				if (ycbcr) {
-					VDTriBltTransformedVertex t0 = *xv0;
-					VDTriBltTransformedVertex t1 = *xv1;
-					VDTriBltTransformedVertex t2 = *xv2;
-
-					FillTriGrad(pxY, &t0, &t1, &t2);
-					t0.x += t0.w*ycbcr_xoffset;
-					t0.g = t0.b;
-					t1.x += t1.w*ycbcr_xoffset;
-					t1.g = t1.b;
-					t2.x += t2.w*ycbcr_xoffset;
-					t2.g = t2.b;
-					FillTriGrad(pxCb, &t0, &t1, &t2);
-					t0.g = t0.r;
-					t1.g = t1.r;
-					t2.g = t2.r;
-					FillTriGrad(pxCr, &t0, &t1, &t2);
 				} else {
-					FillTriGrad(dst, xv0, xv1, xv2);
+					FillTriGrad(pxPlane, xv0, xv1, xv2);
 				}
 			}
-		}
 
-		pIndices += 3;
-		nIndices -= 3;
+			nextIndex += 3;
+			indicesLeft -= 3;
+		}
 	}
 
 	return true;
@@ -1444,7 +1569,7 @@ bool VDPixmapTriBlt(VDPixmap& dst, const VDPixmap *const *pSources, int nMipmaps
 					const VDTriBltVertex *pVertices, int nVertices,
 					const int *pIndices, int nIndices,
 					VDTriBltFilterMode filterMode,
-					bool border,
+					float mipMapLODBias,
 					const float pTransform[16])
 {
 	if (dst.format != nsVDPixmap::kPixFormat_XRGB8888)
@@ -1456,7 +1581,7 @@ bool VDPixmapTriBlt(VDPixmap& dst, const VDPixmap *const *pSources, int nMipmaps
 	if (!pTransform)
 		pTransform = xf_ident;
 
-	TransformVerts(xverts.data(), pVertices, nVertices, pTransform, (float)dst.w, (float)dst.h);
+	TransformVerts(xverts.data(), pVertices, nVertices, pTransform);
 
 	const VDTriBltTransformedVertex *xsrc = xverts.data();
 
@@ -1482,12 +1607,12 @@ bool VDPixmapTriBlt(VDPixmap& dst, const VDPixmap *const *pSources, int nMipmaps
 
 					// fan out triangles
 					while(src[1]) {
-						RenderTri(dst, pSources, nMipmaps, src0, src[0], src[1], filterMode, border);
+						RenderTri(dst, pSources, nMipmaps, src0, src[0], src[1], filterMode, mipMapLODBias);
 						++src;
 					}
 				}
 			} else
-				RenderTri(dst, pSources, nMipmaps, xv0, xv1, xv2, filterMode, border);
+				RenderTri(dst, pSources, nMipmaps, xv0, xv1, xv2, filterMode, mipMapLODBias);
 		}
 
 		pIndices += 3;
@@ -1510,9 +1635,24 @@ void VDPixmapSetTextureBorders(VDPixmap& px, bool wrap) {
 	VDPixmapBlt(px, 0,   h-1, px, 0,              wrap ? 1 : h-2, w, 1);
 }
 
+void VDPixmapSetTextureBordersCubic(VDPixmap& px) {
+	const int w = px.w;
+	const int h = px.h;
+
+	VDPixmapBlt(px, 0,   1, px, 2, 1, 1, h-2);
+	VDPixmapBlt(px, 1,   1, px, 2, 1, 1, h-2);
+	VDPixmapBlt(px, w-2, 1, px, w-3, 1, 1, h-2);
+	VDPixmapBlt(px, w-1, 1, px, w-3, 1, 1, h-2);
+
+	VDPixmapBlt(px, 0, 0,   px, 0, 2, w, 1);
+	VDPixmapBlt(px, 0, 1,   px, 0, 2, w, 1);
+	VDPixmapBlt(px, 0, h-2, px, 0, h-3, w, 1);
+	VDPixmapBlt(px, 0, h-1, px, 0, h-3, w, 1);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-VDPixmapTextureMipmapChain::VDPixmapTextureMipmapChain(const VDPixmap& src, bool wrap, int maxlevels) {
+VDPixmapTextureMipmapChain::VDPixmapTextureMipmapChain(const VDPixmap& src, bool wrap, bool cubic, int maxlevels) {
 	int w = src.w;
 	int h = src.h;
 	int mipcount = 0;
@@ -1526,21 +1666,51 @@ VDPixmapTextureMipmapChain::VDPixmapTextureMipmapChain(const VDPixmap& src, bool
 	mBuffers.resize(mipcount);
 	mMipMaps.resize(mipcount);
 
+	vdautoptr<IVDPixmapResampler> r(VDCreatePixmapResampler());
+	r->SetFilters(IVDPixmapResampler::kFilterLinear, IVDPixmapResampler::kFilterLinear, false);
+
+	float fw = (float)src.w;
+	float fh = (float)src.h;
 	for(int mip=0; mip<mipcount; ++mip) {
-		const int mipw = ((src.w-1)>>mip)+1;
-		const int miph = ((src.h-1)>>mip)+1;
+		const int mipw = VDCeilToInt(fw);
+		const int miph = VDCeilToInt(fh);
 
 		mMipMaps[mip] = &mBuffers[mip];
-		mBuffers[mip].init(mipw+2, miph+2, nsVDPixmap::kPixFormat_XRGB8888);
 
-		if (!mip) {
-			VDPixmapBlt(mBuffers[0], 1, 1, src, 0, 0, src.w, src.h);
+		if (cubic) {
+			mBuffers[mip].init(mipw+4, miph+4, nsVDPixmap::kPixFormat_XRGB8888);
+
+			if (!mip) {
+				VDPixmapBlt(mBuffers[0], 2, 2, src, 0, 0, src.w, src.h);
+				VDPixmapSetTextureBordersCubic(mBuffers[0]);
+			} else {
+				const VDPixmap& curmip = mBuffers[mip];
+				const VDPixmap& prevmip = mBuffers[mip-1];
+
+				vdrect32f rdst( 0.0f,  0.0f,      (float)curmip.w       ,      (float)curmip.h       );
+				vdrect32f rsrc(-2.0f, -2.0f, 2.0f*(float)curmip.w - 2.0f, 2.0f*(float)curmip.h - 2.0f);
+				r->Init(rdst, curmip.w, curmip.h, curmip.format, rsrc, prevmip.w, prevmip.h, prevmip.format);
+				r->Process(curmip, prevmip);
+			}
 		} else {
-			const VDPixmap& prevmip = mBuffers[mip-1];
+			mBuffers[mip].init(mipw+2, miph+2, nsVDPixmap::kPixFormat_XRGB8888);
 
-			VDPixmapStretchBltBilinear(mBuffers[mip], 1<<16, 1<<16, (mipw+1)<<16, (miph+1)<<16, prevmip, 1<<16, 1<<16, (prevmip.w-1)<<16, (prevmip.h-1)<<16);
+			if (!mip) {
+				VDPixmapBlt(mBuffers[0], 1, 1, src, 0, 0, src.w, src.h);
+				VDPixmapSetTextureBorders(mBuffers[0], wrap);
+			} else {
+				const VDPixmap& curmip = mBuffers[mip];
+				const VDPixmap& prevmip = mBuffers[mip-1];
+
+				vdrect32f rdst( 0.0f,  0.0f,      (float)curmip.w       ,      (float)curmip.h       );
+				vdrect32f rsrc(-1.0f, -1.0f, 2.0f*(float)curmip.w - 1.0f, 2.0f*(float)curmip.h - 1.0f);
+				r->Init(rdst, curmip.w, curmip.h, curmip.format, rsrc, prevmip.w, prevmip.h, prevmip.format);
+				r->Process(curmip, prevmip);
+			}
 		}
-		VDPixmapSetTextureBorders(mBuffers[mip], wrap);
+
+		fw *= 0.5f;
+		fh *= 0.5f;
 	}
 }
 

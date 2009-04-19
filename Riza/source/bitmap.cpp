@@ -98,6 +98,15 @@ int VDBitmapFormatToPixmapFormat(const VDAVIBitmapInfoHeader& hdr, int& variant)
 	case VDMAKEFOURCC('Y', '8', ' ', ' '):
 	case VDMAKEFOURCC('Y', '8', '0', '0'):
 		return kPixFormat_Y8;
+
+	case VDMAKEFOURCC('v', '2', '1', '0'):
+		return kPixFormat_YUV422_V210;
+
+	case VDMAKEFOURCC('H', 'D', 'Y', 'C'):
+		return kPixFormat_YUV422_UYVY_709;
+
+	case VDMAKEFOURCC('N', 'V', '1', '2'):
+		return kPixFormat_YUV420_NV12;
 	}
 	return 0;
 }
@@ -209,58 +218,73 @@ bool VDMakeBitmapFormatFromPixmapFormat(vdstructex<VDAVIBitmapInfoHeader>& dst, 
 		dst->biSizeImage	= w*4 * h;
 		break;
 	case kPixFormat_YUV422_UYVY:
-		dst->biCompression	= 'YVYU';
+		dst->biCompression	= VDMAKEFOURCC('U', 'Y', 'V', 'Y');
 		dst->biBitCount		= 16;
 		dst->biSizeImage	= ((w+1)&~1)*2*h;
 		break;
 	case kPixFormat_YUV422_YUYV:
-		dst->biCompression	= '2YUY';
+		dst->biCompression	= VDMAKEFOURCC('Y', 'U', 'Y', '2');
 		dst->biBitCount		= 16;
 		dst->biSizeImage	= ((w+1)&~1)*2*h;
 		break;
 	case kPixFormat_YUV444_Planar:
-		dst->biCompression	= '42VY';
+		dst->biCompression	= VDMAKEFOURCC('Y', 'V', '2', '4');
 		dst->biBitCount		= 24;
 		dst->biSizeImage	= w * h * 3;
 		break;
 	case kPixFormat_YUV422_Planar:
-		dst->biCompression	= '61VY';
+		dst->biCompression	= VDMAKEFOURCC('Y', 'V', '1', '6');
 		dst->biBitCount		= 16;
 		dst->biSizeImage	= ((w+1)>>1) * h * 4;
 		break;
 	case kPixFormat_YUV420_Planar:
 		switch(variant) {
 		case 3:
-			dst->biCompression	= 'VUYI';
+			dst->biCompression	= VDMAKEFOURCC('I', 'Y', 'U', 'V');
 			break;
 		case 2:
-			dst->biCompression	= '024I';
+			dst->biCompression	= VDMAKEFOURCC('I', '4', '2', '0');
 			break;
 		case 1:
 		default:
-			dst->biCompression	= '21VY';
+			dst->biCompression	= VDMAKEFOURCC('Y', 'V', '1', '2');
 			break;
 		}
 		dst->biBitCount		= 12;
-		dst->biSizeImage	= w*h + (w>>1)*(h>>1)*2;
+		dst->biSizeImage	= w*h + ((w+1)>>1)*((h+1)>>1)*2;
 		break;
 	case kPixFormat_YUV410_Planar:
-		dst->biCompression	= '9UVY';
+		dst->biCompression	= VDMAKEFOURCC('Y', 'V', 'U', '9');
 		dst->biBitCount		= 9;
 		dst->biSizeImage	= ((w+2)>>2) * ((h+2)>>2) * 18;
 		break;
 	case kPixFormat_Y8:
 		switch(variant) {
 		case 2:
-			dst->biCompression	= '008Y';
+			dst->biCompression	= VDMAKEFOURCC('Y', '8', '0', '0');
 			break;
 		case 1:
 		default:
-			dst->biCompression	= '  8Y';
+			dst->biCompression	= VDMAKEFOURCC('Y', '8', ' ', ' ');
 			break;
 		}
 		dst->biBitCount		= 8;
 		dst->biSizeImage	= ((w+3) & ~3) * h;
+		break;
+	case kPixFormat_YUV422_V210:
+		dst->biCompression	= VDMAKEFOURCC('v', '2', '1', '0');
+		dst->biBitCount		= 20;
+		dst->biSizeImage	= ((w + 23) / 24) * 64 * h;
+		break;
+	case kPixFormat_YUV422_UYVY_709:
+		dst->biCompression	= VDMAKEFOURCC('H', 'D', 'Y', 'C');
+		dst->biBitCount		= 16;
+		dst->biSizeImage	= ((w+1)&~1) * h * 2;
+		break;
+	case kPixFormat_YUV420_NV12:
+		dst->biCompression	= VDMAKEFOURCC('N', 'V', '1', '2');
+		dst->biBitCount		= 16;
+		dst->biSizeImage	= w*h + ((w+1)>>1)*((h+1)>>1)*2;
 		break;
 	default:
 		return false;

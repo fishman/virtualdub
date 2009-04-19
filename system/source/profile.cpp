@@ -207,9 +207,7 @@ void VDRTProfiler::RegisterCounter(const char *name, const void *val, CounterTyp
 	vdsynchronized(mLock) {
 		Counters::iterator itBegin(mCounterArray.end());
 		Counters::iterator itEnd(mCounterArray.end());
-		Counters::iterator it(std::lower_bound(itBegin, itEnd, name, CounterByNamePred()));
-
-		VDASSERT(it == itEnd || strcmp(it->mpName, name));
+		Counters::iterator it(std::upper_bound(itBegin, itEnd, name, CounterByNamePred()));
 
 		it = mCounterArray.insert(it, Counter());
 		Counter& ctr = *it;
@@ -232,7 +230,5 @@ void VDRTProfiler::UnregisterCounter(void *p) {
 				return;
 			}
 		}
-
-		VDASSERT(!"Profiler: Counter not found!");
 	}
 }

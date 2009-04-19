@@ -35,8 +35,9 @@
 
 extern HINSTANCE g_hInst;
 
-typedef struct LevelsFilterData {
+struct LevelsFilterData {
 	unsigned char xtblmono[256];
+	unsigned char xtblmono2[256];
 	int xtblluma[256];
 	const uint8 *xtblluma2[256];
 	
@@ -48,11 +49,11 @@ typedef struct LevelsFilterData {
 
 	IFilterPreview *ifp;
 	RECT		rHisto;
-	long *		pHisto;
-	long		lHistoMax;
+	uint32		*mpHisto;
+	sint32		mHistoMax;
 	bool		fInhibitUpdate;
 	bool		bLuma;
-} LevelsFilterData;
+};
 
 /////////////////////////////////////////////////////////////////////
 
@@ -254,14 +255,37 @@ no_single:
 	}
 }
 
+static void translate_plane(uint8 * VDRESTRICT dst, ptrdiff_t pitch, uint32 w, uint32 h, const uint8 * VDRESTRICT tbl) {
+	for(uint32 y=0; y<h; ++y) {
+		for(uint32 x=0; x<w; ++x)
+			dst[x] = tbl[dst[x]];
+
+		dst += pitch;
+	}
+}
+
 static int levels_run(const FilterActivation *fa, const FilterFunctions *ff) {
 	const LevelsFilterData *mfd = (LevelsFilterData *)fa->filter_data;
 
 	if (mfd->bLuma) {
-		if (CPUGetEnabledExtensions() & CPUF_SUPPORTS_MMX)
-			AsmLevelsRunMMX(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, mfd->xtblluma);
-		else
-			AsmLevelsRunScalar(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, mfd->xtblluma);
+		const VDXPixmap& px = *fa->src.mpPixmap;
+
+		switch(px.format) {
+			case nsVDXPixmap::kPixFormat_XRGB8888:
+				if (CPUGetEnabledExtensions() & CPUF_SUPPORTS_MMX)
+					AsmLevelsRunMMX((uint32 *)px.data, px.pitch, px.w, px.h, mfd->xtblluma);
+				else
+					AsmLevelsRunScalar((uint32 *)px.data, px.pitch, px.w, px.h, mfd->xtblluma);
+				break;
+
+			case nsVDXPixmap::kPixFormat_YUV444_Planar:
+			case nsVDXPixmap::kPixFormat_YUV422_Planar:
+			case nsVDXPixmap::kPixFormat_YUV420_Planar:
+			case nsVDXPixmap::kPixFormat_YUV411_Planar:
+			case nsVDXPixmap::kPixFormat_YUV410_Planar:
+				translate_plane((uint8 *)px.data, px.pitch, px.w, px.h, mfd->xtblmono2);
+				break;
+		}
 	} else
 		((VBitmap&)fa->dst).BitBltXlat1(0, 0, (VBitmap *)&fa->src, 0, 0, -1, -1, mfd->xtblmono);
 
@@ -322,7 +346,27 @@ static int levels_run(const FilterActivation *fa, const FilterFunctions *ff) {
 /////////////////////////////////////////////////////////////////////
 
 static long levels_param(FilterActivation *fa, const FilterFunctions *ff) {
+	LevelsFilterData *mfd = (LevelsFilterData *)fa->filter_data;
+
 	fa->dst.offset = fa->src.offset;
+
+	if (mfd->bLuma) {
+		switch(fa->src.mpPixmapLayout->format) {
+			case nsVDXPixmap::kPixFormat_XRGB8888:
+			case nsVDXPixmap::kPixFormat_Y8:
+			case nsVDXPixmap::kPixFormat_YUV444_Planar:
+			case nsVDXPixmap::kPixFormat_YUV422_Planar:
+			case nsVDXPixmap::kPixFormat_YUV420_Planar:
+			case nsVDXPixmap::kPixFormat_YUV411_Planar:
+			case nsVDXPixmap::kPixFormat_YUV410_Planar:
+				break;
+
+			default:
+				return FILTERPARAM_NOT_SUPPORTED;
+		}
+
+		return FILTERPARAM_SUPPORTS_ALTFORMATS;
+	}
 
 	return 0;
 }
@@ -347,10 +391,12 @@ static void levelsRedoTables(LevelsFilterData *mfd) {
 		bright_table_B[i] =  7471*i;
 	}
 
-	if (x_lo == x_hi)
+	if (x_lo == x_hi) {
 		for(i=0; i<256; i++)
 			mfd->xtblmono[i] = (unsigned char)(VDRoundToInt(y_base + y_range * 0.5) >> 8);
-	else
+	} else {
+		double gammapower = 1.0 / mfd->rGammaCorr;
+
 		for(i=0; i<256; i++) {
 			double y, x;
 
@@ -361,11 +407,39 @@ static void levelsRedoTables(LevelsFilterData *mfd) {
 			else if (x > x_hi)
 				mfd->xtblmono[i] = (unsigned char)(mfd->iOutputHi >> 8);
 			else {
-				y = pow((x - x_lo) / (x_hi - x_lo), 1.0/mfd->rGammaCorr);
+				y = pow((x - x_lo) / (x_hi - x_lo), gammapower);
 
 				mfd->xtblmono[i] = (unsigned char)(VDRoundToInt(y_base + y_range * y) >> 8);
 			}
 		}
+
+		static const double u_scale = 219.0f / 255.0f;
+		static const double u_bias = 16.0f / 255.0f;
+
+		static const double u_scale2 = 1.0f / 219.0f;
+		static const double u_bias2 = -16.0f / 219.0f;
+
+		double u_lo = x_lo;
+		double u_hi = x_hi;
+		double v_lo = (double)mfd->iOutputLo / 65535.0;
+		double v_hi = (double)mfd->iOutputHi / 65535.0;
+		double v_scale = (v_hi - v_lo) * u_scale;
+		double v_bias = v_lo * u_scale + u_bias;
+
+		for(i=0; i<256; ++i) {
+			double u = (double)i * u_scale2 + u_bias2;
+			double v;
+
+			if (u < u_lo)
+				v = 0.0;
+			else if (u > u_hi)
+				v = 1.0;
+			else
+				v = pow((u - u_lo) / (u_hi - u_lo), gammapower);
+
+			mfd->xtblmono2[i] = VDClampedRoundFixedToUint8Fast((float)(v * v_scale + v_bias));
+		}
+	}
 
 	if (mfd->bLuma) {
 		if (CPUGetEnabledExtensions() & CPUF_SUPPORTS_MMX)
@@ -384,25 +458,77 @@ static void levelsRedoTables(LevelsFilterData *mfd) {
 	}
 }
 
+namespace {
+	void HistogramTallyXRGB8888(const void *src0, ptrdiff_t srcpitch, uint32 w, uint32 h, uint32 *histo) {
+		const uint32 *src = (const uint32 *)src0;
+
+		do {
+			for(uint32 x=0; x<w; ++x) {
+				uint32 px = src[x];
+				uint32 rb = px & 0xff00ff;
+				uint32 g = px & 0x00ff00;
+
+				uint32 luma = (rb * 0x00130036 + g * 0x0000b700 + 0x00800000) >> 24;
+				++histo[luma];
+			}
+
+			src = (const uint32 *)((const char *)src + srcpitch);
+		} while(--h);
+	}
+
+	void HistogramTallyY8(const void *src0, ptrdiff_t srcpitch, uint32 w, uint32 h, uint32 *histo) {
+		const uint8 *src = (const uint8 *)src0;
+		uint32 localHisto[256] = {0};
+
+		do {
+			for(uint32 x=0; x<w; ++x) {
+				++localHisto[src[x]];
+			}
+
+			src += srcpitch;
+		} while(--h);
+
+		uint32 accum = 0x108000;
+		for(uint32 i=0; i<256; ++i) {
+			histo[i] += localHisto[accum >> 16];
+			accum += 0xdbdc;
+		}
+	}
+}
+
 static void levelsSampleCallback(VDXFBitmap *src, long pos, long cnt, void *pv) {
 	LevelsFilterData *mfd = (LevelsFilterData *)pv;
-	long *pHisto = mfd->pHisto;
 
-	((VBitmap *)src)->Histogram(0, 0, -1, -1, pHisto, VBitmap::HISTO_LUMA);
+	const VDXPixmap& pxsrc = *src->mpPixmap;
+
+	switch(pxsrc.format) {
+		case nsVDXPixmap::kPixFormat_XRGB8888:
+			HistogramTallyXRGB8888(pxsrc.data, pxsrc.pitch, pxsrc.w, pxsrc.h, mfd->mpHisto);
+			break;
+
+		case nsVDXPixmap::kPixFormat_Y8:
+		case nsVDXPixmap::kPixFormat_YUV444_Planar:
+		case nsVDXPixmap::kPixFormat_YUV422_Planar:
+		case nsVDXPixmap::kPixFormat_YUV420_Planar:
+		case nsVDXPixmap::kPixFormat_YUV411_Planar:
+		case nsVDXPixmap::kPixFormat_YUV410_Planar:
+			HistogramTallyY8(pxsrc.data, pxsrc.pitch, pxsrc.w, pxsrc.h, mfd->mpHisto);
+			break;
+	}
 }
 
 static void levelsSampleDisplay(LevelsFilterData *mfd, HWND hdlg) {
 	int i;
-	long *pHisto = mfd->pHisto;
+	uint32 *pHisto = mfd->mpHisto;
 
-	if (mfd->lHistoMax < 0)
+	if (mfd->mHistoMax < 0)
 		ShowWindow(GetDlgItem(hdlg, IDC_HISTOGRAM), SW_HIDE);
 
-	mfd->lHistoMax = pHisto[0];
+	mfd->mHistoMax = pHisto[0];
 
 	for(i=1; i<256; i++)
-		if (pHisto[i] > mfd->lHistoMax)
-			mfd->lHistoMax = pHisto[i];
+		if ((sint32)pHisto[i] > mfd->mHistoMax)
+			mfd->mHistoMax = (sint32)pHisto[i];
 
 	InvalidateRect(hdlg, &mfd->rHisto, FALSE);
 	UpdateWindow(hdlg);
@@ -476,13 +602,13 @@ static INT_PTR APIENTRY levelsDlgProc( HWND hDlg, UINT message, WPARAM wParam, L
 				return TRUE;
 
 			case IDC_SAMPLE:
-				memset(mfd->pHisto, 0, sizeof(mfd->pHisto[0])*256);
+				memset(mfd->mpHisto, 0, sizeof(mfd->mpHisto[0])*256);
 				mfd->ifp->SampleCurrentFrame();
 				levelsSampleDisplay(mfd, hDlg);
 				return TRUE;
 
 			case IDC_SAMPLE_MULTIPLE:
-				memset(mfd->pHisto, 0, sizeof(mfd->pHisto[0])*256);
+				memset(mfd->mpHisto, 0, sizeof(mfd->mpHisto[0])*256);
 				mfd->ifp->SampleFrames();
 				levelsSampleDisplay(mfd, hDlg);
 				return TRUE;
@@ -493,8 +619,7 @@ static INT_PTR APIENTRY levelsDlgProc( HWND hDlg, UINT message, WPARAM wParam, L
 
 					if (bNewState != mfd->bLuma) {
 						mfd->bLuma = bNewState;
-						levelsRedoTables(mfd);
-						mfd->ifp->RedoFrame();
+						mfd->ifp->RedoSystem();
 					}
 
 				}
@@ -634,7 +759,7 @@ static INT_PTR APIENTRY levelsDlgProc( HWND hDlg, UINT message, WPARAM wParam, L
 			break;
 
 		case WM_PAINT:
-			if (mfd->lHistoMax < 0)
+			if (mfd->mHistoMax < 0)
 				return FALSE;
 			{
 				HDC hdc;
@@ -648,7 +773,7 @@ static INT_PTR APIENTRY levelsDlgProc( HWND hDlg, UINT message, WPARAM wParam, L
 
 				if (i==ERROR || i==NULLREGION || IntersectRect(&rPaint, &mfd->rHisto, &rClip)) {
 					int x, xlo, xhi, w;
-					long lMax = mfd->lHistoMax;
+					long lMax = (long)mfd->mHistoMax;
 
 					w = mfd->rHisto.right - mfd->rHisto.left;
 
@@ -668,7 +793,7 @@ static INT_PTR APIENTRY levelsDlgProc( HWND hDlg, UINT message, WPARAM wParam, L
 
 						i = (x * 0xFF00) / (w-1);
 
-						y = mfd->pHisto[i>>8];
+						y = (long)mfd->mpHisto[i>>8];
 
 						xp = x+mfd->rHisto.left;
 						yp = mfd->rHisto.bottom-1;
@@ -773,11 +898,11 @@ static int levels_config(FilterActivation *fa, const FilterFunctions *ff, VDXHWN
 	LevelsFilterData *mfd = (LevelsFilterData *)fa->filter_data;
 	LevelsFilterData mfd2 = *mfd;
 	int ret;
-	long histo[256];
+	uint32 histo[256];
 
 	mfd->ifp = fa->ifp;
-	mfd->pHisto = histo;
-	mfd->lHistoMax = -1;
+	mfd->mpHisto = histo;
+	mfd->mHistoMax = -1;
 
 	ret = DialogBoxParam(g_hInst, MAKEINTRESOURCE(IDD_FILTER_LEVELS), (HWND)hWnd, levelsDlgProc, (LPARAM)mfd);
 

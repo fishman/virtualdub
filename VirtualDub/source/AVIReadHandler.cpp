@@ -182,6 +182,7 @@ namespace {
 
 	static const uint32 kAVIStreamTypeAudio = VDMAKEFOURCC('a', 'u', 'd', 's');
 	static const uint32 kAVIStreamTypeVideo = VDMAKEFOURCC('v', 'i', 'd', 's');
+	static const uint32 kAVIStreamTypeDV = VDMAKEFOURCC('i', 'a', 'v', 's');
 
 	uint32 VDAVIGetStreamFromFOURCC(uint32 fcc0) {
 		uint32 fcc = VDFromLE32(fcc0);
@@ -1008,7 +1009,7 @@ bool AVIReadHandler::AppendFile(const wchar_t *pszFile) {
 			switch(pasn_old->hdr.fccType) {
 			case kAVIStreamTypeAudio:	szStreamType = "audio"; break;
 			case kAVIStreamTypeVideo:	szStreamType = "video"; break;
-			case 'savi':				szStreamType = "DV"; break;
+			case kAVIStreamTypeDV:		szStreamType = "DV"; break;
 			}
 
 			// If it's not an audio or video stream, why do we care?
@@ -1635,7 +1636,7 @@ terminate_scan:
 			switch(pasn->hdr.fccType) {
 			case kAVIStreamTypeAudio:	badstreamtype = "audio"; break;
 			case kAVIStreamTypeVideo:	badstreamtype = "video"; break;
-			case 'savi':			badstreamtype = "DV"; break;
+			case kAVIStreamTypeDV:		badstreamtype = "DV"; break;
 			}
 
 			unsigned badstream = nStream;
@@ -1643,26 +1644,6 @@ terminate_scan:
 			sint64 offsetInTime = VDMulDiv64(pasn->hdr.dwStart, pasn->hdr.dwScale * VD64(1000), pasn->hdr.dwRate);
 			VDLogAppMessage(kVDLogWarning, kVDST_AVIReadHandler, kVDM_NonZeroStart, 4, &badstream, &badstreamtype, &offsetInSamples, &offsetInTime);
 		}
-
-		// Verify sample size == nBlockAlign for audio.  If we find runt samples,
-		// assume someone did a VBR hack.
-#if 0
-		if (pasn->hdr.fccType == kAVIStreamTypeAudio) {
-			const AVIIndexEntry2 *pIdx = pasn->index.index2Ptr();
-			long nBlockAlign = ((WAVEFORMATEX *)pasn->pFormat)->nBlockAlign;
-
-			pasn->hdr.dwSampleSize = nBlockAlign;
-
-			for(int i=0; i<pasn->frames-1; ++i) {
-				long s = pIdx[i].size & 0x7FFFFFFF;
-
-				if (s && s < nBlockAlign) {
-					pasn->FixVBRAudio();
-					break;
-				}
-			}
-		}
-#endif
 
 		pasn->length = pasn->mIndex.GetSampleCount();
 
@@ -1718,7 +1699,9 @@ bool AVIReadHandler::_parseStreamHeader(List2<AVIStreamNode>& streamlist, uint32
 
 			mpCurrentFile->mFile.read(pasn->pFormat, dwLength);
 
-			if (pasn->hdr.fccType == kAVIStreamTypeVideo) {
+			if (pasn->hdr.fccType == kAVIStreamTypeDV) {
+				pasn->keyframe_only = true;
+			} else if (pasn->hdr.fccType == kAVIStreamTypeVideo) {
 				switch(((BITMAPINFOHEADER *)pasn->pFormat)->biCompression) {
 					case NULL:
 					case ' WAR':
@@ -1736,7 +1719,9 @@ bool AVIReadHandler::_parseStreamHeader(List2<AVIStreamNode>& streamlist, uint32
 					case 'vuyc':
 					case 'UYFH':
 					case '02tb':
+					case 'dsvd':
 						pasn->keyframe_only = true;
+						break;
 				}
 			}
 

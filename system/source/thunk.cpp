@@ -102,9 +102,11 @@ void *VDJITAllocator::Allocate(size_t len) {
 }
 
 void VDJITAllocator::Free(void *p, size_t len) {
+	VDASSERT(p);
+	VDASSERT(len < 0x10000);
+
 	FreeChunks::iterator cur(mFreeChunks.lower_bound(p));
 	if (cur != mFreeChunks.end() && (char *)p + len == cur->first) {
-		p = cur->first;
 		len += cur->second;
 		if (mNextChunk == cur)
 			++mNextChunk;

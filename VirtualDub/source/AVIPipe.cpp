@@ -195,15 +195,18 @@ void AVIPipe::getDropDistances(int& total, int& indep) {
 	--mcsQueue;
 }
 
-void AVIPipe::getQueueInfo(int& total, int& finals) {
+void AVIPipe::getQueueInfo(int& total, int& finals, int& allocated) {
 	total = 0;
 	finals = 0;
+	allocated = num_buffers;
+
 	++mcsQueue;
 
 	int h = mReadPt;
 	for(int cnt = mLevel; cnt>0; --cnt) {
 		if (pBuffers[h].mbInUse) {
 			++total;
+			++finals;
 			if (pBuffers[h].mFrameInfo.mbFinal)
 				++finals;
 		}

@@ -1337,7 +1337,7 @@ protected:
 
 	vdstructex<WAVEFORMATEX>	mAudioFormat;
 
-	VDTime	mCaptureStart;
+	uint32	mCaptureStart;
 
 	VDAtomicInt	mCaptureStopQueued;
 

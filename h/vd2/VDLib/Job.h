@@ -52,9 +52,11 @@ public:
 
 	const char *	GetInputFile() const			{ return mInputFile.c_str(); }
 	void			SetInputFile(const char *file)	{ mInputFile = file; }
+	void			SetInputFile(const wchar_t *file);
 
 	const char *	GetOutputFile() const			{ return mOutputFile.c_str(); }
 	void			SetOutputFile(const char *file)	{ mOutputFile = file; }
+	void			SetOutputFile(const wchar_t *file);
 
 	const char *	GetError() const				{ return mError.c_str(); }
 	void			SetError(const char *err)		{ mError = err; }

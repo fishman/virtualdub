@@ -854,6 +854,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\vc_huffyuv.cpp"
+				>
+			</File>
+			<File
 				RelativePath="source\w32audiocodec.cpp"
 				>
 				<FileConfiguration
@@ -963,22 +967,8 @@
 				RelativePath="source\a_resync.asm"
 				>
 				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Release|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -1056,7 +1046,7 @@
 						Name="VCCustomBuildTool"
 						Description=""
 						CommandLine="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\asuka&quot; fxc &quot;$(InputPath)&quot; &quot;$(InputDir)\..\h\$(InputName)_shader.inl&quot;&#x0D;&#x0A;"
-						AdditionalDependencies="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\asuka.exe&quot;"
+						AdditionalDependencies="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\asuka.exe&quot;;&quot;$(ProjectDir)source\displaydx9_ff.fxh&quot;;&quot;$(ProjectDir)source\displaydx9_ps1.fxh&quot;;&quot;$(ProjectDir)source\displaydx9_ps14.fxh&quot;;&quot;$(ProjectDir)source\displaydx9_ps2.fxh&quot;;&quot;$(ProjectDir)source\stddefs.fxh&quot;;&quot;$(ProjectDir)source\utils.fxh&quot;"
 						Outputs="&quot;$(InputDir)\..\h\$(InputName)_shader.inl&quot;"
 					/>
 				</FileConfiguration>
@@ -1078,7 +1068,7 @@
 						Name="VCCustomBuildTool"
 						Description=""
 						CommandLine="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\asuka&quot; fxc &quot;$(InputPath)&quot; &quot;$(InputDir)\..\h\$(InputName)_shader.inl&quot;&#x0D;&#x0A;"
-						AdditionalDependencies="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\asuka.exe&quot;"
+						AdditionalDependencies="&quot;$(VDBaseDir)\out\$(VDConfigDirTag)\asuka.exe&quot;;&quot;$(ProjectDir)source\displaydx9_ff.fxh&quot;;&quot;$(ProjectDir)source\displaydx9_ps1.fxh&quot;;&quot;$(ProjectDir)source\displaydx9_ps14.fxh&quot;;&quot;$(ProjectDir)source\displaydx9_ps2.fxh&quot;;&quot;$(ProjectDir)source\stddefs.fxh&quot;;&quot;$(ProjectDir)source\utils.fxh&quot;"
 						Outputs="&quot;$(InputDir)\..\h\$(InputName)_shader.inl&quot;"
 					/>
 				</FileConfiguration>
@@ -1093,6 +1083,30 @@
 						Outputs="&quot;$(InputDir)\..\h\$(InputName)_shader.inl&quot;"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\displaydx9_ff.fxh"
+				>
+			</File>
+			<File
+				RelativePath=".\source\displaydx9_ps1.fxh"
+				>
+			</File>
+			<File
+				RelativePath=".\source\displaydx9_ps14.fxh"
+				>
+			</File>
+			<File
+				RelativePath=".\source\displaydx9_ps2.fxh"
+				>
+			</File>
+			<File
+				RelativePath=".\source\stddefs.fxh"
+				>
+			</File>
+			<File
+				RelativePath=".\source\utils.fxh"
+				>
 			</File>
 		</Filter>
 		<Filter

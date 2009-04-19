@@ -114,7 +114,7 @@ private:
 	uint32	mHeight;
 	int		mPlanes;
 
-	long	mCachedFrame;
+	VDPosition mCachedFrame;
 	VBitmap	mvbFrameBuffer;
 	uint32	mFrameCount;
 	bool	mbDecodeStarted;

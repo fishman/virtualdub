@@ -59,6 +59,51 @@ struct vdreverse_iterator {
 };
 
 ///////////////////////////////////////////////////////////////////////////
+class vdallocator_base {
+protected:
+	void VDNORETURN throw_oom();
+};
+
+template<class T>
+class vdallocator : public vdallocator_base {
+public:
+	typedef	size_t		size_type;
+	typedef	ptrdiff_t	difference_type;
+	typedef	T*			pointer;
+	typedef	const T*	const_pointer;
+	typedef	T&			reference;
+	typedef	const T&	const_reference;
+	typedef	T			value_type;
+
+	template<class U> struct rebind { typedef vdallocator<U> other; };
+
+	pointer			address(reference x) const			{ return &x; }
+	const_pointer	address(const_reference x) const	{ return &x; }
+
+	pointer allocate(size_type n, void *p_close = 0) {
+		pointer p = (pointer)malloc(n*sizeof(T));
+
+		if (!p)
+			throw_oom();
+
+		return p;
+	}
+
+	void deallocate(pointer p, size_type n) {
+		free(p);
+	}
+
+	size_type		max_size() const throw()			{ return ((~(size_type)0) >> 1) / sizeof(T); }
+
+	void			construct(pointer p, const T& val)	{ new((void *)p) T(val); }
+	void			destroy(pointer p)					{ ((T*)p)->~T(); }
+
+#if defined(_MSC_VER) && _MSC_VER < 1300
+	char *			_Charalloc(size_type n)				{ return rebind<char>::other::allocate(n); }
+#endif
+};
+
+///////////////////////////////////////////////////////////////////////////
 
 template<class T, unsigned kDeadZone = 16>
 class vddebug_alloc {
@@ -155,7 +200,7 @@ public:
 //
 ///////////////////////////////////////////////////////////////////////////
 
-template<class T, class A = std::allocator<T> >
+template<class T, class A = vdallocator<T> >
 class vdblock : protected A {
 public:
 	typedef	T									value_type;
@@ -347,7 +392,7 @@ template<class T, class T_Nonconst>
 class vdlist_iterator : public vditerator<std::bidirectional_iterator_tag, T, ptrdiff_t>::type {
 public:
 	vdlist_iterator() {}
-	vdlist_iterator(vdlist_node *p) : mp(p) {}
+	vdlist_iterator(T *p) : mp(p) {}
 	vdlist_iterator(const vdlist_iterator<T_Nonconst, T_Nonconst>& src) : mp(src.mp) {}
 
 	T* operator *() const {
@@ -456,22 +501,26 @@ public:
 	}
 
 	iterator begin() {
-		iterator it(mAnchor.mListNodeNext);
+		iterator it;
+		it.mp = mAnchor.mListNodeNext;
 		return it;
 	}
 
 	const_iterator begin() const {
-		const_iterator it(mAnchor.mListNodeNext);
+		const_iterator it;
+		it.mp = mAnchor.mListNodeNext;
 		return it;
 	}
 
 	iterator end() {
-		iterator it(&mAnchor);
+		iterator it;
+		it.mp = &mAnchor;
 		return it;
 	}
 
 	const_iterator end() const {
-		const_iterator it(&mAnchor);
+		const_iterator it;
+		it.mp = &mAnchor;
 		return it;
 	}
 
@@ -500,7 +549,8 @@ public:
 	}
 
 	iterator find(T *p) {
-		iterator it(mAnchor.mListNodeNext);
+		iterator it;
+		it.mp = mAnchor.mListNodeNext;
 
 		if (it.mp != &mAnchor)
 			do {
@@ -514,7 +564,8 @@ public:
 	}
 
 	const_iterator find(T *p) const {
-		const_iterator it(mAnchor.mListNodeNext);
+		const_iterator it;
+		it.mp = mAnchor.mListNodeNext;
 
 		if (it.mp != &mAnchor)
 			do {
@@ -637,6 +688,8 @@ public:
 	#endif
 #endif
 
+///////////////////////////////////////////////////////////////////////////////
+
 template<class T>
 class vdspan {
 public:
@@ -728,56 +781,36 @@ template<class T> VDTINLINE typename vdspan<T>::const_reference		vdspan<T>::oper
 
 ///////////////////////////////////////////////////////////////////////////////
 
-template<class T, class A = std::allocator<T> >
-class vdfastvector : public vdspan<T> {
+template<class T>
+bool operator==(const vdspan<T>& x, const vdspan<T>& y) {
+	uint32 len = x.size();
+	if (len != y.size())
+		return false;
+
+	const T *px = x.data();
+	const T *py = y.data();
+
+	for(uint32 i=0; i<len; ++i) {
+		if (px[i] != py[i])
+			return false;
+	}
+
+	return true;
+}
+
+template<class T>
+inline bool operator!=(const vdspan<T>& x, const vdspan<T>& y) { return !(x == y); }
+
+///////////////////////////////////////////////////////////////////////////////
+
+template<class T, class S, class A = vdallocator<T> >
+class vdfastvector_base : public vdspan<T> {
 public:
-	vdfastvector() {
-		m.eos = NULL;
-	}
-
-	vdfastvector(size_type len)
-		: vdspan(m.allocate(len, NULL), len)
-	{
-		m.eos = mpEnd;
-	}
-
-	vdfastvector(size_type len, const T& fill)
-		: vdspan(m.allocate(len, NULL), len)
-	{
-		m.eos = mpEnd;
-
-		std::fill(mpBegin, mpEnd, fill);
-	}
-
-	vdfastvector(const vdfastvector& x) {
-		size_type n = x.mpEnd - x.mpBegin;
-		mpBegin = m.allocate(n, NULL);
-		mpEnd = mpBegin + n;
-		m.eos = mpEnd;
-		memcpy(mpBegin, x.mpBegin, sizeof(T) * n);
-	}
-
-	vdfastvector(const value_type *p, const value_type *q) {
-		m.eos = NULL;
-
-		assign(p, q);
-	}
-
-	~vdfastvector() {
-		if (mpBegin)
+	~vdfastvector_base() {
+		if (static_cast<const S&>(m).is_deallocatable_storage(mpBegin))
 			m.deallocate(mpBegin, m.eos - mpBegin);
 	}
 
-	vdfastvector& operator=(const vdfastvector& x) {
-		if (this != &x) {
-			mpEnd = mpBegin;
-			resize(x.mpEnd - x.mpBegin);
-			memcpy(mpBegin, x.mpBegin, (char *)x.mpEnd - (char *)x.mpBegin);
-		}
-		return *this;
-	}
-
-public:
 	size_type capacity() const { return size_type(m.eos - mpBegin); }
 
 public:
@@ -917,14 +950,6 @@ public:
 			_reserve_always(n);
 	}
 
-	void swap(vdfastvector& x) {
-		T *p;
-
-		p = mpBegin;		mpBegin = x.mpBegin;		x.mpBegin = p;
-		p = mpEnd;			mpEnd = x.mpEnd;			x.mpEnd = p;
-		p = m.eos;			m.eos = x.m.eos;			x.m.eos = p;
-	}
-
 protected:
 #ifdef _MSC_VER
 	__declspec(noinline)
@@ -949,7 +974,8 @@ protected:
 		T *newStorage = m.allocate(n, NULL);
 
 		memcpy(newStorage, mpBegin, (char *)mpEnd - (char *)mpBegin);
-		m.deallocate(oldStorage, m.eos - mpBegin);
+		if (static_cast<const S&>(m).is_deallocatable_storage(oldStorage))
+			m.deallocate(oldStorage, m.eos - mpBegin);
 		mpBegin = newStorage;
 		mpEnd = newStorage + oldSize;
 		m.eos = newStorage + n;
@@ -967,13 +993,192 @@ protected:
 		_reserve_always(nextCapacity);
 	}
 
-	struct : A {
+	struct : A, S {
 		T *eos;
 	} m;
 
 	union TrivialObjectConstraint {
 		T m;
 	};
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+struct vdfastvector_storage {
+	bool is_deallocatable_storage(void *p) const {
+		return p != 0;
+	}
+};
+
+template<class T, class A = vdallocator<T> >
+class vdfastvector : public vdfastvector_base<T, vdfastvector_storage, A> {
+public:
+	vdfastvector() {
+		m.eos = NULL;
+	}
+
+	vdfastvector(size_type len) {
+		mpBegin = m.allocate(len, NULL);
+		mpEnd = mpBegin + len;
+		m.eos = mpEnd;
+	}
+
+	vdfastvector(size_type len, const T& fill) {
+		mpBegin = m.allocate(len, NULL);
+		mpEnd = mpBegin + len;
+		m.eos = mpEnd;
+
+		std::fill(mpBegin, mpEnd, fill);
+	}
+
+	vdfastvector(const vdfastvector& x) {
+		size_type n = x.mpEnd - x.mpBegin;
+		mpBegin = m.allocate(n, NULL);
+		mpEnd = mpBegin + n;
+		m.eos = mpEnd;
+		memcpy(mpBegin, x.mpBegin, sizeof(T) * n);
+	}
+
+	vdfastvector(const value_type *p, const value_type *q) {
+		m.eos = NULL;
+
+		assign(p, q);
+	}
+
+	vdfastvector& operator=(const vdfastvector& x) {
+		if (this != &x)
+			assign(x.mpBegin, x.mpEnd);
+
+		return *this;
+	}
+
+	void swap(vdfastvector& x) {
+		T *p;
+
+		p = mpBegin;		mpBegin = x.mpBegin;		x.mpBegin = p;
+		p = mpEnd;			mpEnd = x.mpEnd;			x.mpEnd = p;
+		p = m.eos;			m.eos = x.m.eos;			x.m.eos = p;
+	}
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+template<class T, size_t N>
+struct vdfastfixedvector_storage {
+	T mArray[N];
+
+	bool is_deallocatable_storage(void *p) const {
+		return p != mArray;
+	}
+};
+
+template<class T, size_t N, class A = vdallocator<T> >
+class vdfastfixedvector : public vdfastvector_base<T, vdfastfixedvector_storage<T, N>, A> {
+public:
+	vdfastfixedvector() {
+		mpBegin = m.mArray;
+		mpEnd = m.mArray;
+		m.eos = m.mArray + N;
+	}
+
+	vdfastfixedvector(size_type len) {
+		if (len <= N) {
+			mpBegin = m.mArray;
+			mpEnd = m.mArray + len;
+			m.eos = m.mArray + N;
+		} else {
+			mpBegin = m.allocate(len, NULL);
+			mpEnd = mpBegin + len;
+			m.eos = mpEnd;
+		}
+	}
+
+	vdfastfixedvector(size_type len, const T& fill) {
+		mpBegin = m.allocate(len, NULL);
+		mpEnd = mpBegin + len;
+		m.eos = mpEnd;
+
+		std::fill(mpBegin, mpEnd, fill);
+	}
+
+	vdfastfixedvector(const vdfastfixedvector& x) {
+		size_type n = x.mpEnd - x.mpBegin;
+
+		if (n <= N) {
+			mpBegin = m.mArray;
+			mpEnd = m.mArray + n;
+			m.eos = m.mArray + N;
+		} else {
+			mpBegin = m.allocate(n, NULL);
+			mpEnd = mpBegin + n;
+			m.eos = mpEnd;
+		}
+
+		memcpy(mpBegin, x.mpBegin, sizeof(T) * n);
+	}
+
+	vdfastfixedvector(const value_type *p, const value_type *q) {
+		mpBegin = m.mArray;
+		mpEnd = m.mArray;
+		m.eos = m.mArray + N;
+
+		assign(p, q);
+	}
+
+	vdfastfixedvector& operator=(const vdfastfixedvector& x) {
+		if (this != &x)
+			assign(x.mpBegin, x.mpEnd);
+
+		return *this;
+	}
+
+	void swap(vdfastfixedvector& x) {
+		size_t this_bytes = (char *)mpEnd - (char *)mpBegin;
+		size_t other_bytes = (char *)x.mpEnd - (char *)x.mpBegin;
+
+		T *p;
+
+		if (mpBegin == m.mArray) {
+			if (x.mpBegin == x.m.mArray) {
+				if (this_bytes < other_bytes) {
+					VDSwapMemory(m.mArray, x.m.mArray, this_bytes);
+					memcpy((char *)m.mArray + this_bytes, (char *)x.m.mArray + this_bytes, other_bytes - this_bytes);
+				} else {
+					VDSwapMemory(m.mArray, x.m.mArray, other_bytes);
+					memcpy((char *)m.mArray + other_bytes, (char *)x.m.mArray + other_bytes, this_bytes - other_bytes);
+				}
+
+				mpEnd = (T *)((char *)mpBegin + other_bytes);
+				x.mpEnd = (T *)((char *)x.mpBegin + this_bytes);
+			} else {
+				memcpy(x.m.mArray, mpBegin, this_bytes);
+
+				mpBegin = x.mpBegin;
+				mpEnd = x.mpEnd;
+				m.eos = x.m.eos;
+
+				x.mpBegin = x.m.mArray;
+				x.mpEnd = (T *)((char *)x.m.mArray + this_bytes);
+				x.m.eos = x.m.mArray + N;
+			}
+		} else {
+			if (x.mpBegin == x.m.mArray) {
+				memcpy(x.m.mArray, mpBegin, other_bytes);
+
+				x.mpBegin = mpBegin;
+				x.mpEnd = mpEnd;
+				x.m.eos = m.eos;
+
+				mpBegin = m.mArray;
+				mpEnd = (T *)((char *)m.mArray + other_bytes);
+				m.eos = m.mArray + N;
+			} else {
+				p = mpBegin;		mpBegin = x.mpBegin;		x.mpBegin = p;
+				p = mpEnd;			mpEnd = x.mpEnd;			x.mpEnd = p;
+				p = m.eos;			m.eos = x.m.eos;			x.m.eos = p;
+			}
+		}
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1018,7 +1223,7 @@ vdfastdeque_iterator<T, T_Base>::vdfastdeque_iterator(const vdfastdeque_iterator
 template<class T, class T_Base>
 vdfastdeque_iterator<T, T_Base>::vdfastdeque_iterator(vdfastdeque_block<T_Base> **pMapEntry, uint32 index)
 	: mpMap(pMapEntry)
-	, mpBlock(*mpMap)
+	, mpBlock(mpMap ? *mpMap : NULL)
 	, mIndex(index)
 {
 }
@@ -1077,7 +1282,7 @@ bool operator!=(const vdfastdeque_iterator<T, T_Base>& x,const vdfastdeque_itera
 
 ///////////////////////////////////////////////////////////////////////////////
 
-template<class T, class A = std::allocator<T> >
+template<class T, class A = vdallocator<T> >
 class vdfastdeque {
 public:
 	typedef	typename A::reference		reference;

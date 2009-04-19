@@ -405,6 +405,7 @@ void VDDisasmExpandRule(VDDisassemblyContext *pContext, char *s, const unsigned 
 				s = strtack(s, sStaticLabels[control_byte-1][arg]);
 			} else {
 				long symoffset = 0;
+				sintptr addr = 0;
 
 				switch(control_byte) {
 				case kTarget_r1632:
@@ -442,16 +443,16 @@ void VDDisasmExpandRule(VDDisassemblyContext *pContext, char *s, const unsigned 
 					s += sprintf(s, "%c%02xh", arg&0x80?'-':'+', abs((signed char)arg));
 					break;
 				case kTarget_la:
-					symoffset = (long)source + VDDisasmPack32(sp_base + c - 1) + pContext->physToVirtOffset;
-					s += sprintf(s, "%08lx", symoffset);
+					addr = (sintptr)source + VDDisasmPack32(sp_base + c - 1) + pContext->physToVirtOffset;
+					s += sprintf(s, VD_PTR_08lx, addr);
 					break;
 				case kTarget_ha:
-					symoffset = (long)source + (signed short)(sp_base[c-1] + (sp_base[c]<<8)) + pContext->physToVirtOffset;
-					s += sprintf(s, "%08lx", symoffset);
+					addr = (sintptr)source + (signed short)(sp_base[c-1] + (sp_base[c]<<8)) + pContext->physToVirtOffset;
+					s += sprintf(s, VD_PTR_08lx, addr);
 					break;
 				case kTarget_a:
-					symoffset = (long)source + (signed char)arg + pContext->physToVirtOffset;
-					s += sprintf(s, "%08lx", symoffset);
+					addr = (sintptr)source + (signed char)arg + pContext->physToVirtOffset;
+					s += sprintf(s, VD_PTR_08lx, addr);
 					break;
 				case kTarget_s:
 					s = strtack(s, arg_s);
@@ -940,7 +941,7 @@ BOOL CodeDisassemblyWindow::DoDrawItem(LPARAM lParam) {
 		const unsigned char *src = (const unsigned char *)ipd->ip;
 		int i, left = ipd->len;
 
-		dst += sprintf(dst, VD_PTR_08lx": ", (long)ipd->ip + vdc.physToVirtOffset);
+		dst += sprintf(dst, VD_PTR_08lx": ", (size_t)(ipd->ip + vdc.physToVirtOffset));
 
 		for(i=0; i<7; ++i)
 			if (--left>=0) {

@@ -29,39 +29,51 @@
 
 #include "filters.h"
 
+#include "FilterInstance.h"
 #include "FilterSystem.h"
+#include "FilterFrame.h"
+#include "FilterFrameAllocator.h"
+#include "FilterFrameRequest.h"
 
 extern FilterFunctions g_filterFuncs;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class FilterSystemBitmap : public VFBitmapInternal {
-public:
-	int				buffer;
-	LONG			lMapOffset;
+struct FilterSystem::Bitmaps {
+	VFBitmapInternal		mInitialBitmap;
+	vdrefptr<VDFilterFrameAllocator> mpAllocators[3];
+	vdrefptr<VDFilterFrameBuffer> mpBuffers[3];
+	vdrefptr<IVDFilterFrameClientRequest> mpLastRequest;
+	vdrefptr<IVDFilterFrameSource> mpSource;
+	IVDFilterFrameSource *mpTailSource;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-FilterSystem::FilterSystem() {
-	bitmap = NULL;
-	dwFlags = 0;
-	lpBuffer = NULL;
-	listFilters = NULL;
-
-	mOutputFrameRate.Assign(0, 0);
-	mOutputFrameCount = 0;
+FilterSystem::FilterSystem()
+	: dwFlags(0)
+	, mOutputFrameRate(0, 0)
+	, mOutputFrameCount(0)
+	, mpBitmaps(NULL)
+	, bmLast(NULL)
+	, listFilters(NULL)
+	, nFrameLag(0)
+	, lpBuffer(NULL)
+	, lAdditionalBytes(0)
+{
 }
 
 FilterSystem::~FilterSystem() {
 	DeinitFilters();
 	DeallocateBuffers();
-	delete[] bitmap;
+
+	if (mpBitmaps)
+		delete mpBitmaps;
 }
 
 // prepareLinearChain(): init bitmaps in a linear filtering system
 
-void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src_height, int src_format, const VDFraction& sourceFrameRate, sint64 sourceFrameCount) {
+void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src_height, int src_format, const VDFraction& sourceFrameRate, sint64 sourceFrameCount, const VDFraction& sourcePixelAspect) {
 	FilterInstance *fa;
 	uint32 flags, flags_accum=0;
 	int last_bufferid = 0;
@@ -71,24 +83,31 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 
 	DeallocateBuffers();
 
-	AllocateVBitmaps(3);
+	if (!mpBitmaps)
+		mpBitmaps = new Bitmaps;
 
-	VDPixmapCreateLinearLayout(bitmap[0].mPixmapLayout, src_format, src_width, src_height, 16);
+	for(int i=0; i<3; ++i) {
+		mpBitmaps->mpAllocators[i] = new VDFilterFrameAllocator;
+	}
+
+	VDPixmapCreateLinearLayout(mpBitmaps->mInitialBitmap.mPixmapLayout, src_format, src_width, src_height, 16);
 
 	if (VDPixmapGetInfo(src_format).palsize > 0)
-		bitmap[0].mPixmapLayout.palette = mPalette;
+		mpBitmaps->mInitialBitmap.mPixmapLayout.palette = mPalette;
 
 	if (src_format == nsVDPixmap::kPixFormat_XRGB8888)
-		VDPixmapLayoutFlipV(bitmap[0].mPixmapLayout);
+		VDPixmapLayoutFlipV(mpBitmaps->mInitialBitmap.mPixmapLayout);
 
-	bitmap[0].offset			= 0;
-	bitmap[0].buffer			= 0;
-	bitmap[0].mFrameRateHi		= sourceFrameRate.getHi();
-	bitmap[0].mFrameRateLo		= sourceFrameRate.getLo();
-	bitmap[0].mFrameCount		= sourceFrameCount;
-	bitmap[0].ConvertPixmapLayoutToBitmapLayout();
+	mpBitmaps->mInitialBitmap.mFrameRateHi		= sourceFrameRate.getHi();
+	mpBitmaps->mInitialBitmap.mFrameRateLo		= sourceFrameRate.getLo();
+	mpBitmaps->mInitialBitmap.mFrameCount		= sourceFrameCount;
+	mpBitmaps->mInitialBitmap.ConvertPixmapLayoutToBitmapLayout();
+	mpBitmaps->mInitialBitmap.mAspectRatioHi	= sourcePixelAspect.getHi();
+	mpBitmaps->mInitialBitmap.mAspectRatioLo	= sourcePixelAspect.getLo();
 
-	bmLast = &bitmap[0];
+	mpBitmaps->mpAllocators[0]->AddSizeRequirement(VDPixmapLayoutGetMinSize(mpBitmaps->mInitialBitmap.mPixmapLayout));
+
+	bmLast = &mpBitmaps->mInitialBitmap;
 
 	fa = (FilterInstance *)listFA->tail.next;
 
@@ -108,19 +127,19 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 
 		fa->mSrcBuf		= last_bufferid;
 		fa->mbBlitOnEntry	= false;
-		fa->mbInvalidFormat	= false;
-		fa->mbInvalidFormatHandling = false;
+		fa->mbConvertOnEntry = false;
+		fa->mbAlignOnEntry	= false;
 
 		// check if we need to blit
 		if (bmLast->mPixmapLayout.format != nsVDPixmap::kPixFormat_XRGB8888 || bmLast->mPixmapLayout.pitch > 0
 			|| VDPixmapGetInfo(bmLast->mPixmapLayout.format).palsize) {
 			bmTemp = *bmLast;
-			VDPixmapCreateLinearLayout(bmTemp.mPixmapLayout, nsVDPixmap::kPixFormat_XRGB8888, bmLast->w, bmLast->h, 4);
+			VDPixmapCreateLinearLayout(bmTemp.mPixmapLayout, nsVDPixmap::kPixFormat_XRGB8888, bmLast->w, bmLast->h, 16);
 			VDPixmapLayoutFlipV(bmTemp.mPixmapLayout);
 			bmTemp.ConvertPixmapLayoutToBitmapLayout();
 
 			flags = fa->Prepare(bmTemp);
-			fa->mbBlitOnEntry	= true;
+			fa->mbConvertOnEntry = true;
 		} else {
 			flags = fa->Prepare(*bmLast);
 		}
@@ -128,7 +147,7 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 		if (flags == FILTERPARAM_NOT_SUPPORTED || (flags & FILTERPARAM_SUPPORTS_ALTFORMATS)) {
 			using namespace nsVDPixmap;
 			VDASSERTCT(kPixFormat_Max_Standard < 32);
-			VDASSERTCT(kPixFormat_Max_Standard == kPixFormat_YUV410_Planar + 1);
+			VDASSERTCT(kPixFormat_Max_Standard == kPixFormat_YUV420_NV12 + 1);
 			uint32 formatMask	= (1 << kPixFormat_XRGB1555)
 								| (1 << kPixFormat_RGB565)
 								| (1 << kPixFormat_RGB888)
@@ -147,8 +166,13 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 				kPixFormat_YUV422_Planar,
 				kPixFormat_YUV422_UYVY,
 				kPixFormat_YUV422_YUYV,
-				kPixFormat_YUV420_Planar
+				kPixFormat_YUV420_Planar,
+				kPixFormat_YUV411_Planar,
+				kPixFormat_YUV410_Planar,
+				kPixFormat_XRGB8888
 			};
+
+			int staticOrderIndex = 0;
 
 			// test an invalid format and make sure the filter DOESN'T accept it
 			bmTemp = *bmLast;
@@ -159,7 +183,7 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 			int format = originalFormat;
 			if (flags != FILTERPARAM_NOT_SUPPORTED) {
 				formatMask = 0;
-				fa->mbInvalidFormatHandling = true;
+				VDASSERT(fa->GetInvalidFormatHandlingState());
 			} else {
 				while(format && formatMask) {
 					if (formatMask & (1 << format)) {
@@ -167,7 +191,7 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 							flags = fa->Prepare(*bmLast);
 						else {
 							bmTemp = *bmLast;
-							VDPixmapCreateLinearLayout(bmTemp.mPixmapLayout, format, bmLast->w, bmLast->h, 4);
+							VDPixmapCreateLinearLayout(bmTemp.mPixmapLayout, format, bmLast->w, bmLast->h, 16);
 							if (format == nsVDPixmap::kPixFormat_XRGB8888)
 								VDPixmapLayoutFlipV(bmTemp.mPixmapLayout);
 							bmTemp.ConvertPixmapLayoutToBitmapLayout();
@@ -209,8 +233,28 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 						format = kPixFormat_YUV420_Planar;
 						break;
 
+					case kPixFormat_YUV422_V210:
+						format = kPixFormat_YUV422_Planar;
+						break;
+
+					case kPixFormat_YUV422_UYVY_709:
+						format = kPixFormat_YUV422_UYVY;
+						break;
+
+					case kPixFormat_XRGB1555:
+					case kPixFormat_RGB565:
+					case kPixFormat_RGB888:
+						if (formatMask & (1 << kPixFormat_XRGB8888)) {
+							format = kPixFormat_XRGB8888;
+							break;
+						}
+
+						// fall through
+
 					default:
-						if (formatMask & (1 << kPixFormat_XRGB8888))
+						if (staticOrderIndex < sizeof(kStaticOrder)/sizeof(kStaticOrder[0]))
+							format = kStaticOrder[staticOrderIndex++];
+						else if (formatMask & (1 << kPixFormat_XRGB8888))
 							format = kPixFormat_XRGB8888;
 						else
 							format = VDFindLowestSetBit(formatMask);
@@ -219,23 +263,42 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 				}
 			}
 
-			fa->mbInvalidFormat = (formatMask == 0);
-			fa->mbBlitOnEntry = (format != originalFormat);
+			fa->mbConvertOnEntry = (format != originalFormat);
 		}
 
-		if (fa->mbInvalidFormat) {
-			fa->mbBlitOnEntry = false;
+		if (fa->GetInvalidFormatState()) {
+			fa->mbConvertOnEntry = false;
 			fa->mRealSrc = *bmLast;
 			fa->mRealDst = fa->mRealSrc;
 			flags = 0;
+		} else if (flags & FILTERPARAM_ALIGN_SCANLINES) {
+			const VDPixmapLayout& pxlsrc = fa->mRealSrc.mPixmapLayout;
+			int bufcnt = VDPixmapGetInfo(pxlsrc.format).auxbufs;
+
+			switch(bufcnt) {
+			case 2:
+				if ((pxlsrc.data3 | pxlsrc.pitch3) & 15)
+					fa->mbAlignOnEntry = true;
+				break;
+			case 1:
+				if ((pxlsrc.data2 | pxlsrc.pitch2) & 15)
+					fa->mbAlignOnEntry = true;
+				break;
+			case 0:
+				if ((pxlsrc.data | pxlsrc.pitch) & 15)
+					fa->mbAlignOnEntry = true;
+				break;
+			}
 		}
 
+		fa->mbBlitOnEntry = fa->mbConvertOnEntry || fa->mbAlignOnEntry;
+
+		// If we are blitting on entry, we need a new allocator for the source.
 		if (fa->mbBlitOnEntry) {
 			fa->mSrcBuf = (fa->mSrcBuf == 1) ? 2 : 1;
 			uint32 srcSizeRequired = bmTemp.size + bmTemp.offset;
-			if (bitmap[fa->mSrcBuf].size < srcSizeRequired)
-				bitmap[fa->mSrcBuf].size = srcSizeRequired;
-			VDASSERT(bitmap[fa->mSrcBuf].size >= 0);
+
+			mpBitmaps->mpAllocators[fa->mSrcBuf]->AddSizeRequirement(srcSizeRequired);
 
 			bmLast = &bmTemp;
 		}
@@ -261,18 +324,14 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 
 		// allocate destination buffer
 		uint32 dstSizeRequired = fa->mRealDst.size + fa->mRealDst.offset;
-		if (bitmap[fa->mDstBuf].size < dstSizeRequired)
-			bitmap[fa->mDstBuf].size = dstSizeRequired;
-		VDASSERT(bitmap[fa->mDstBuf].size >= 0);
+		mpBitmaps->mpAllocators[fa->mDstBuf]->AddSizeRequirement(dstSizeRequired);
 
 		// check if we have a blend curve
 		if (fa->GetAlphaParameterCurve()) {
 			if (!(flags & FILTERPARAM_SWAP_BUFFERS)) {
 				// if this is an in-place filter and we have a blend curve, allocate other buffer as well.
 				fa->mBlendBuffer = swapBuffer;
-				if (bitmap[swapBuffer].size < dstSizeRequired)
-					bitmap[swapBuffer].size = dstSizeRequired;
-				VDASSERT(bitmap[swapBuffer].size >= 0);
+				mpBitmaps->mpAllocators[swapBuffer]->AddSizeRequirement(dstSizeRequired);
 			}
 		}
 
@@ -287,38 +346,16 @@ void FilterSystem::prepareLinearChain(List *listFA, uint32 src_width, uint32 src
 	// 2/3) Temp buffers
 	fa = (FilterInstance *)listFA->tail.next;
 
+	mOutputPixelAspect.Assign(bmLast->mAspectRatioHi, bmLast->mAspectRatioLo);
 	mOutputFrameRate.Assign(bmLast->mFrameRateHi, bmLast->mFrameRateLo);
 	mOutputFrameCount = bmLast->mFrameCount;
 }
 
 // initLinearChain(): prepare for a linear filtering system
-
-namespace {
-	FilterInstance *GetNextEnabledFilterInstance(FilterInstance *inst) {
-		FilterInstance *next = (FilterInstance *)inst->next;
-		if (!next)
-			return NULL;
-
-		inst = next;
-		for(;;) {
-			next = (FilterInstance *)inst->next;
-
-			if (!next)
-				return NULL;
-
-			if (inst->IsEnabled())
-				return inst;
-
-			inst = next;
-		}
-	}
-}
-
-void FilterSystem::initLinearChain(List *listFA, uint32 src_width, uint32 src_height, int src_format, const uint32 *palette, const VDFraction& sourceFrameRate, sint64 sourceFrameCount) {
+void FilterSystem::initLinearChain(List *listFA, IVDFilterFrameSource *src, uint32 src_width, uint32 src_height, int src_format, const uint32 *palette, const VDFraction& sourceFrameRate, sint64 sourceFrameCount, const VDFraction& sourcePixelAspect) {
 	FilterInstance *fa;
 	long lLastBufPtr = 0;
 	long lRequiredSize;
-	int i;
 
 	DeinitFilters();
 	DeallocateBuffers();
@@ -340,36 +377,21 @@ void FilterSystem::initLinearChain(List *listFA, uint32 src_width, uint32 src_he
 	if (palette && palSize)
 		memcpy(mPalette, palette, palSize*sizeof(uint32));
 
-	prepareLinearChain(listFA, src_width, src_height, src_format, sourceFrameRate, sourceFrameCount);
+	prepareLinearChain(listFA, src_width, src_height, src_format, sourceFrameRate, sourceFrameCount, sourcePixelAspect);
 
 	lRequiredSize = lAdditionalBytes;
 
-	for(i=0; i<iBitmapCount; i++) {
-		bitmap[i].buffer		= i;
-		bitmap[i].lMapOffset	= lRequiredSize;
-
-		VDASSERT(bitmap[i].size >= 0);
-		lRequiredSize		+= bitmap[i].size;
-
-		// align lRequiredSize up to next 16
-
-		lRequiredSize = (lRequiredSize+15) & -16;
-
-	}
-
 	AllocateBuffers(lRequiredSize);
 
-	for(i=0; i<iBitmapCount; i++) {
-		FilterSystemBitmap& bm = bitmap[i];
-		bm.data		= (Pixel *)(lpBuffer + bm.lMapOffset);
+	mpBitmaps->mpSource = src;
+	mpBitmaps->mpSource->SetAllocator(mpBitmaps->mpAllocators[0]);
 
-		if (i == 0) {
-			bm.mPixmap	= VDPixmapFromLayout(bm.mPixmapLayout, bm.data);
-			VDAssertValidPixmap(bm.mPixmap);
-		}
-	}
+	mpBitmaps->mInitialBitmap.mPixmap = VDPixmapFromLayout(mpBitmaps->mInitialBitmap.mPixmapLayout, mpBitmaps->mpBuffers[0]->GetBasePointer());
+	VDAssertValidPixmap(mpBitmaps->mInitialBitmap.mPixmap);
 
 	fa = (FilterInstance *)listFA->tail.next;
+
+	const VFBitmapInternal *rawSrc = &mpBitmaps->mInitialBitmap;
 
 	while(fa->next) {
 		FilterInstance *fa_next = (FilterInstance *)fa->next;
@@ -379,22 +401,29 @@ void FilterSystem::initLinearChain(List *listFA, uint32 src_width, uint32 src_he
 			continue;
 		}
 
-		if (fa->mRealDst.w < 1 || fa->mRealDst.h < 1)
-			throw MyError("Cannot start filter chain: The output of filter \"%s\" is smaller than 1x1.", fa->filter->name);
+		if (fa->GetInvalidFormatHandlingState())
+			throw MyError("Cannot start filters: Filter \"%s\" is not handling image formats correctly.",
+				fa->GetName());
 
-		fa->mRealSrcUncropped.Fixup(bitmap[fa->mSrcBuf].data);
-		fa->mRealSrc.Fixup(bitmap[fa->mSrcBuf].data);
-		fa->mRealDst.Fixup(bitmap[fa->mDstBuf].data);
+		if (fa->mRealDst.w < 1 || fa->mRealDst.h < 1)
+			throw MyError("Cannot start filter chain: The output of filter \"%s\" is smaller than 1x1.", fa->GetName());
+
+		fa->mRealSrcUncropped.Fixup(mpBitmaps->mpBuffers[fa->mSrcBuf]->GetBasePointer());
+		fa->mRealSrc.Fixup(mpBitmaps->mpBuffers[fa->mSrcBuf]->GetBasePointer());
+		fa->mRealDst.Fixup(mpBitmaps->mpBuffers[fa->mDstBuf]->GetBasePointer());
+
+		fa->mExternalSrc = *rawSrc;
+		fa->mExternalDst = fa->mRealDst;
 
 		if (fa->GetAlphaParameterCurve()) {
 				// size check
-			if (fa->src.w != fa->dst.w || fa->src.h != fa->dst.h) {
+			if (fa->mRealSrc.w != fa->mRealDst.w || fa->mRealSrc.h != fa->mRealDst.h) {
 				throw MyError("Cannot start filter chain: Filter \"%s\" has a blend curve attached and has differing input and output sizes (%dx%d -> %dx%d). Input and output sizes must match."
-					, fa->filter->name
-					, fa->src.w
-					, fa->src.h
-					, fa->dst.w
-					, fa->dst.h
+					, fa->GetName()
+					, fa->mRealSrc.w
+					, fa->mRealSrc.h
+					, fa->mRealDst.w
+					, fa->mRealDst.h
 					);
 			}
 
@@ -402,19 +431,10 @@ void FilterSystem::initLinearChain(List *listFA, uint32 src_width, uint32 src_he
 				fa->mBlendPixmap = fa->mRealSrc.mPixmap;
 			} else {
 				VFBitmapInternal blend(fa->mRealDst);
-				blend.Fixup(bitmap[fa->mBlendBuffer].data);
+				blend.Fixup(mpBitmaps->mpBuffers[fa->mBlendBuffer]->GetBasePointer());
 				fa->mBlendPixmap = blend.mPixmap;
 			}
 		}
-
-		fa = (FilterInstance *)fa->next;
-	}
-
-	// Does the first filter require a display context?
-	fa = (FilterInstance *)listFA->tail.next;
-
-	while(fa->next) {
-		FilterInstance *fa_next = GetNextEnabledFilterInstance(fa);
 
 		VDFileMappingW32 *mapping = NULL;
 		if (((fa->mRealSrc.dwFlags | fa->mRealDst.dwFlags) & VFBitmapInternal::NEEDS_HDC) && !(fa->GetFlags() & FILTERPARAM_SWAP_BUFFERS)) {
@@ -427,51 +447,31 @@ void FilterSystem::initLinearChain(List *listFA, uint32 src_width, uint32 src_he
 		}
 
 		fa->mRealSrc.hdc = NULL;
-		fa->mExternalSrc = fa->mRealSrc.mPixmap;
-
-		if (mapping || (fa->mRealSrc.dwFlags & VDXFBitmap::NEEDS_HDC)) {
-			fa->mRealSrc.mDIBSection.Init(VDAbsPtrdiff(fa->mRealSrc.pitch) >> 2, fa->mRealSrc.h, 32, mapping, fa->mRealSrc.offset);
-			fa->mRealSrc.hdc = fa->mRealSrc.mDIBSection.GetHDC();
-
-			fa->mRealSrc.mPixmap = fa->mRealSrc.mDIBSection.GetPixmap();
-			fa->mRealSrc.mPixmap.w = fa->mRealSrc.w;
-			fa->mRealSrc.mPixmap.h = fa->mRealSrc.h;
-			fa->mRealSrc.ConvertPixmapToBitmap();
-		}
+		if (mapping || (fa->mRealSrc.dwFlags & VDXFBitmap::NEEDS_HDC))
+			fa->mRealSrc.BindToDIBSection(mapping);
 
 		fa->mRealDst.hdc = NULL;
-		fa->mExternalDst = fa->mRealDst.mPixmap;
-		if (mapping || (fa->mRealDst.dwFlags & VDXFBitmap::NEEDS_HDC)) {
-			fa->mRealDst.mDIBSection.Init(VDAbsPtrdiff(fa->mRealDst.pitch) >> 2, fa->mRealDst.h, 32, mapping, fa->mRealDst.offset);
-			fa->mRealDst.hdc = fa->mRealDst.mDIBSection.GetHDC();
-
-			fa->mRealDst.mPixmap = fa->mRealDst.mDIBSection.GetPixmap();
-			fa->mRealDst.mPixmap.w = fa->mRealDst.w;
-			fa->mRealDst.mPixmap.h = fa->mRealDst.h;
-			fa->mRealDst.ConvertPixmapToBitmap();
-		}
+		if (mapping || (fa->mRealDst.dwFlags & VDXFBitmap::NEEDS_HDC))
+			fa->mRealDst.BindToDIBSection(mapping);
 
 		fa->mRealLast.hdc = NULL;
 		if (fa->GetFlags() & FILTERPARAM_NEEDS_LAST) {
 			fa->mRealLast.Fixup(lpBuffer + lLastBufPtr);
 
-			if (fa->mRealLast.dwFlags & VDXFBitmap::NEEDS_HDC) {
-				fa->mRealLast.mDIBSection.Init(VDAbsPtrdiff(fa->mRealLast.pitch) >> 2, fa->mRealLast.h, 32);
-				fa->mRealLast.hdc = fa->mRealLast.mDIBSection.GetHDC();
-				fa->mRealLast.mPixmap = fa->mRealLast.mDIBSection.GetPixmap();
-			}
+			if (fa->mRealLast.dwFlags & VDXFBitmap::NEEDS_HDC)
+				fa->mRealLast.BindToDIBSection(NULL);
 
-			lLastBufPtr += fa->last->size + fa->last->offset;
+			lLastBufPtr += fa->mRealLast.size + fa->mRealLast.offset;
 		}
 
+		rawSrc = &fa->mExternalDst;
+
 		fa = fa_next;
-		if (!fa)
-			break;
 	}
 }
 
-void FilterSystem::ReadyFilters() {
-	FilterInstance *fa = (FilterInstance *)listFilters->tail.next;
+void FilterSystem::ReadyFilters(uint32 flags) {
+	FilterInstance *fa = static_cast<FilterInstance *>(listFilters->tail.next);
 
 	if (dwFlags & FILTERS_INITIALIZED)
 		return;
@@ -480,16 +480,18 @@ void FilterSystem::ReadyFilters() {
 
 	int accumulatedDelay = 0;
 
+	IVDFilterFrameSource *pLastSource = mpBitmaps->mpSource;
+
 	try {
 		while(fa->next) {
 			if (fa->IsEnabled()) {
-				if (fa->mbInvalidFormatHandling)
+				if (fa->GetInvalidFormatHandlingState())
 					throw MyError("Cannot start filters: Filter \"%s\" is not handling image formats correctly.",
-						fa->filter->name);
+						fa->GetName());
 
-				if (fa->mbInvalidFormat)
+				if (fa->GetInvalidFormatState())
 					throw MyError("Cannot start filters: An instance of filter \"%s\" cannot process its input of %ux%d (%s).",
-						fa->filter->name,
+						fa->GetName(),
 						fa->mRealSrc.mpPixmapLayout->w,
 						fa->mRealSrc.mpPixmapLayout->h,
 						VDPixmapGetInfo(fa->mRealSrc.mpPixmapLayout->format).name);
@@ -498,7 +500,9 @@ void FilterSystem::ReadyFilters() {
 
 				accumulatedDelay += nDelay;
 
-				fa->Start(accumulatedDelay);
+				fa->SetAllocator(mpBitmaps->mpAllocators[fa->mDstBuf]);
+				fa->Start(accumulatedDelay, flags, pLastSource, mpBitmaps->mpAllocators[fa->mSrcBuf]);
+				pLastSource = fa;
 			}
 
 			fa = (FilterInstance *)fa->next;
@@ -511,96 +515,84 @@ void FilterSystem::ReadyFilters() {
 			fa = (FilterInstance *)fa->prev;
 		}
 
-		delete[] bitmap;
-		bitmap = NULL;
-
 		throw;
 	}
 
 	dwFlags |= FILTERS_INITIALIZED;
-
-	RestartFilters();
+	mpBitmaps->mpTailSource = pLastSource;
 }
 
-void FilterSystem::RestartFilters() {
-	mbFirstFrame = true;
-	mFrameDelayLeft = nFrameLag;
+bool FilterSystem::RequestFrame(sint64 outputFrame, IVDFilterFrameClientRequest **creq) {
+	if (!mpBitmaps->mpTailSource)
+		return false;
+
+	if (!mpBitmaps->mpTailSource->CreateRequest(outputFrame, false, ~mpBitmaps->mpLastRequest))
+		return false;
+
+	if (creq)
+		*creq = mpBitmaps->mpLastRequest.release();
+
+	return true;
 }
 
-bool FilterSystem::RunFilters(sint64 outputFrame, sint64 timelineFrame, sint64 sequenceFrame, sint64 sequenceTimeMS, FilterInstance *pfiStopPoint, uint32 flags) {
-	if (listFilters->IsEmpty())
-		return true;
+void FilterSystem::AbortFrame() {
+	mpBitmaps->mpLastRequest = NULL;
+}
 
+bool FilterSystem::RunToCompletion() {
 	if (dwFlags & FILTERS_ERROR)
 		return false;
 
 	if (!(dwFlags & FILTERS_INITIALIZED))
 		return false;
 
-	// begin iteration from the end and build a stack of request objects
-	FilterInstance *fa = static_cast<FilterInstance *>(listFilters->head.prev);
+	bool activity = false;
+	for(;;) {
+		bool didSomething = false;
 
-	RequestInfo ri;
-	ri.mTimelineFrame = timelineFrame;
-	ri.mOutputFrame = outputFrame;
+		FilterInstance *fa = static_cast<FilterInstance *>(listFilters->AtTail());
+		while(fa->next) {
+			// Run the filter.
 
-	mRequestStack.clear();
-	for(; fa->prev; fa = static_cast<FilterInstance *>(fa->prev)) {
-		if (!fa->IsEnabled())
-			continue;
-
-		ri.mSourceFrame = fa->GetSourceFrame(ri.mOutputFrame);
-
-		mRequestStack.push_back(ri);
-
-		ri.mOutputFrame = ri.mSourceFrame;
-	}
-
-	// begin filter execution
-	fa = static_cast<FilterInstance *>(listFilters->tail.next);
-
-	const VFBitmapInternal *last = &bitmap[0];
-
-	while(fa->next) {
-		// Run the filter.
-
-		if (fa->IsEnabled()) {
-			try {
-				const RequestInfo& ri = mRequestStack.back();
-
-				// We need to make sure that the entry blit happens on the stop filter for filter preview
-				// and cropping to work.
-				if (fa->mbBlitOnEntry) {
-					VDPixmapBlt(fa->mRealSrcUncropped.mPixmap, last->mPixmap);
+			if (fa->IsEnabled()) {
+				try {
+					while(fa->RunRequests())
+						didSomething = true;
+				} catch(const MyError&) {
+					dwFlags |= FILTERS_ERROR;
+					throw;
 				}
-
-				if (fa == pfiStopPoint)
-					break;
-
-				fa->Run(mbFirstFrame, ri.mSourceFrame, ri.mOutputFrame, ri.mTimelineFrame, sequenceFrame, sequenceTimeMS, flags);
-
-				last = &fa->mRealDst;
-				mRequestStack.pop_back();
-			} catch(const MyError&) {
-				dwFlags |= FILTERS_ERROR;
-				throw;
 			}
-		} else {
-			if (fa == pfiStopPoint)
-				break;
+
+			fa = (FilterInstance *)fa->next;
 		}
 
-		fa = (FilterInstance *)fa->next;
+		if (!didSomething)
+			break;
+
+		activity = true;
 	}
 
-	mbFirstFrame = false;
+	if (!mpBitmaps->mpLastRequest)
+		return activity;
 
-	if (mFrameDelayLeft) {
-		--mFrameDelayLeft;
-		return false;
+	if (mpBitmaps->mpLastRequest->IsCompleted())
+		mpBitmaps->mpLastRequest = NULL;
+
+	return activity;
+}
+
+void FilterSystem::InvalidateCachedFrames(FilterInstance *startingFilter) {
+	FilterInstance *fi = startingFilter;
+
+	if (!fi)
+		fi = static_cast<FilterInstance *>(listFilters->AtTail());
+
+	while(fi->next) {
+		fi->InvalidateAllCachedFrames();
+
+		fi = (FilterInstance *)fi->next;
 	}
-
-	return true;
 }
 
 void FilterSystem::DeinitFilters() {
@@ -620,22 +612,12 @@ void FilterSystem::DeinitFilters() {
 		fa = (FilterInstance *)fa->next;
 	}
 
+	mpBitmaps->mpTailSource = NULL;
 	dwFlags &= ~FILTERS_INITIALIZED;
-
-	delete[] bitmap;
-	bitmap = NULL;
-}
-
-const VDPixmap& FilterSystem::GetInput() const {
-	return bitmap[0].mPixmap;
 }
 
 const VDPixmapLayout& FilterSystem::GetInputLayout() const {
-	return bitmap[0].mPixmapLayout;
-}
-
-const VDPixmap& FilterSystem::GetOutput() const {
-	return bmLast->mPixmap;
+	return mpBitmaps->mInitialBitmap.mPixmapLayout;
 }
 
 const VDPixmapLayout& FilterSystem::GetOutputLayout() const {
@@ -650,37 +632,23 @@ int FilterSystem::getFrameLag() {
 	return nFrameLag;
 }
 
-bool FilterSystem::IsFiltered(VDPosition frame) const {
+bool FilterSystem::GetDirectFrameMapping(VDPosition outputFrame, VDPosition& sourceFrame, int& sourceIndex) const {
 	if (listFilters->IsEmpty())
 		return false;
 
 	if (dwFlags & FILTERS_ERROR)
 		return false;
 
-	FilterInstance *fa = (FilterInstance *)listFilters->tail.next;
-
 	if (!(dwFlags & FILTERS_INITIALIZED))
 		return false;
 
-	while(fa->next) {
-		if (fa->IsEnabled()) {
-			VDParameterCurve *pAlphaCurve = fa->GetAlphaParameterCurve();
-			if (!pAlphaCurve)
-				return true;
-
-			float alpha = (float)(*pAlphaCurve)((double)frame).mY;
-
-			if (alpha >= (0.5f / 255.0f))
-				return true;
-		}
-
-		fa = (FilterInstance *)fa->next;
-	}
-
-	return false;
+	return mpBitmaps->mpTailSource->GetDirectMapping(outputFrame, sourceFrame, sourceIndex);
 }
 
 sint64 FilterSystem::GetSourceFrame(sint64 frame) const {
+	if (!(dwFlags & FILTERS_INITIALIZED))
+		return frame;
+
 	if (listFilters->IsEmpty())
 		return frame;
 
@@ -688,9 +656,6 @@ sint64 FilterSystem::GetSourceFrame(sint64 frame) const {
 		return frame;
 
 	FilterInstance *fa = (FilterInstance *)listFilters->tail.next;
-
-	if (!(dwFlags & FILTERS_INITIALIZED))
-		return frame;
 
 	while(fa->next) {
 		if (fa->IsEnabled()) {
@@ -703,8 +668,32 @@ sint64 FilterSystem::GetSourceFrame(sint64 frame) const {
 	return frame;
 }
 
+sint64 FilterSystem::GetSymbolicFrame(sint64 outframe, IVDFilterFrameSource *source) const {
+	if (!(dwFlags & FILTERS_INITIALIZED))
+		return outframe;
+
+	if (listFilters->IsEmpty())
+		return outframe;
+
+	if (dwFlags & FILTERS_ERROR)
+		return outframe;
+
+	return mpBitmaps->mpTailSource->GetSymbolicFrame(outframe, source);
+}
+
+sint64 FilterSystem::GetNearestUniqueFrame(sint64 outframe) const {
+	if (!(dwFlags & FILTERS_INITIALIZED))
+		return outframe;
+
+	return mpBitmaps->mpTailSource->GetNearestUniqueFrame(outframe);
+}
+
 const VDFraction FilterSystem::GetOutputFrameRate() const {
 	return mOutputFrameRate;
+}
+
+const VDFraction FilterSystem::GetOutputPixelAspect() const {
+	return mOutputPixelAspect;
 }
 
 sint64 FilterSystem::GetOutputFrameCount() const {
@@ -717,28 +706,6 @@ sint64 FilterSystem::GetOutputFrameCount() const {
 //
 /////////////////////////////////////////////////////////////////////////////
 
-void FilterSystem::AllocateVBitmaps(int count) {
-	delete[] bitmap;
-
-	if (!(bitmap = new FilterSystemBitmap[count])) throw MyMemoryError();
-//	memset(bitmap, 0, sizeof(VBitmap) * count);
-
-	for(int i=0; i<count; i++) {
-		bitmap[i].data		= NULL;
-		bitmap[i].palette	= NULL;
-		bitmap[i].buffer	= 0;
-		bitmap[i].depth		= 0;
-		bitmap[i].w			= 0;
-		bitmap[i].h			= 0;
-		bitmap[i].pitch		= 0;
-		bitmap[i].modulo	= 0;
-		bitmap[i].size		= 0;
-		bitmap[i].offset	= 0;
-	}
-
-	iBitmapCount = count;
-}
-
 void FilterSystem::AllocateBuffers(uint32 lTotalBufferNeeded) {
 	DeallocateBuffers();
 
@@ -746,9 +713,24 @@ void FilterSystem::AllocateBuffers(uint32 lTotalBufferNeeded) {
 		throw MyMemoryError();
 
 	memset(lpBuffer, 0, lTotalBufferNeeded+8);
+
+	for(int i=0; i<3; ++i) {
+		mpBitmaps->mpAllocators[i]->Init(0, 0x7fffffff);
+
+		mpBitmaps->mpBuffers[i] = new VDFilterFrameBuffer;
+		mpBitmaps->mpBuffers[i]->Init(mpBitmaps->mpAllocators[i]->GetFrameSize());
+	}
 }
 
 void FilterSystem::DeallocateBuffers() {
+	if (mpBitmaps) {
+		for(int i=0; i<3; ++i) {
+			mpBitmaps->mpBuffers[i] = NULL;
+		}
+
+		mpBitmaps->mpSource = NULL;
+	}
+
 	if (listFilters) {
 		// delete hdcs
 

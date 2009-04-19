@@ -75,6 +75,7 @@ public:
 
 	bool Init(IVDTimerCallback *pCB, uint32 period_ms);
 	bool Init2(IVDTimerCallback *pCB, uint32 period_100ns);
+	bool Init3(IVDTimerCallback *pCB, uint32 period_100ns, uint32 accuracy_100ns, bool precise);
 	void Shutdown();
 
 	void SetRateDelta(int delta_100ns);
@@ -94,6 +95,7 @@ private:
 	VDSignal		msigExit;
 
 	volatile bool	mbExit;				// this doesn't really need to be atomic -- think about it
+	bool			mbPrecise;
 };
 
 

@@ -1638,6 +1638,9 @@ void VDCaptureDriverScreen::DoFrame() {
 							mGL.glDisable(GL_BLEND);
 							mGL.glBindTexture(GL_TEXTURE_2D, mGLTextures[0]);
 						}
+
+						srcx = 0;
+						srcy = 0;
 					}
 
 					if (mbRescaleImage) {

@@ -25,15 +25,12 @@ struct VDRenderVideoPipeFrameInfo {
 	void		*mpData;
 	uint32		mLength;
 	int			mSrcIndex;
-	VDPosition	mRawFrame;			///< Current sample number from source.
-	VDPosition	mTargetFrame;		///< Target sample number from source.
-	VDPosition	mOrigDisplayFrame;	///< Display frame from source, pre-null-collapse.
-	VDPosition	mDisplayFrame;		///< Display frame from source, post-null-collapse.
-	VDPosition	mTimelineFrame;		///< Frame number in editable timeline.
-	VDPosition	mSequenceFrame;		///< Index of frame being processed.
+	VDPosition	mStreamFrame;
+	VDPosition	mDisplayFrame;
+	VDPosition	mTargetSample;
 	uint32		mFlags;
 	int			mDroptype;
-	bool		mbFinal;	
+	bool		mbFinal;
 };
 
 class AVIPipe {
@@ -84,6 +81,7 @@ public:
 	bool isFinalizeAcked();
 
 	bool full();
+	int size() const { return num_buffers; }
 
 	void *getWriteBuffer(long len, int *handle_ptr);
 	void postBuffer(const VDRenderVideoPipeFrameInfo& frameInfo);
@@ -93,7 +91,7 @@ public:
 	void finalizeAck();
 	void abort();
 	void getDropDistances(int& dependant, int& independent);
-	void getQueueInfo(int& total, int& finals);
+	void getQueueInfo(int& total, int& finals, int& allocated);
 };
 
 #endif

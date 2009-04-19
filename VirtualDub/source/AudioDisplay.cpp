@@ -1306,7 +1306,7 @@ void VDAudioDisplayControl::OnMouseMove(int x, int y, uint32 modifiers) {
 				{
 					char buf[64];
 
-					sprintf(buf, "%+.0fms", (pos - mAudioOffsetDragAnchor) / mSamplingRate * 1000.0f);
+					sprintf(buf, "Shift audio by %+.0fms", (pos - mAudioOffsetDragAnchor) / mSamplingRate * 1000.0f);
 					mpDimensionSprite->SetLine(mDragAnchorX, mDragAnchorY, x, 24, buf);
 				}
 

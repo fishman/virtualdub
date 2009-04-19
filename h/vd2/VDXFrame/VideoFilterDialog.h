@@ -35,6 +35,8 @@ protected:
 	HWND	mhdlg;
 
 	LRESULT Show(HINSTANCE hInst, LPCTSTR templName, HWND parent);
+	HWND ShowModeless(HINSTANCE hInst, LPCTSTR templName, HWND parent);
+
 	static INT_PTR CALLBACK StaticDlgProc(HWND hdlg, UINT msg, WPARAM wParam, LPARAM lParam);
 	virtual INT_PTR DlgProc(UINT msg, WPARAM wParam, LPARAM lParam);
 };

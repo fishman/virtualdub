@@ -28,7 +28,7 @@ class IVDAudioOutput {
 public:
 	virtual ~IVDAudioOutput() {}
 
-	virtual bool	Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf) = 0;
+	virtual bool	Init(uint32 bufsize, uint32 bufcount, const tWAVEFORMATEX *wf, const wchar_t *preferredDevice) = 0;
 	virtual void	Shutdown() = 0;
 	virtual void	GoSilent() = 0;
 

@@ -347,11 +347,36 @@ void VDPixmapBlt_YUVPlanar_encode_reference(const VDPixmap& dstbm, const VDPixma
 		w2 = (w2+1) >> 1;
 		break;
 
+	case nsVDPixmap::kPixFormat_YUV422_Planar_Centered:
+		if (halfchroma) {
+			chroma_srcw = (chroma_srcw + 1) >> 1;
+			hfunc = horiz_realign_to_centered;
+		} else
+			hfunc = horiz_compress2x_centered;
+
+		w2 = (w2+1) >> 1;
+		break;
+
 	case nsVDPixmap::kPixFormat_YUV420_Planar:
 		if (halfchroma)
 			chroma_srcw = (chroma_srcw + 1) >> 1;
 		else
 			hfunc = horiz_compress2x_coaligned;
+
+		vfunc = vert_compress2x_centered;
+		winstep = 2;
+		winposnext = 2;
+		winsize = 4;
+		h2 = (h+1) >> 1;
+		w2 = (w2+1) >> 1;
+		break;
+
+	case nsVDPixmap::kPixFormat_YUV420_Planar_Centered:
+		if (halfchroma) {
+			chroma_srcw = (chroma_srcw + 1) >> 1;
+			hfunc = horiz_realign_to_centered;
+		} else
+			hfunc = horiz_compress2x_centered;
 
 		vfunc = vert_compress2x_centered;
 		winstep = 2;

@@ -54,6 +54,21 @@ int VDFindHighestSetBit(uint32 v);
 		unsigned long index;
 		return _BitScanReverse(&index, v) ? index : -1;
 	}
+
+	inline int VDFindLowestSetBitFast(uint32 v) {
+		unsigned long index;
+		_BitScanForward(&index, v);
+		return index;
+	}
+
+	inline int VDFindHighestSetBitFast(uint32 v) {
+		unsigned long index;
+		_BitScanReverse(&index, v);
+		return index;
+	}
+#else
+	#define VDFindLowestSetBitFast	VDFindLowestSetBit
+	#define VDFindHighestSetBitFast	VDFindHighestSetBit
 #endif
 
 #endif

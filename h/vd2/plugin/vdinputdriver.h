@@ -61,16 +61,6 @@ typedef struct VDXWAVEFORMATEXStruct {
 	uint16			mExtraSize;
 } VDXWAVEFORMATEX;
 
-#define VDXMAKEFOURCC(a, b, c, d) ((uint32)(uint8)(d) + ((uint32)(uint8)(c) << 8) + ((uint32)(uint8)(b) << 16) + ((uint32)(uint8)(a) << 24))
-
-class IVDXUnknown {
-public:
-	enum { kIID = VDXMAKEFOURCC('X', 'u', 'n', 'k') };
-	virtual int VDXAPIENTRY AddRef() = 0;
-	virtual int VDXAPIENTRY Release() = 0;
-	virtual void *VDXAPIENTRY AsInterface(uint32 iid) = 0;
-};
-
 struct VDXStreamSourceInfo {
 	VDXFraction		mSampleRate;
 	sint64			mSampleCount;

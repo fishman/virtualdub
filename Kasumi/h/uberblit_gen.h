@@ -6,6 +6,15 @@
 
 class IVDPixmapGenSrc;
 
+class VDPixmapUberBlitterDirectCopy : public IVDPixmapBlitter {
+public:
+	VDPixmapUberBlitterDirectCopy();
+	~VDPixmapUberBlitterDirectCopy();
+
+	void Blit(const VDPixmap& dst, const VDPixmap& src);
+	void Blit(const VDPixmap& dst, const vdrect32 *rDst, const VDPixmap& src);
+};
+
 class VDPixmapUberBlitter : public IVDPixmapBlitter {
 public:
 	VDPixmapUberBlitter();
@@ -17,6 +26,10 @@ public:
 protected:
 	void Blit(const VDPixmap& dst, const vdrect32 *rDst);
 	void Blit3(const VDPixmap& dst, const vdrect32 *rDst);
+	void Blit3Split(const VDPixmap& dst, const vdrect32 *rDst);
+	void Blit3Separated(const VDPixmap& px, const vdrect32 *rDst);
+	void Blit2(const VDPixmap& dst, const vdrect32 *rDst);
+	void Blit2Separated(const VDPixmap& px, const vdrect32 *rDst);
 
 	friend class VDPixmapUberBlitterGenerator;
 
@@ -38,6 +51,9 @@ protected:
 
 	typedef vdfastvector<SourceEntry> Sources;
 	Sources mSources;
+
+	bool mbIndependentChromaPlanes;
+	bool mbIndependentPlanes;
 };
 
 class VDPixmapUberBlitterGenerator {
@@ -69,12 +85,16 @@ public:
 	void conv_565_to_555();
 	void conv_8888_to_X32F();
 	void conv_8_to_32F();
+	void conv_16F_to_32F();
+	void conv_V210_to_32F();
 
 	void conv_8888_to_555();
 	void conv_8888_to_565();
 	void conv_8888_to_888();
 	void conv_32F_to_8();
 	void conv_X32F_to_8888();
+	void conv_32F_to_16F();
+	void conv_32F_to_V210();
 
 	void convd_8888_to_555();
 	void convd_8888_to_565();
@@ -84,11 +104,20 @@ public:
 	void interleave_B8G8_R8G8();
 	void interleave_G8B8_G8R8();
 	void interleave_X8R8G8B8();
+	void interleave_B8R8();
 
 	void ycbcr601_to_rgb32();
 	void ycbcr709_to_rgb32();
 	void rgb32_to_ycbcr601();
 	void rgb32_to_ycbcr709();
+
+	void ycbcr601_to_rgb32_32f();
+	void ycbcr709_to_rgb32_32f();
+	void rgb32_to_ycbcr601_32f();
+	void rgb32_to_ycbcr709_32f();
+
+	void ycbcr601_to_ycbcr709();
+	void ycbcr709_to_ycbcr601();
 
 	void pointh(float xoffset, float xfactor, uint32 w);
 	void pointv(float yoffset, float yfactor, uint32 h);
@@ -105,6 +134,8 @@ public:
 	IVDPixmapBlitter *create();
 
 protected:
+	void MarkDependency(IVDPixmapGen *dst, IVDPixmapGen *src);
+
 	struct StackEntry {
 		IVDPixmapGen *mpSrc;
 		uint32 mSrcIndex;
@@ -114,12 +145,22 @@ protected:
 	};
 
 	vdfastvector<StackEntry> mStack;
-	vdfastvector<IVDPixmapGen *> mGenerators;
+
+	typedef vdfastvector<IVDPixmapGen *> Generators;
+	Generators mGenerators;
+
+	struct Dependency {
+		int mDstIdx;
+		int mSrcIdx;
+	};
+
+	vdfastvector<Dependency> mDependencies;
 
 	typedef VDPixmapUberBlitter::SourceEntry SourceEntry;
 	vdfastvector<SourceEntry> mSources;
 };
 
 void VDPixmapGenerate(void *dst, ptrdiff_t pitch, sint32 bpr, sint32 height, IVDPixmapGen *gen, int genIndex);
+IVDPixmapBlitter *VDCreatePixmapUberBlitterDirectCopy(const VDPixmap& dst, const VDPixmap& src);
 
 #endif

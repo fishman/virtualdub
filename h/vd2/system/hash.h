@@ -34,7 +34,14 @@
 	#include <vd2/system/vdtypes.h>
 #endif
 
+// Case-sensitive string hashes
+
 uint32 VDHashString32(const char *s);
 uint32 VDHashString32(const char *s, uint32 len);
+
+// Case-insensitive, culture-invariant string hashes
+
+uint32 VDHashString32I(const wchar_t *s);
+uint32 VDHashString32I(const wchar_t *s, uint32 len);
 
 #endif

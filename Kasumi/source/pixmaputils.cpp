@@ -2,24 +2,31 @@
 #include <vd2/system/memory.h>
 
 extern VDPixmapFormatInfo g_vdPixmapFormats[] = {
-	/* Null */			{ "null",		0, 0, 0, 0, 0, 0, 0, 0,   0 },
-	/* Pal1 */			{ "Pal1",		8, 1, 3, 0, 1, 0, 0, 0,   2 },
-	/* Pal2 */			{ "Pal2",		4, 1, 2, 0, 1, 0, 0, 0,   4 },
-	/* Pal4 */			{ "Pal4",		2, 1, 1, 0, 1, 0, 0, 0,  16 },
-	/* Pal8 */			{ "Pal8",		1, 1, 0, 0, 1, 0, 0, 0, 256 },
-	/* RGB16_555 */		{ "XRGB1555",	1, 1, 0, 0, 2, 0, 0, 0,   0 },
-	/* RGB16_565 */		{ "RGB565",		1, 1, 0, 0, 2, 0, 0, 0,   0 },
-	/* RGB24 */			{ "RGB888",		1, 1, 0, 0, 3, 0, 0, 0,   0 },
-	/* RGB32 */			{ "XRGB8888",	1, 1, 0, 0, 4, 0, 0, 0,   0 },
-	/* Y8 */			{ "Y8",			1, 1, 0, 0, 1, 0, 0, 0,   0 },
-	/* YUV422_UYVY */	{ "UYVY",		2, 1, 1, 0, 4, 0, 0, 0,   0 },
-	/* YUV422_YUYV */	{ "YUYV",		2, 1, 1, 0, 4, 0, 0, 0,   0 },
-	/* YUV444_XVYU */	{ "XVYU",		1, 1, 0, 0, 4, 0, 0, 0,   0 },
-	/* YUV444_Planar */	{ "YUV444",		1, 1, 0, 0, 1, 2, 0, 0,   0 },
-	/* YUV422_Planar */	{ "YUV422",		1, 1, 0, 0, 1, 2, 1, 0,   0 },
-	/* YUV420_Planar */	{ "YUV420",		1, 1, 0, 0, 1, 2, 1, 1,   0 },
-	/* YUV411_Planar */	{ "YUV411",		1, 1, 0, 0, 1, 2, 2, 0,   0 },
-	/* YUV410_Planar */	{ "YUV410",		1, 1, 0, 0, 1, 2, 2, 2,   0 },
+									// name         qchnk qw qh qwb qhb  qs ab aw ah as   ps
+	/* Null */						{ "null",		false, 1, 1,  0,  0,  0, 0, 0, 0, 0,   0 },
+	/* Pal1 */						{ "Pal1",		 true, 8, 1,  3,  0,  1, 0, 0, 0, 0,   2 },
+	/* Pal2 */						{ "Pal2",		 true, 4, 1,  2,  0,  1, 0, 0, 0, 0,   4 },
+	/* Pal4 */						{ "Pal4",		 true, 2, 1,  1,  0,  1, 0, 0, 0, 0,  16 },
+	/* Pal8 */						{ "Pal8",		false, 1, 1,  0,  0,  1, 0, 0, 0, 0, 256 },
+	/* RGB16_555 */					{ "XRGB1555",	false, 1, 1,  0,  0,  2, 0, 0, 0, 0,   0 },
+	/* RGB16_565 */					{ "RGB565",		false, 1, 1,  0,  0,  2, 0, 0, 0, 0,   0 },
+	/* RGB24 */						{ "RGB888",		false, 1, 1,  0,  0,  3, 0, 0, 0, 0,   0 },
+	/* RGB32 */						{ "XRGB8888",	false, 1, 1,  0,  0,  4, 0, 0, 0, 0,   0 },
+	/* Y8 */						{ "Y8",			false, 1, 1,  0,  0,  1, 0, 0, 0, 0,   0 },
+	/* YUV422_UYVY */				{ "UYVY",		 true, 2, 1,  1,  0,  4, 0, 0, 0, 0,   0 },
+	/* YUV422_YUYV */				{ "YUYV",		 true, 2, 1,  1,  0,  4, 0, 0, 0, 0,   0 },
+	/* YUV444_XVYU */				{ "XVYU",		false, 1, 1,  0,  0,  4, 0, 0, 0, 0,   0 },
+	/* YUV444_Planar */				{ "YUV444",		false, 1, 1,  0,  0,  1, 2, 0, 0, 1,   0 },
+	/* YUV422_Planar */				{ "YUV422",		false, 1, 1,  0,  0,  1, 2, 1, 0, 1,   0 },
+	/* YUV420_Planar */				{ "YUV420",		false, 1, 1,  0,  0,  1, 2, 1, 1, 1,   0 },
+	/* YUV411_Planar */				{ "YUV411",		false, 1, 1,  0,  0,  1, 2, 2, 0, 1,   0 },
+	/* YUV410_Planar */				{ "YUV410",		false, 1, 1,  0,  0,  1, 2, 2, 2, 1,   0 },
+	/* YUV422_Planar_Centered */	{ "YUV422C",	false, 1, 1,  0,  0,  1, 2, 1, 0, 1,   0 },
+	/* YUV420_Planar_Centered */	{ "YUV420C",	false, 1, 1,  0,  0,  1, 2, 1, 1, 1,   0 },
+	/* YUV422_Planar_16F */			{ "YUV422_16F",	false, 1, 1,  0,  0,  2, 2, 1, 0, 2,   0 },
+	/* V210 */						{ "v210",		 true,24, 1,  2,  0, 64, 0, 0, 0, 1,   0 },
+	/* YUV422_UYVY_709 */			{ "UYVY-709",	 true, 2, 1,  1,  0,  4, 0, 0, 0, 0,   0 },
+	/* NV12 */						{ "NV12",		false, 1, 1,  0,  0,  1, 1, 1, 1, 2,   0 },
 };
 
 #ifdef _DEBUG
@@ -43,7 +50,7 @@ extern VDPixmapFormatInfo g_vdPixmapFormats[] = {
 		const VDPixmapFormatInfo& info = VDPixmapGetInfo(px.format);
 
 		if (px.format) {
-			if (!VDIsValidPixmapPlane(px.data, px.pitch, -(-px.w >> info.qwbits)*info.qsize, -(-px.h >> info.qhbits))) {
+			if (!VDIsValidPixmapPlane(px.data, px.pitch, -(-px.w / info.qw)*info.qsize, -(-px.h >> info.qhbits))) {
 				VDDEBUG("Kasumi: Invalid primary plane detected in pixmap.\n"
 						"        Pixmap info: format=%d, dimensions=%dx%d\n", px.format, px.w, px.h);
 				VDASSERT(!"Kasumi: Invalid primary plane detected in pixmap.\n");
@@ -62,7 +69,7 @@ extern VDPixmapFormatInfo g_vdPixmapFormats[] = {
 				const vdpixsize auxw = -(-px.w >> info.auxwbits);
 				const vdpixsize auxh = -(-px.h >> info.auxhbits);
 
-				if (!VDIsValidPixmapPlane(px.data2, px.pitch2, auxw, auxh)) {
+				if (!VDIsValidPixmapPlane(px.data2, px.pitch2, auxw * info.auxsize, auxh)) {
 					VDDEBUG("Kasumi: Invalid Cb plane detected in pixmap.\n"
 							"        Pixmap info: format=%d, dimensions=%dx%d\n", px.format, px.w, px.h);
 					VDASSERT(!"Kasumi: Invalid Cb plane detected in pixmap.\n");
@@ -70,7 +77,7 @@ extern VDPixmapFormatInfo g_vdPixmapFormats[] = {
 				}
 
 				if (info.auxbufs > 2) {
-					if (!VDIsValidPixmapPlane(px.data3, px.pitch3, auxw, auxh)) {
+					if (!VDIsValidPixmapPlane(px.data3, px.pitch3, auxw * info.auxsize, auxh)) {
 						VDDEBUG("Kasumi: Invalid Cr plane detected in pixmap.\n"
 								"        Pixmap info: format=%d, dimensions=%dx%d\n", px.format, px.w, px.h);
 						VDASSERT(!"Kasumi: Invalid Cr plane detected in pixmap.\n");
@@ -88,14 +95,16 @@ VDPixmap VDPixmapOffset(const VDPixmap& src, vdpixpos x, vdpixpos y) {
 	VDPixmap temp(src);
 	const VDPixmapFormatInfo& info = VDPixmapGetInfo(temp.format);
 
-	x >>= info.qwbits;
-	y >>= info.qhbits;
+	if (info.qchunky) {
+		x = (x + info.qw - 1) / info.qw;
+		y >>= info.qhbits;
+	}
 
 	switch(info.auxbufs) {
 	case 2:
-		temp.data3 = (char *)temp.data3 + (x >> info.auxwbits) + (y >> info.auxhbits)*temp.pitch3;
+		temp.data3 = (char *)temp.data3 + (x >> info.auxwbits)*info.auxsize + (y >> info.auxhbits)*temp.pitch3;
 	case 1:
-		temp.data2 = (char *)temp.data2 + (x >> info.auxwbits) + (y >> info.auxhbits)*temp.pitch2;
+		temp.data2 = (char *)temp.data2 + (x >> info.auxwbits)*info.auxsize + (y >> info.auxhbits)*temp.pitch2;
 	case 0:
 		temp.data = (char *)temp.data + x*info.qsize + y*temp.pitch;
 	}
@@ -107,14 +116,16 @@ VDPixmapLayout VDPixmapLayoutOffset(const VDPixmapLayout& src, vdpixpos x, vdpix
 	VDPixmapLayout temp(src);
 	const VDPixmapFormatInfo& info = VDPixmapGetInfo(temp.format);
 
-	x = -(-x >> info.qwbits);
-	y = -(-y >> info.qhbits);
+	if (info.qchunky) {
+		x = (x + info.qw - 1) / info.qw;
+		y = -(-y >> info.qhbits);
+	}
 
 	switch(info.auxbufs) {
 	case 2:
-		temp.data3 += -(-x >> info.auxwbits) + -(-y >> info.auxhbits)*temp.pitch3;
+		temp.data3 += -(-x >> info.auxwbits)*info.auxsize + -(-y >> info.auxhbits)*temp.pitch3;
 	case 1:
-		temp.data2 += -(-x >> info.auxwbits) + -(-y >> info.auxhbits)*temp.pitch2;
+		temp.data2 += -(-x >> info.auxwbits)*info.auxsize + -(-y >> info.auxhbits)*temp.pitch2;
 	case 0:
 		temp.data += x*info.qsize + y*temp.pitch;
 	}
@@ -126,10 +137,11 @@ uint32 VDPixmapCreateLinearLayout(VDPixmapLayout& layout, int format, vdpixsize 
 	const ptrdiff_t alignmask = alignment - 1;
 
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(format);
-	sint32		qw			= -(-w >> srcinfo.qwbits);
+	sint32		qw			= (w + srcinfo.qw - 1) / srcinfo.qw;
 	sint32		qh			= -(-h >> srcinfo.qhbits);
 	sint32		subw		= -(-w >> srcinfo.auxwbits);
 	sint32		subh		= -(-h >> srcinfo.auxhbits);
+	sint32		auxsize		= srcinfo.auxsize;
 
 	ptrdiff_t	mainpitch	= (srcinfo.qsize * qw + alignmask) & ~alignmask;
 	size_t		mainsize	= mainpitch * qh;
@@ -146,7 +158,7 @@ uint32 VDPixmapCreateLinearLayout(VDPixmapLayout& layout, int format, vdpixsize 
 	layout.format	= format;
 
 	if (srcinfo.auxbufs >= 1) {
-		ptrdiff_t	subpitch	= (subw + alignmask) & ~alignmask;
+		ptrdiff_t	subpitch	= (subw * auxsize + alignmask) & ~alignmask;
 		size_t		subsize		= subpitch * subh;
 
 		layout.data2	= mainsize;
@@ -167,9 +179,8 @@ void VDPixmapFlipV(VDPixmap& px) {
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(px.format);
 	sint32		w			= px.w;
 	sint32		h			= px.h;
-	sint32		qw			= -(-w >> srcinfo.qwbits);
+	sint32		qw			= (w + srcinfo.qw - 1) / srcinfo.qw;
 	sint32		qh			= -(-h >> srcinfo.qhbits);
-	sint32		subw		= -(-w >> srcinfo.auxwbits);
 	sint32		subh		= -(-h >> srcinfo.auxhbits);
 
 	vdptrstep(px.data, px.pitch * (qh - 1));
@@ -190,9 +201,8 @@ void VDPixmapLayoutFlipV(VDPixmapLayout& layout) {
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(layout.format);
 	sint32		w			= layout.w;
 	sint32		h			= layout.h;
-	sint32		qw			= -(-w >> srcinfo.qwbits);
+	sint32		qw			= (w + srcinfo.qw - 1) / srcinfo.qw;
 	sint32		qh			= -(-h >> srcinfo.qhbits);
-	sint32		subw		= -(-w >> srcinfo.auxwbits);
 	sint32		subh		= -(-h >> srcinfo.auxhbits);
 
 	layout.data += layout.pitch * (qh - 1);
@@ -213,9 +223,8 @@ uint32 VDPixmapLayoutGetMinSize(const VDPixmapLayout& layout) {
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(layout.format);
 	sint32		w			= layout.w;
 	sint32		h			= layout.h;
-	sint32		qw			= -(-w >> srcinfo.qwbits);
+	sint32		qw			= (w + srcinfo.qw - 1) / srcinfo.qw;
 	sint32		qh			= -(-h >> srcinfo.qhbits);
-	sint32		subw		= -(-w >> srcinfo.auxwbits);
 	sint32		subh		= -(-h >> srcinfo.auxhbits);
 
 	uint32 limit = layout.data;
@@ -305,12 +314,12 @@ VDPixmapBuffer::~VDPixmapBuffer() {
 
 void VDPixmapBuffer::init(sint32 width, sint32 height, int f) {
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(f);
-	sint32		qw			= -(-width >> srcinfo.qwbits);
+	sint32		qw			= (width + srcinfo.qw - 1) / srcinfo.qw;
 	sint32		qh			= -(-height >> srcinfo.qhbits);
 	sint32		subw		= -(-width >> srcinfo.auxwbits);
 	sint32		subh		= -(-height >> srcinfo.auxhbits);
 	ptrdiff_t	mainpitch	= (srcinfo.qsize * qw + 15) & ~15;
-	ptrdiff_t	subpitch	= (subw + 15) & ~15;
+	ptrdiff_t	subpitch	= (srcinfo.auxsize * subw + 15) & ~15;
 	size_t		mainsize	= mainpitch * qh;
 	size_t		subsize		= subpitch * subh;
 	size_t		totalsize	= mainsize + subsize*srcinfo.auxbufs + 4 * srcinfo.palsize;
@@ -373,7 +382,7 @@ void VDPixmapBuffer::init(sint32 width, sint32 height, int f) {
 
 void VDPixmapBuffer::init(const VDPixmapLayout& layout) {
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(layout.format);
-	sint32		qw			= -(-layout.w >> srcinfo.qwbits);
+	sint32		qw			= (layout.w + srcinfo.qw - 1) / srcinfo.qw;
 	sint32		qh			= -(-layout.h >> srcinfo.qhbits);
 	sint32		subw		= -(-layout.w >> srcinfo.auxwbits);
 	sint32		subh		= -(-layout.h >> srcinfo.auxhbits);
@@ -466,8 +475,8 @@ void VDPixmapBuffer::assign(const VDPixmap& src) {
 		init(src.w, src.h, src.format);
 
 		const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(src.format);
-		int qw = (src.w >> srcinfo.qwbits);
-		int qh = src.h >> srcinfo.qhbits;
+		int qw = (src.w + srcinfo.qw - 1) / srcinfo.qw;
+		int qh = -(-src.h >> srcinfo.qhbits);
 		int subw = -(-src.w >> srcinfo.auxwbits);
 		int subh = -(-src.h >> srcinfo.auxhbits);
 

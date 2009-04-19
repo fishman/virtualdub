@@ -67,6 +67,7 @@ public:
 	void setPulseCallback(PulseCallback pc, void *pcd);
 	void pulse(int delta);
 	void setPulseClock(uint32 clk);
+	uint32 getPulseClock() const;
 	bool lock(uint32, sint32 timeout = -1);
 	void unlock(uint32);
 	void nextFrame(long adv=1);
@@ -213,6 +214,10 @@ void VDAsyncBlitter::setPulseClock(uint32 clk) {
 
 	dwPulseFrame = clk;
 	mEventDraw.signal();
+}
+
+uint32 VDAsyncBlitter::getPulseClock() const {
+	return dwPulseFrame;
 }
 
 bool VDAsyncBlitter::lock(uint32 id, sint32 timeout) {

@@ -2,7 +2,10 @@
 #define f_VD2_KASUMI_UBERBLIT_YCBCR_H
 
 #include <vd2/system/cpuaccel.h>
+#include <vd2/system/math.h>
+#include <vd2/Kasumi/pixmaputils.h>
 #include "uberblit.h"
+#include "uberblit_base.h"
 
 class VDPixmapGenYCbCrToRGBBase : public VDPixmapGenWindowBased {
 public:
@@ -13,8 +16,8 @@ public:
 		mSrcIndexCb = srcindexCb;
 		mpSrcCr = srcCr;
 		mSrcIndexCr = srcindexCr;
-		mWidth = srcY->GetWidth();
-		mHeight = srcY->GetHeight();
+		mWidth = srcY->GetWidth(srcindexY);
+		mHeight = srcY->GetHeight(srcindexY);
 
 		srcY->AddWindowRequest(0, 0);
 		srcCb->AddWindowRequest(0, 0);
@@ -115,14 +118,14 @@ protected:
 
 		for(sint32 i=0; i<mWidth; ++i) {
 			float y = srcY[i];
-			float cb = srcCb[i];
-			float cr = srcCr[i];
+			float cb = srcCb[i] - (128.0f / 255.0f);
+			float cr = srcCr[i] - (128.0f / 255.0f);
 
 			float yf = 1.164f * (y - 16.0f / 255.0f);
 
-			dst[0] = yf + 1.596f * (cr - 0.5f);
-			dst[1] = yf - 0.813f * (cr - 0.5f) - 0.391f * (cb - 0.5f);
-			dst[2] = yf + 2.018f * (cb - 0.5f);
+			dst[0] = yf + 1.596f * cr;
+			dst[1] = yf - 0.813f * cr - 0.391f * cb;
+			dst[2] = yf + 2.018f * cb;
 			dst[3] = 1.0f;
 			dst += 4;
 		}
@@ -174,6 +177,45 @@ protected:
 			*dstCb++ = (28784*r - 24103*g -  4681*b + 8388608 + 32768) >> 16;
 			*dstY ++ = (16829*r + 33039*g +  6416*b + 1048576 + 32768) >> 16;
 			*dstCr++ = (-9714*r - 19071*g + 28784*b + 8388608 + 32768) >> 16;
+		}
+	}
+};
+
+class VDPixmapGenRGB32FToYCbCr601 : public VDPixmapGenWindowBasedOneSource {
+public:
+	void Init(IVDPixmapGen *src, uint32 srcindex) {
+		InitSource(src, srcindex);
+	}
+
+	void Start() {
+		StartWindow(mWidth * sizeof(float), 3);
+	}
+
+	const void *GetRow(sint32 y, uint32 index) {
+		return (const uint8 *)VDPixmapGenWindowBasedOneSource::GetRow(y, index) + mWindowPitch * index;
+	}
+
+	uint32 GetType(uint32 output) const {
+		return (mpSrc->GetType(mSrcIndex) & ~(kVDPixType_Mask | kVDPixSpace_Mask)) | kVDPixType_32F_LE | kVDPixSpace_YCC_709;
+	}
+
+protected:
+	void Compute(void *dst0, sint32 y) {
+		float *dstCb = (float *)dst0;
+		float *dstY  = dstCb + mWindowPitch;
+		float *dstCr = dstY + mWindowPitch;
+
+		const float *srcRGB = (const float *)mpSrc->GetRow(y, mSrcIndex);
+
+		for(sint32 i=0; i<mWidth; ++i) {
+			float r = srcRGB[2];
+			float g = srcRGB[1];
+			float b = srcRGB[0];
+			srcRGB += 4;			
+
+			*dstCb++ = -0.1482229f*r - 0.2909928f*g + 0.4392157f*b + (128.0f / 255.0f);
+			*dstY++  =  0.2567882f*r + 0.5041294f*g + 0.0979059f*b + ( 16.0f / 255.0f);
+			*dstCr++ =  0.4392157f*r - 0.3677883f*g - 0.0714274f*b + (128.0f / 255.0f);
 		}
 	}
 };
@@ -263,14 +305,14 @@ protected:
 
 		for(sint32 i=0; i<mWidth; ++i) {
 			float y = srcY[i];
-			float cb = srcCb[i];
-			float cr = srcCr[i];
+			float cb = srcCb[i] - (128.0f/255.0f);
+			float cr = srcCr[i] - (128.0f/255.0f);
 
 			float yf = 1.164f * (y - 16.0f / 255.0f);
 
-			dst[0] = yf + 1.793f * (cr - 0.5f);
-			dst[1] = yf - 0.533f * (cr - 0.5f) - 0.213f * (cb - 0.5f);
-			dst[2] = yf + 2.112f * (cb - 0.5f);
+			dst[0] = yf + 1.793f * cr;
+			dst[1] = yf - 0.533f * cr - 0.213f * cb;
+			dst[2] = yf + 2.112f * cb;
 			dst[3] = 1.0f;
 			dst += 4;
 		}
@@ -312,6 +354,229 @@ protected:
 			*dstCb++ = (28784*r - 26145*g -  2639*b + 8388608 + 32768) >> 16;
 			*dstY ++ = (11966*r + 40254*g +  4064*b + 1048576 + 32768) >> 16;
 			*dstCr++ = (-6596*r - 22189*g + 28784*b + 8388608 + 32768) >> 16;
+		}
+	}
+};
+
+class VDPixmapGenRGB32FToYCbCr709 : public VDPixmapGenWindowBasedOneSource {
+public:
+	void Init(IVDPixmapGen *src, uint32 srcindex) {
+		InitSource(src, srcindex);
+	}
+
+	void Start() {
+		StartWindow(mWidth * sizeof(float), 3);
+	}
+
+	const void *GetRow(sint32 y, uint32 index) {
+		return (const uint8 *)VDPixmapGenWindowBasedOneSource::GetRow(y, index) + mWindowPitch * index;
+	}
+
+	uint32 GetType(uint32 output) const {
+		return (mpSrc->GetType(mSrcIndex) & ~(kVDPixType_Mask | kVDPixSpace_Mask)) | kVDPixType_32F_LE | kVDPixSpace_YCC_709;
+	}
+
+protected:
+	void Compute(void *dst0, sint32 y) {
+		float *dstCb = (float *)dst0;
+		float *dstY  = dstCb + mWindowPitch;
+		float *dstCr = dstY + mWindowPitch;
+
+		const float *srcRGB = (const float *)mpSrc->GetRow(y, mSrcIndex);
+
+		VDCPUCleanupExtensions();
+
+		for(sint32 i=0; i<mWidth; ++i) {
+			float r = srcRGB[2];
+			float g = srcRGB[1];
+			float b = srcRGB[0];
+			srcRGB += 4;			
+
+			*dstCb++ = -0.1006437f*r - 0.3385720f*g + 0.4392157f*b + (128.0f / 255.0f);
+			*dstY++  =  0.1825859f*r + 0.6142306f*g + 0.0620071f*b + ( 16.0f / 255.0f);
+			*dstCr++ =  0.4392157f*r - 0.3989422f*g - 0.0402735f*b + (128.0f / 255.0f);
+		}
+	}
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//	Rec.601 <-> Rec.709 converters
+//
+//	Rec.601 to Rec.709:
+//
+//    1.  - 0.1155497  - 0.2079376    41.406386
+//    0     1.0186397    0.1146180  - 17.056983
+//    0     0.0750494    1.0253271  - 12.848195
+//
+//	Rec.709 to Rec.601:
+//
+//    1.    0.0993117    0.1916995  - 37.249435
+//    0     0.9898538  - 0.1106525    15.462234
+//    0   - 0.0724530    0.9833978    11.399058
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class VDPixmapGenYCbCr601ToYCbCr709 : public VDPixmapGenYCbCrToRGBBase {
+public:
+	void Start() {
+		mpSrcY->Start();
+		mpSrcCb->Start();
+		mpSrcCr->Start();
+
+		StartWindow(mWidth, 3);
+	}
+
+	const void *GetRow(sint32 y, uint32 index) {
+		return (const uint8 *)VDPixmapGenYCbCrToRGBBase::GetRow(y, index) + mWindowPitch * index;
+	}
+
+	uint32 GetType(uint32 output) const {
+		return (mpSrcY->GetType(mSrcIndexY) & ~(kVDPixType_Mask | kVDPixSpace_Mask)) | kVDPixType_8 | kVDPixSpace_YCC_709;
+	}
+
+protected:
+	void Compute(void *dst0, sint32 ypos) {
+		uint8 *dstCr = (uint8 *)dst0;
+		uint8 *dstY  = dstCr + mWindowPitch;
+		uint8 *dstCb = dstY + mWindowPitch;
+
+		const uint8 *srcY  = (const uint8 *)mpSrcY->GetRow(ypos, mSrcIndexY);
+		const uint8 *srcCb = (const uint8 *)mpSrcCb->GetRow(ypos, mSrcIndexCb);
+		const uint8 *srcCr = (const uint8 *)mpSrcCr->GetRow(ypos, mSrcIndexCr);
+
+		for(sint32 i=0; i<mWidth; ++i) {
+			sint32 y = srcY[i];
+			sint32 cb = srcCb[i];
+			sint32 cr = srcCr[i];
+
+			*dstY++  = y + ((-7573*cb - 13627*cr + 2713609 + 32768) >> 16);
+			*dstCb++ = (66758*cb + 7512*cr - 1117846 + 32768) >> 16;
+			*dstCr++ = (4918*cb + 67196*cr - 842019 + 32768) >> 16;
+		}
+	}
+};
+
+class VDPixmapGenYCbCr709ToYCbCr601 : public VDPixmapGenYCbCrToRGBBase {
+public:
+	void Start() {
+		mpSrcY->Start();
+		mpSrcCb->Start();
+		mpSrcCr->Start();
+
+		StartWindow(mWidth, 3);
+	}
+
+	const void *GetRow(sint32 y, uint32 index) {
+		return (const uint8 *)VDPixmapGenYCbCrToRGBBase::GetRow(y, index) + mWindowPitch * index;
+	}
+
+	uint32 GetType(uint32 output) const {
+		return (mpSrcY->GetType(mSrcIndexY) & ~(kVDPixType_Mask | kVDPixSpace_Mask)) | kVDPixType_8 | kVDPixSpace_YCC_709;
+	}
+
+protected:
+	void Compute(void *dst0, sint32 ypos) {
+		uint8 *dstCr = (uint8 *)dst0;
+		uint8 *dstY  = dstCr + mWindowPitch;
+		uint8 *dstCb = dstY + mWindowPitch;
+
+		const uint8 *srcY  = (const uint8 *)mpSrcY->GetRow(ypos, mSrcIndexY);
+		const uint8 *srcCb = (const uint8 *)mpSrcCb->GetRow(ypos, mSrcIndexCb);
+		const uint8 *srcCr = (const uint8 *)mpSrcCr->GetRow(ypos, mSrcIndexCr);
+
+		for(sint32 i=0; i<mWidth; ++i) {
+			sint32 y = srcY[i];
+			sint32 cb = srcCb[i];
+			sint32 cr = srcCr[i];
+
+			*dstY++  = y + ((6508*cb + 12563*cr - 2441088 + 32768) >> 16);
+			*dstCb++ = (64871*cb - 7252*cr + 1013376 + 32768) >> 16;
+			*dstCr++ = (-4748*cb + 64448*cr + 747008 + 32768) >> 16;
+		}
+	}
+};
+
+class VDPixmapGenYCbCr601ToYCbCr709_32F : public VDPixmapGenYCbCrToRGBBase {
+public:
+	void Start() {
+		mpSrcY->Start();
+		mpSrcCb->Start();
+		mpSrcCr->Start();
+
+		StartWindow(mWidth * sizeof(float), 3);
+	}
+
+	const void *GetRow(sint32 y, uint32 index) {
+		return (const uint8 *)VDPixmapGenYCbCrToRGBBase::GetRow(y, index) + mWindowPitch * index;
+	}
+
+	uint32 GetType(uint32 output) const {
+		return (mpSrcY->GetType(mSrcIndexY) & ~(kVDPixType_Mask | kVDPixSpace_Mask)) | kVDPixType_32F_LE | kVDPixSpace_YCC_709;
+	}
+
+protected:
+	void Compute(void *dst0, sint32 ypos) {
+		float *dstCr = (float *)dst0;
+		float *dstY  = vdptroffset(dstCr, mWindowPitch);
+		float *dstCb = vdptroffset(dstY, mWindowPitch);
+
+		const float *srcY  = (const float *)mpSrcY->GetRow(ypos, mSrcIndexY);
+		const float *srcCb = (const float *)mpSrcCb->GetRow(ypos, mSrcIndexCb);
+		const float *srcCr = (const float *)mpSrcCr->GetRow(ypos, mSrcIndexCr);
+
+		VDCPUCleanupExtensions();
+
+		for(sint32 i=0; i<mWidth; ++i) {
+			float y = srcY[i];
+			float cb = srcCb[i] - (128.0f / 255.0f);
+			float cr = srcCr[i] - (128.0f / 255.0f);
+
+			*dstY++ = y - 0.1155497f*cb - 0.2079376f*cr;
+			*dstCb++ = 1.0186397f*cb + 0.1146180f*cr + (128.0f / 255.0f);
+			*dstCr++ = 0.0750494f*cb + 1.0253271f*cr + (128.0f / 255.0f);
+		}
+	}
+};
+
+class VDPixmapGenYCbCr709ToYCbCr601_32F : public VDPixmapGenYCbCrToRGBBase {
+public:
+	void Start() {
+		mpSrcY->Start();
+		mpSrcCb->Start();
+		mpSrcCr->Start();
+
+		StartWindow(mWidth * sizeof(float), 3);
+	}
+
+	const void *GetRow(sint32 y, uint32 index) {
+		return (const uint8 *)VDPixmapGenYCbCrToRGBBase::GetRow(y, index) + mWindowPitch * index;
+	}
+
+	uint32 GetType(uint32 output) const {
+		return (mpSrcY->GetType(mSrcIndexY) & ~(kVDPixType_Mask | kVDPixSpace_Mask)) | kVDPixType_32F_LE | kVDPixSpace_YCC_709;
+	}
+
+protected:
+	void Compute(void *dst0, sint32 ypos) {
+		float *dstCr = (float *)dst0;
+		float *dstY  = vdptroffset(dstCr, mWindowPitch);
+		float *dstCb = vdptroffset(dstY, mWindowPitch);
+
+		const float *srcY  = (const float *)mpSrcY->GetRow(ypos, mSrcIndexY);
+		const float *srcCb = (const float *)mpSrcCb->GetRow(ypos, mSrcIndexCb);
+		const float *srcCr = (const float *)mpSrcCr->GetRow(ypos, mSrcIndexCr);
+
+		VDCPUCleanupExtensions();
+
+		for(sint32 i=0; i<mWidth; ++i) {
+			float y = srcY[i];
+			float cb = srcCb[i] - (128.0f / 255.0f);
+			float cr = srcCr[i] - (128.0f / 255.0f);
+
+			*dstY++  = y - 0.1155497f*cb - 0.2079376f*cr;
+			*dstCb++ =     0.9898538f*cb - 0.1106525f*cr + (128.0f / 255.0f);
+			*dstCr++ =   - 0.0724530f*cb + 0.9833978f*cr + (128.0f / 255.0f);
 		}
 	}
 };

@@ -40,6 +40,8 @@ extern HINSTANCE g_hInst;
 
 extern const char g_szError[];
 
+const VDStringW& VDPreferencesGetAudioPlaybackDeviceKey();
+
 class VDCaptureDriverEmulation : public IVDCaptureDriver, public IVDTimerCallback {
 	VDCaptureDriverEmulation(const VDCaptureDriverEmulation&);
 	VDCaptureDriverEmulation& operator=(const VDCaptureDriverEmulation&);
@@ -610,7 +612,7 @@ void VDCaptureDriverEmulation::OpenInputFile(const wchar_t *fn) {
 			sint32 audioSamplesPerBlock = (pwfex->nAvgBytesPerSec / 5 + pwfex->nBlockAlign - 1) / pwfex->nBlockAlign;
 			sint32 bytesPerBlock = audioSamplesPerBlock * pwfex->nBlockAlign;
 
-			mpAudioOutput->Init(bytesPerBlock, 2, pwfex);
+			mpAudioOutput->Init(bytesPerBlock, 2, pwfex, VDPreferencesGetAudioPlaybackDeviceKey().c_str());
 			mpAudioOutput->Start();
 			mAudioClientBuffer.resize(bytesPerBlock);
 			mAudioRecordBuffer.Init(bytesPerBlock * 4);		// We need more space to account for device buffering

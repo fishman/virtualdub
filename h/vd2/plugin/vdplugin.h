@@ -48,6 +48,9 @@
 	typedef sint32				int32;
 	typedef sint16				int16;
 	typedef sint8				int8;
+
+	typedef ptrdiff_t			sintptr;
+	typedef size_t				uintptr;
 #endif
 
 #ifndef VDXAPIENTRY
@@ -179,6 +182,16 @@ namespace nsVDXPixmap {
 		kPixFormat_YUV411_Planar	= 16,
 		kPixFormat_YUV410_Planar	= 17
 	};
+};
+
+#define VDXMAKEFOURCC(a, b, c, d) ((uint32)(uint8)(d) + ((uint32)(uint8)(c) << 8) + ((uint32)(uint8)(b) << 16) + ((uint32)(uint8)(a) << 24))
+
+class IVDXUnknown {
+public:
+	enum { kIID = VDXMAKEFOURCC('X', 'u', 'n', 'k') };
+	virtual int VDXAPIENTRY AddRef() = 0;
+	virtual int VDXAPIENTRY Release() = 0;
+	virtual void *VDXAPIENTRY AsInterface(uint32 iid) = 0;
 };
 
 #endif

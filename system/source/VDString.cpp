@@ -106,9 +106,10 @@ VDStringA& VDStringA::append_vsprintf(const value_type *format, va_list val) {
 		for(int siz = 8192; siz <= 65536; siz += siz) {
 			tmp.resize(siz);
 
+			char *tmpp = tmp.data();
 			len = _vsnprintf(tmp.data(), siz, format, val);
 			if (len >= 0) {
-				append(buf, buf+len);
+				append(tmpp, tmpp+len);
 				break;
 			}
 		}
@@ -194,9 +195,10 @@ VDStringW& VDStringW::append_vsprintf(const value_type *format, va_list val) {
 		for(int siz = 4096; siz <= 65536; siz += siz) {
 			tmp.resize(siz);
 
-			len = vswprintf(tmp.data(), siz, format, val);
+			wchar_t *tmpp = tmp.data();
+			len = vswprintf(tmpp, siz, format, val);
 			if (len >= 0) {
-				append(buf, buf+len);
+				append(tmpp, tmpp+len);
 				break;
 			}
 		}

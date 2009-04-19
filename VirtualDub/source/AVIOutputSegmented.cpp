@@ -774,7 +774,7 @@ void VDAVIOutputSegmented::Update() {
 
 			if (!mpFirstAudioStream) {
 				sint64 newSize = mAccumulatedBytes + videoBytes;
-				if (mAccumulatedBytes > 0 && (newSize + mAccumulatedFrames * 24 > mSegmentSizeLimit || mAccumulatedFrames+videoSamples >= mSegmentFrameLimit)) {
+				if (mAccumulatedBytes > 0 && (newSize + mAccumulatedFrames * 24 > mSegmentSizeLimit || mAccumulatedFrames+videoSamples > mSegmentFrameLimit)) {
 					mbSegmentEnding = true;
 				} else {
 					mAccumulatedBytes = newSize;
@@ -784,7 +784,7 @@ void VDAVIOutputSegmented::Update() {
 			} else if (mpFirstAudioStream->GetPendingInfo(endTime, audioSamples, audioBytes)) {
 				sint64 newSize = mAccumulatedBytes + audioBytes + videoBytes;
 
-				if (mAccumulatedBytes > 0 && (newSize + VDFloorToInt64(mAccumulatedFrames * (1.0 + 1.0 / mAudioInterval)) * 24 > mSegmentSizeLimit || mAccumulatedFrames+videoSamples >= mSegmentFrameLimit)) {
+				if (mAccumulatedBytes > 0 && (newSize + VDFloorToInt64(mAccumulatedFrames * (1.0 + 1.0 / mAudioInterval)) * 24 > mSegmentSizeLimit || mAccumulatedFrames+videoSamples > mSegmentFrameLimit)) {
 					mbSegmentEnding = true;
 				} else {
 					mAccumulatedBytes = newSize;

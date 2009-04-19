@@ -92,6 +92,9 @@ bool VDVideoDisplayMinidriverGDI::Init(HWND hwnd, const VDVideoDisplaySourceInfo
 	case nsVDPixmap::kPixFormat_YUV411_Planar:
 	case nsVDPixmap::kPixFormat_YUV410_Planar:
 	case nsVDPixmap::kPixFormat_Y8:
+	case nsVDPixmap::kPixFormat_YUV422_V210:
+	case nsVDPixmap::kPixFormat_YUV422_UYVY_709:
+	case nsVDPixmap::kPixFormat_YUV420_NV12:
 		if (!info.bAllowConversion)
 	default:
 			return false;
@@ -188,6 +191,9 @@ bool VDVideoDisplayMinidriverGDI::Init(HWND hwnd, const VDVideoDisplaySourceInfo
 				case nsVDPixmap::kPixFormat_YUV411_Planar:
 				case nsVDPixmap::kPixFormat_YUV410_Planar:
 				case nsVDPixmap::kPixFormat_Y8:
+				case nsVDPixmap::kPixFormat_YUV422_V210:
+				case nsVDPixmap::kPixFormat_YUV422_UYVY_709:
+				case nsVDPixmap::kPixFormat_YUV420_NV12:
 				case nsVDPixmap::kPixFormat_RGB565:
 					switch(mScreenFormat) {
 					case nsVDPixmap::kPixFormat_XRGB1555:
@@ -314,6 +320,9 @@ bool VDVideoDisplayMinidriverGDI::Update(UpdateMode mode) {
 			case nsVDPixmap::kPixFormat_YUV411_Planar:
 			case nsVDPixmap::kPixFormat_YUV410_Planar:
 			case nsVDPixmap::kPixFormat_Y8:
+			case nsVDPixmap::kPixFormat_YUV422_V210:
+			case nsVDPixmap::kPixFormat_YUV422_UYVY_709:
+			case nsVDPixmap::kPixFormat_YUV420_NV12:
 				dstbm.format = mScreenFormat;
 				break;
 			}

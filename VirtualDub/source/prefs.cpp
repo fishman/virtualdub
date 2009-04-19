@@ -21,6 +21,7 @@
 
 #include <windows.h>
 #include <commctrl.h>
+#include <mmsystem.h>
 
 #include <vd2/Dita/interface.h>
 #include <vd2/system/registry.h>
@@ -53,6 +54,7 @@ namespace {
 		uint32			mRenderOutputBufferSize;
 		uint32			mRenderWaveBufferSize;
 		uint32			mRenderVideoBufferCount;
+		uint32			mRenderAudioBufferSeconds;
 		uint32			mRenderThrottlePercent;
 		VDStringW		mD3DFXFile;
 		uint32			mFileAsyncDefaultMode;
@@ -62,8 +64,12 @@ namespace {
 		VDFraction		mImageSequenceFrameRate;
 
 		bool			mbDisplayAllowDirectXOverlays;
+		bool			mbDisplayEnableHighPrecision;
+		bool			mbDisplayEnableBackgroundFallback;
 
 		int				mVideoCompressionThreads;
+
+		VDStringW		mAudioPlaybackDeviceKey;
 
 		uint32			mEnabledCPUFeatures;
 	} g_prefs2;
@@ -138,6 +144,8 @@ public:
 			SetValue(106, 0 != (mPrefs.mOldPrefs.fDisplay & Preferences::kDisplayEnableVSync));
 			SetValue(107, mPrefs.mbDisplayAllowDirectXOverlays);
 			SetValue(108, mPrefs.mbDisplayEnableDebugInfo);
+			SetValue(109, mPrefs.mbDisplayEnableHighPrecision);
+			SetValue(110, mPrefs.mbDisplayEnableBackgroundFallback);
 			SetCaption(300, mPrefs.mD3DFXFile.c_str());
 			pBase->ExecuteAllLinks();
 			return true;
@@ -153,6 +161,8 @@ public:
 			if ( GetValue(106)) mPrefs.mOldPrefs.fDisplay |= Preferences::kDisplayEnableVSync;
 			mPrefs.mbDisplayAllowDirectXOverlays = GetValue(107) != 0;
 			mPrefs.mbDisplayEnableDebugInfo = GetValue(108) != 0;
+			mPrefs.mbDisplayEnableHighPrecision = GetValue(109) != 0;
+			mPrefs.mbDisplayEnableBackgroundFallback = GetValue(110) != 0;
 			mPrefs.mD3DFXFile = GetCaption(300);
 			return true;
 		}
@@ -456,6 +466,80 @@ public:
 	}
 };
 
+class VDDialogPreferencesPlayback : public VDDialogBase {
+public:
+	VDPreferences2& mPrefs;
+	VDDialogPreferencesPlayback(VDPreferences2& p) : mPrefs(p) {}
+
+	bool HandleUIEvent(IVDUIBase *pBase, IVDUIWindow *pWin, uint32 id, eEventType type, int item) {
+		switch(type) {
+		case kEventAttach:
+			mpBase = pBase;
+			pBase->ExecuteAllLinks();
+
+			{
+				UINT numDevices = waveOutGetNumDevs();
+				IVDUIWindow *win = pBase->GetControl(100);
+				IVDUIList *list = vdpoly_cast<IVDUIList *>(win);
+
+				mPlaybackDeviceKeys.clear();
+				mPlaybackDeviceKeys.resize(numDevices + 1);
+
+				if (list) {
+					list->AddItem(L"Default system playback device");
+
+					for(UINT i=0; i<numDevices; ++i) {
+						WAVEOUTCAPSA caps = {0};
+
+						if (MMSYSERR_NOERROR == waveOutGetDevCapsA(i, &caps, sizeof(caps))) {
+							const VDStringW key(VDTextAToW(caps.szPname).c_str());
+
+							mPlaybackDeviceKeys[i + 1] = key;
+
+							list->AddItem(key.c_str(), i + 1);
+						}
+					}
+
+					PlaybackDeviceKeys::const_iterator it(std::find(mPlaybackDeviceKeys.begin(), mPlaybackDeviceKeys.end(), mPrefs.mAudioPlaybackDeviceKey));
+					if (it != mPlaybackDeviceKeys.end())
+						win->SetValue(it - mPlaybackDeviceKeys.begin());
+					else
+						win->SetValue(0);
+				}
+			}
+
+			return true;
+		case kEventDetach:
+		case kEventSync:
+			{
+				IVDUIWindow *win = pBase->GetControl(100);
+				int index = 0;
+
+				if (win) {
+					IVDUIList *list = vdpoly_cast<IVDUIList *>(win);
+					if (list) {
+						int i = win->GetValue();
+
+						if (i >= 0)
+							index = list->GetItemData(i);
+					}
+				}
+
+				if ((uint32)index < mPlaybackDeviceKeys.size())
+					mPrefs.mAudioPlaybackDeviceKey = mPlaybackDeviceKeys[index];
+				else
+					mPrefs.mAudioPlaybackDeviceKey.clear();
+			}
+			return true;
+		}
+		return false;
+	}
+
+protected:
+	typedef std::vector<VDStringW> PlaybackDeviceKeys;
+	PlaybackDeviceKeys mPlaybackDeviceKeys;
+};
+
 class VDDialogPreferences : public VDDialogBase {
 public:
 	VDPreferences2& mPrefs;
@@ -481,6 +565,7 @@ public:
 				case 7:	pSubDialog->SetCallback(new VDDialogPreferencesDiskIO(mPrefs), true); break;
 				case 8:	pSubDialog->SetCallback(new VDDialogPreferencesImages(mPrefs), true); break;
 				case 9:	pSubDialog->SetCallback(new VDDialogPreferencesThreading(mPrefs), true); break;
+				case 10:	pSubDialog->SetCallback(new VDDialogPreferencesPlayback(mPrefs), true); break;
 				}
 			}
 		} else if (type == kEventSelect) {
@@ -555,6 +640,7 @@ void LoadPreferences() {
 	g_prefs2.mRenderOutputBufferSize = std::max<uint32>(65536, std::min<uint32>(0x10000000, key.getInt("Render: Output buffer size", 2097152)));
 	g_prefs2.mRenderWaveBufferSize = std::max<uint32>(65536, std::min<uint32>(0x10000000, key.getInt("Render: Wave buffer size", 65536)));
 	g_prefs2.mRenderVideoBufferCount = std::max<uint32>(1, std::min<uint32>(65536, key.getInt("Render: Video buffer count", 32)));
+	g_prefs2.mRenderAudioBufferSeconds = std::max<uint32>(1, std::min<uint32>(32, key.getInt("Render: Audio buffer seconds", 2)));
 	g_prefs2.mRenderThrottlePercent = std::max<uint32>(10, std::min<uint32>(100, key.getInt("Render: Default throttle percent", 100)));
 	g_prefs2.mFileAsyncDefaultMode = std::min<uint32>(IVDFileAsync::kModeCount-1, key.getInt("File: Async mode", IVDFileAsync::kModeAsynchronous));
 	g_prefs2.mAVISuperindexLimit = key.getInt("AVI: Superindex entry limit", 256);
@@ -562,6 +648,8 @@ void LoadPreferences() {
 
 	g_prefs2.mbDisplayAllowDirectXOverlays = key.getBool("Display: Allow DirectX overlays", true);
 	g_prefs2.mbDisplayEnableDebugInfo = key.getBool("Display: Enable debug info", false);
+	g_prefs2.mbDisplayEnableHighPrecision = key.getBool("Display: Enable high precision", false);
+	g_prefs2.mbDisplayEnableBackgroundFallback = key.getBool("Display: Enable background fallback", true);
 
 	uint32 imageSeqHi = key.getInt("Images: Frame rate numerator", 10);
 	uint32 imageSeqLo = key.getInt("Images: Frame rate denominator", 1);
@@ -569,6 +657,9 @@ void LoadPreferences() {
 	g_prefs2.mImageSequenceFrameRate.Assign(imageSeqHi, imageSeqLo);
 
 	g_prefs2.mVideoCompressionThreads = key.getInt("Threading: Video compression threads", 0);
+
+	key.getString("Playback: Default audio device", g_prefs2.mAudioPlaybackDeviceKey);
+
 	g_prefs2.mEnabledCPUFeatures = key.getInt("CPU: Enabled extensions", 0);
 
 	g_prefs2.mOldPrefs = g_prefs;
@@ -592,6 +683,7 @@ void VDSavePreferences(VDPreferences2& prefs) {
 	key.setInt("Render: Output buffer size", prefs.mRenderOutputBufferSize);
 	key.setInt("Render: Wave buffer size", prefs.mRenderWaveBufferSize);
 	key.setInt("Render: Video buffer count", prefs.mRenderVideoBufferCount);
+	key.setInt("Render: Audio buffer seconds", prefs.mRenderAudioBufferSeconds);
 	key.setInt("Render: Default throttle percent", prefs.mRenderThrottlePercent);
 	key.setInt("File: Async mode", prefs.mFileAsyncDefaultMode);
 	key.setInt("AVI: Superindex entry limit", prefs.mAVISuperindexLimit);
@@ -599,11 +691,15 @@ void VDSavePreferences(VDPreferences2& prefs) {
 
 	key.setBool("Display: Allow DirectX overlays", prefs.mbDisplayAllowDirectXOverlays);
 	key.setBool("Display: Enable debug info", prefs.mbDisplayEnableDebugInfo);
+	key.setBool("Display: Enable high precision", prefs.mbDisplayEnableHighPrecision);
+	key.setBool("Display: Enable background fallback", prefs.mbDisplayEnableBackgroundFallback);
 
 	key.setInt("Images: Frame rate numerator", prefs.mImageSequenceFrameRate.getHi());
 	key.setInt("Images: Frame rate denominator", prefs.mImageSequenceFrameRate.getLo());
 
 	key.setInt("Threading: Video compression threads", prefs.mVideoCompressionThreads);
+
+	key.setString("Playback: Default audio device", prefs.mAudioPlaybackDeviceKey.c_str());
 
 	key.setInt("CPU: Enabled extensions", prefs.mEnabledCPUFeatures);
 }
@@ -661,6 +757,10 @@ uint32& VDPreferencesGetRenderVideoBufferCount() {
 	return g_prefs2.mRenderVideoBufferCount;
 }
 
+uint32& VDPreferencesGetRenderAudioBufferSeconds() {
+	return g_prefs2.mRenderAudioBufferSeconds;
+}
+
 uint32 VDPreferencesGetRenderThrottlePercent() {
 	return g_prefs2.mRenderThrottlePercent;
 }
@@ -681,6 +781,10 @@ uint32 VDPreferencesGetEnabledCPUFeatures() {
 	return g_prefs2.mEnabledCPUFeatures;
 }
 
+const VDStringW& VDPreferencesGetAudioPlaybackDeviceKey() {
+	return g_prefs2.mAudioPlaybackDeviceKey;
+}
+
 void VDPreferencesUpdated() {
 	VDVideoDisplaySetFeatures(
 		!(g_prefs2.mOldPrefs.fDisplay & Preferences::kDisplayDisableDX),
@@ -688,9 +792,11 @@ void VDPreferencesUpdated() {
 		!!(g_prefs2.mOldPrefs.fDisplay & Preferences::kDisplayUseDXWithTS),
 		!!(g_prefs2.mOldPrefs.fDisplay & Preferences::kDisplayEnableOpenGL),
 		!!(g_prefs2.mOldPrefs.fDisplay & Preferences::kDisplayEnableD3D),
-		!!(g_prefs2.mOldPrefs.fDisplay & Preferences::kDisplayEnableD3DFX)
+		!!(g_prefs2.mOldPrefs.fDisplay & Preferences::kDisplayEnableD3DFX),
+		g_prefs2.mbDisplayEnableHighPrecision
 		);
 
 	VDVideoDisplaySetD3DFXFileName(g_prefs2.mD3DFXFile.c_str());
 	VDVideoDisplaySetDebugInfoEnabled(g_prefs2.mbDisplayEnableDebugInfo);
+	VDVideoDisplaySetBackgroundFallbackEnabled(g_prefs2.mbDisplayEnableBackgroundFallback);
 }

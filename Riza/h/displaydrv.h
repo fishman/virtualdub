@@ -79,6 +79,7 @@ public:
 	virtual void SetFullScreen(bool fullscreen) = 0;
 	virtual void SetDisplayDebugInfo(bool enable) = 0;
 	virtual void SetColorOverride(uint32 color) = 0;
+	virtual void SetHighPrecision(bool enable) = 0;
 
 	virtual bool Tick(int id) = 0;
 	virtual void Poll() = 0;
@@ -102,6 +103,7 @@ public:
 	virtual void SetFullScreen(bool fullscreen);
 	virtual void SetDisplayDebugInfo(bool enable);
 	virtual void SetColorOverride(uint32 color);
+	virtual void SetHighPrecision(bool enable);
 
 	virtual bool Tick(int id);
 	virtual void Poll();
@@ -116,6 +118,7 @@ protected:
 	static void GetFormatString(const VDVideoDisplaySourceInfo& info, VDStringA& s);
 
 	bool	mbDisplayDebugInfo;
+	bool	mbHighPrecision;
 	uint32	mColorOverride;
 };
 

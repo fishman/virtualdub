@@ -37,6 +37,7 @@ class VDTimeline;
 class IVDVideoFilterPreviewDialog : public IVDRefCount {
 public:
 	virtual IVDXFilterPreview2 *AsIVDXFilterPreview2() = 0;
+	virtual void SetInitialTime(VDTime t) = 0;
 };
 
 bool VDCreateVideoFilterPreviewDialog(List *, FilterInstance *, IVDVideoFilterPreviewDialog **);

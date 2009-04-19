@@ -49,16 +49,14 @@ public:
 
 	void OpenAsk();
 	void AppendAsk();
-	void SaveAVIAsk();
-	void SaveCompatibleAVIAsk();
-	void SaveStripedAVIAsk();
-	void SaveStripeMasterAsk();
-	void SaveImageSequenceAsk();
-	void SaveSegmentedAVIAsk();
-	void SaveWAVAsk();
+	void SaveAVIAsk(bool batchMode);
+	void SaveCompatibleAVIAsk(bool batchMode);
+	void SaveImageSequenceAsk(bool batchMode);
+	void SaveSegmentedAVIAsk(bool batchMode);
+	void SaveWAVAsk(bool batchMode);
 	void SaveFilmstripAsk();
 	void SaveAnimatedGIFAsk();
-	void SaveRawAudioAsk();
+	void SaveRawAudioAsk(bool batchMode);
 	void SaveConfigurationAsk();
 	void LoadConfigurationAsk();
 	void SetVideoFiltersAsk();
@@ -106,9 +104,10 @@ protected:
 	void OpenCurveEditor();
 	void CloseCurveEditor();
 	void UpdateCurveList();
+	void UpdateCurveEditorPosition();
 
-	void UIRefreshInputFrame(bool bValid);
-	void UIRefreshOutputFrame(bool bValid);
+	void UIRefreshInputFrame(const VDPixmap *px);
+	void UIRefreshOutputFrame(const VDPixmap *px);
 	void UISetDubbingMode(bool bActive, bool bIsPreview);
 	bool UIRunDubMessageLoop();
 	void UIAbortDubMessageLoop();

@@ -608,6 +608,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\blt_setup.cpp"
+				>
+			</File>
+			<File
 				RelativePath="source\blt_spanutils.cpp"
 				>
 				<FileConfiguration
@@ -646,6 +650,10 @@
 						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\blt_uberblit.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\source\pixel.cpp"
@@ -824,6 +832,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\tables.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\text.cpp"
 				>
 			</File>
@@ -872,12 +884,68 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\uberblit_16f.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\uberblit_gen.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\source\uberblit_resample.cpp"
 				>
+			</File>
+			<File
+				RelativePath=".\source\uberblit_resample_special.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\uberblit_swizzle.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\uberblit_swizzle_x86.cpp"
+				>
+				<FileConfiguration
+					Name="Release|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\uberblit_v210.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\uberblit_ycbcr_x86.cpp"
+				>
+				<FileConfiguration
+					Name="Release|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
 			</File>
 		</Filter>
 		<Filter
@@ -886,6 +954,10 @@
 			>
 			<File
 				RelativePath="h\bitutils.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\blt_setup.h"
 				>
 			</File>
 			<File
@@ -941,6 +1013,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\h\vd2\Kasumi\tables.h"
+				>
+			</File>
+			<File
 				RelativePath="..\h\vd2\Kasumi\text.h"
 				>
 			</File>
@@ -950,6 +1026,10 @@
 			</File>
 			<File
 				RelativePath=".\h\uberblit.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\uberblit_16f.h"
 				>
 			</File>
 			<File
@@ -977,11 +1057,31 @@
 				>
 			</File>
 			<File
+				RelativePath=".\h\uberblit_resample_special.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\uberblit_resample_special_x86.h"
+				>
+			</File>
+			<File
 				RelativePath=".\h\uberblit_rgb.h"
 				>
 			</File>
 			<File
 				RelativePath=".\h\uberblit_rgb_x86.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\uberblit_swizzle.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\uberblit_swizzle_x86.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\uberblit_v210.h"
 				>
 			</File>
 			<File
@@ -1058,6 +1158,26 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\a_bltyuv2rgb_sse2.asm"
+				>
+				<FileConfiguration
+					Name="Release|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="YASM"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="YASM"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="source\a_resample_mmx.asm"
 				>
 				<FileConfiguration
@@ -1079,6 +1199,26 @@
 			</File>
 			<File
 				RelativePath=".\source\a_resample_sse41.asm"
+				>
+				<FileConfiguration
+					Name="Release|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="YASM"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="YASM"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\a_spanutils_isse.asm"
 				>
 				<FileConfiguration
 					Name="Release|x64"
@@ -1177,6 +1317,26 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath=".\source\a_triblt_sse2.asm"
+				>
+				<FileConfiguration
+					Name="Release|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="YASM"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="YASM"
+					/>
+				</FileConfiguration>
+			</File>
 		</Filter>
 		<Filter
 			Name="Source Files (x86)"
@@ -1245,6 +1405,26 @@
 			</File>
 			<File
 				RelativePath=".\source\resample_stages_x86.cpp"
+				>
+				<FileConfiguration
+					Name="Release|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\source\uberblit_resample_special_x86.cpp"
 				>
 				<FileConfiguration
 					Name="Release|x64"
@@ -1385,6 +1565,14 @@
 						Name="VCCLCompilerTool"
 					/>
 				</FileConfiguration>
+			</File>
+		</Filter>
+		<Filter
+			Name="Interface Header Files"
+			>
+			<File
+				RelativePath="..\h\vd2\Kasumi\blitter.h"
+				>
 			</File>
 		</Filter>
 		<File

@@ -37,7 +37,11 @@ struct VDAlignedObject {
 	inline void operator delete(void *p) { VDAlignedFree(p); }
 };
 
-void VDSwapMemory(void *p0, void *p1, unsigned bytes);
+void *VDAlignedVirtualAlloc(size_t n);
+void VDAlignedVirtualFree(void *p);
+
+extern void (__cdecl *VDSwapMemory)(void *p0, void *p1, size_t bytes);
+
 void VDInvertMemory(void *p, unsigned bytes);
 
 bool VDIsValidReadRegion(const void *p, size_t bytes);

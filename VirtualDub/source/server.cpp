@@ -28,11 +28,13 @@
 #include <vd2/system/error.h>
 #include <vd2/system/file.h>
 #include <vd2/system/filesys.h>
+#include <vd2/system/strutil.h>
 #include <vd2/Dita/services.h>
 #include <vd2/Kasumi/pixmap.h>
 #include <vd2/Kasumi/pixmapops.h>
 #include <vd2/Kasumi/pixmaputils.h>
 #include "FrameSubset.h"
+#include "FilterFrameVideoSource.h"
 
 #include "filters.h"
 #include "dub.h"
@@ -123,16 +125,13 @@ private:
 	long				lVideoSamples;
 	long				lAudioSamples;
 	VDRenderFrameMap	mVideoFrameMap;
+	vdrefptr<VDFilterFrameVideoSource>	mpVideoFrameSource;
 	VDPixmapLayout		mFrameLayout;
 	uint32				mFrameSize;
-
-	DWORD_PTR			dwUserSave;
 
 	long			lRequestCount, lFrameCount, lAudioSegCount;
 
 	HWND			hwndStatus;
-
-	vdblock<char>	mInputBuffer;
 
 	typedef std::map<uint32, FrameserverSession *> tSessions;
 	tSessions	mSessions;
@@ -177,15 +176,13 @@ Frameserver::Frameserver(IVDVideoSource *video, AudioSource *audio, HWND hwndPar
 }
 
 Frameserver::~Frameserver() {
-	{
-		for(tSessions::iterator it(mSessions.begin()), itEnd(mSessions.end()); it!=itEnd; ++it) {
-			FrameserverSession *pSession = (*it).second;
+	for(tSessions::iterator it(mSessions.begin()), itEnd(mSessions.end()); it!=itEnd; ++it) {
+		FrameserverSession *pSession = (*it).second;
 
-			delete pSession;
-		}
-
-		mSessions.clear();
+		delete pSession;
 	}
+
+	mSessions.clear();
 
 	filters.DeinitFilters();
 	filters.DeallocateBuffers();
@@ -217,22 +214,21 @@ void Frameserver::Go(IVDubServerLink *ivdsl, char *name) {
 
 	const VDPixmap& px = vSrc->getTargetFormat();
 
-	filters.initLinearChain(&g_listFA, px.w, px.h, px.format, px.palette, vInfo.mFrameRatePreFilter, -1);
+	const VDFraction& srcFAR = vSrc->getPixelAspectRatio();
+	filters.prepareLinearChain(&g_listFA, px.w, px.h, px.format, vInfo.mFrameRatePreFilter, -1, srcFAR);
 
-	if (filters.getFrameLag())
-		MessageBox(g_hWnd,
-		"One or more filters in the filter chain has a non-zero lag. This will cause the served "
-		"video to lag behind the audio!"
-		, "VirtualDub warning", MB_OK);
+	mpVideoFrameSource = new VDFilterFrameVideoSource;
+	mpVideoFrameSource->Init(vSrc, filters.GetInputLayout());
+	filters.initLinearChain(&g_listFA, mpVideoFrameSource, px.w, px.h, px.format, px.palette, vInfo.mFrameRatePreFilter, -1, srcFAR);
 
-	filters.ReadyFilters();
+	filters.ReadyFilters(0);
 
 	InitVideoStreamValuesStatic2(vInfo, opt, &filters, frameRateTimeline);
 
 	InitAudioStreamValuesStatic(aInfo, aSrc, opt);
 
 	vdfastvector<IVDVideoSource *> vsrcs(1, vSrc);
-	mVideoFrameMap.Init(vsrcs, vInfo.start_src, vInfo.mFrameRateTimeline / vInfo.mFrameRate, &mSubset, vInfo.end_dst, false, &filters);
+	mVideoFrameMap.Init(vsrcs, vInfo.start_src, vInfo.mFrameRateTimeline / vInfo.mFrameRate, &mSubset, vInfo.end_dst, opt->video.mbUseSmartRendering, opt->video.mode == DubVideoOptions::M_NONE, opt->video.mbPreserveEmptyFrames, &filters);
 
 	if (opt->audio.fEndAudio)
 		videoset.deleteRange(endFrame, videoset.getTotalFrames());
@@ -258,8 +254,6 @@ void Frameserver::Go(IVDubServerLink *ivdsl, char *name) {
 	lVideoSamples = VDClampToUint32(mVideoFrameMap.size());
 
 	vSrc->streamBegin(true, false);
-
-	filters.ReadyFilters();
 
 	const VDPixmapLayout& outputLayout = filters.GetOutputLayout();
 
@@ -605,63 +599,26 @@ LRESULT Frameserver::SessionFrame(LPARAM lParam, WPARAM original_frame) {
 		return VDSRVERR_BADSESSION;
 
 	try {
-		const void *ptr = vSrc->getFrameBuffer();
-		VDPosition sample;
-		bool is_preroll;
-
 		const VDPixmapLayout& output = filters.GetOutputLayout();
 		if (fs->arena_size < ((output.w*3+3)&-4)*output.h)
 			return VDSRVERR_TOOBIG;
 
-		sample = mVideoFrameMap[original_frame].mDisplayFrame;
+		VDPosition pos = mVideoFrameMap[original_frame].mSourceFrame;
 
-		if (sample < 0)
+		if (pos < 0)
 			return VDSRVERR_FAILED;
 
-		vSrc->streamSetDesiredFrame(sample);
+		vdrefptr<IVDFilterFrameClientRequest> creq;
+		filters.RequestFrame(pos, ~creq);
 
-		VDPosition targetSample = vSrc->displayToStreamOrder(sample);
-		VDPosition frame = vSrc->streamGetNextRequiredFrame(is_preroll);
-
-		if (frame >= 0) {
-			IVDStreamSource *pVSS = vSrc->asStream();
-			do {
-				uint32 lSize;
-				int hr;
-
-	//			_RPT1(0,"feeding frame %ld\n", frame);
-
-				hr = pVSS->read(frame, 1, NULL, 0x7FFFFFFF, &lSize, NULL);
-				if (hr)
-					return VDSRVERR_FAILED;
-
-				uint32 bufSize = (lSize + 65535 + vSrc->streamGetDecodePadding()) & ~65535;
-				if (mInputBuffer.size() < bufSize)
-					mInputBuffer.resize(bufSize);
-
-				hr = pVSS->read(frame, 1, mInputBuffer.data(), lSize, &lSize, NULL); 
-				if (hr)
-					return VDSRVERR_FAILED;
-
-				vSrc->streamFillDecodePadding(mInputBuffer.data(), lSize);
-				ptr = vSrc->streamGetFrame(mInputBuffer.data(), lSize, is_preroll, frame, targetSample);
-			} while(-1 != (frame = vSrc->streamGetNextRequiredFrame(is_preroll)));
-
-		} else
-			ptr = vSrc->streamGetFrame(NULL, 0, FALSE, targetSample, targetSample);
+		while(!creq->IsCompleted()) {
+			mpVideoFrameSource->Run();
+			filters.RunToCompletion();
+		}
 
 		VDPixmap pxdst(VDPixmapFromLayout(mFrameLayout, fs->arena));
 
-		if (!g_listFA.IsEmpty()) {
-			VDPixmapBlt(filters.GetInput(), vSrc->getTargetFormat());
-
-			sint64 original_frame_time = VDRoundToInt64(vInfo.mFrameRate.AsInverseDouble() * 1000.0 * (double)original_frame);
-			filters.RunFilters(sample, original_frame, original_frame, original_frame_time, NULL, 0);
-
-			VDPixmapBlt(pxdst, filters.GetOutput());
-		} else
-			VDPixmapBlt(pxdst, vSrc->getTargetFormat());
-
+		VDPixmapBlt(pxdst, VDPixmapFromLayout(filters.GetOutputLayout(), creq->GetResultBuffer()->GetBasePointer()));
 	} catch(const MyError&) {
 		return VDSRVERR_FAILED;
 	}
@@ -834,7 +791,7 @@ INT_PTR CALLBACK FrameServerSetupDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 	return FALSE;
 }
 
-void ActivateFrameServerDialog(HWND hwnd) {
+void ActivateFrameServerDialog(HWND hwnd, const char *server) {
 	static wchar_t fileFilters[]=
 		L"VirtualDub AVIFile signpost (*.vdr,*.avi)\0"		L"*.vdr;*.avi\0"
 		L"All files\0"										L"*.*\0"
@@ -844,39 +801,46 @@ void ActivateFrameServerDialog(HWND hwnd) {
 
 	if (!InitServerDLL()) return;
 
-	if (!DialogBoxParam(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_SERVER_SETUP), hwnd, FrameServerSetupDlgProc, (LPARAM)szServerName))
-		return;
+	if (server && *server) {
+		ivdsl->GetComputerName(szServerName);
+		vdstrlcpy(szServerName, server, 128);
+	} else {
+		if (!DialogBoxParam(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_SERVER_SETUP), hwnd, FrameServerSetupDlgProc, (LPARAM)szServerName))
+			return;
+	}
 
 	try {
 		vdrefptr<Frameserver> fs(new Frameserver(inputVideo, inputAudio, hwnd, &g_dubOpts, g_project->GetTimeline().GetSubset()));
 
-		const VDStringW fname(VDGetSaveFileName(kFileDialog_Signpost, (VDGUIHandle)hwnd, L"Save .VDR signpost for AVIFile handler", fileFilters, g_prefs.main.fAttachExtension ? L"vdr" : NULL, 0, 0));
+		if (!server || !*server) {
+			const VDStringW fname(VDGetSaveFileName(kFileDialog_Signpost, (VDGUIHandle)hwnd, L"Save .VDR signpost for AVIFile handler", fileFilters, g_prefs.main.fAttachExtension ? L"vdr" : NULL, 0, 0));
 
-		if (!fname.empty()) {
-			long buf[5];
-			char sname[128];
-			int slen;
+			if (!fname.empty()) {
+				long buf[5];
+				char sname[128];
+				int slen;
 
-			ivdsl->GetComputerName(sname);
-			strcat(sname,"/");
-			strcat(sname,szServerName);
-			slen = strlen(sname);
-			slen += slen&1;
+				ivdsl->GetComputerName(sname);
+				strcat(sname,"/");
+				strcat(sname,szServerName);
+				slen = strlen(sname);
+				slen += slen&1;
 
-			buf[0] = 'FFIR';
-			buf[1] = slen+12;
-			buf[2] = 'MRDV';
-			buf[3] = 'HTAP';
-			buf[4] = slen;
+				buf[0] = 'FFIR';
+				buf[1] = slen+12;
+				buf[2] = 'MRDV';
+				buf[3] = 'HTAP';
+				buf[4] = slen;
 
-			VDFile file(fname.c_str(), nsVDFile::kWrite | nsVDFile::kDenyRead | nsVDFile::kCreateAlways);
+				VDFile file(fname.c_str(), nsVDFile::kWrite | nsVDFile::kDenyRead | nsVDFile::kCreateAlways);
 
-			file.write(buf, 20);
-			file.write(sname, strlen(sname));
-			if (strlen(sname) & 1)
-				file.write("", 1);
+				file.write(buf, 20);
+				file.write(sname, strlen(sname));
+				if (strlen(sname) & 1)
+					file.write("", 1);
 
-			file.close();
+				file.close();
+			}
 		}
 
 		VDDEBUG("Attempting to initialize frameserver...\n");

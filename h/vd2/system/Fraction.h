@@ -56,6 +56,8 @@ public:
 	VDFraction operator*(unsigned long b) const;
 	VDFraction operator/(unsigned long b) const;
 
+	VDFraction& operator*=(VDFraction b);
+	VDFraction& operator/=(VDFraction b);
 	VDFraction& operator*=(unsigned long b);
 	VDFraction& operator/=(unsigned long b);
 

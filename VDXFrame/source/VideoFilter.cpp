@@ -68,6 +68,29 @@ int VDXVideoFilter::Deserialize(const char *buf, int maxbuf) {
 	return 0;
 }
 
+sint64 VDXVideoFilter::Prefetch(sint64 frame) {
+	return frame;
+}
+
+bool VDXVideoFilter::Prefetch2(sint64 frame, IVDXVideoPrefetcher *prefetcher) {
+	prefetcher->PrefetchFrame(0, Prefetch(frame), 0);
+	return true;
+}
+
+bool VDXVideoFilter::OnEvent(uint32 event, const void *eventData) {
+	switch(event) {
+		case kVDXVFEvent_InvalidateCaches:
+			return OnInvalidateCaches();
+
+		default:
+			return false;
+	}
+}
+
+bool VDXVideoFilter::OnInvalidateCaches() {
+	return false;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 void __cdecl VDXVideoFilter::FilterDeinit   (VDXFilterActivation *fa, const VDXFilterFunctions *ff) {
@@ -130,10 +153,9 @@ bool __cdecl VDXVideoFilter::FilterScriptStr(VDXFilterActivation *fa, const VDXF
 
 	pThis->fa		= fa;
 
-	buf[0] = 0;
 	pThis->GetScriptString(buf, buflen);
 
-	return buf[0] != 0;
+	return true;
 }
 
 void __cdecl VDXVideoFilter::FilterString2  (const VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int maxlen) {
@@ -158,6 +180,30 @@ void __cdecl VDXVideoFilter::FilterDeserialize  (VDXFilterActivation *fa, const 
 	pThis->fa		= fa;
 
 	pThis->Deserialize(buf, maxbuf);
+}
+
+sint64 __cdecl VDXVideoFilter::FilterPrefetch(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, sint64 frame) {
+	VDXVideoFilter *pThis = *reinterpret_cast<VDXVideoFilter **>(fa->filter_data);
+
+	pThis->fa		= const_cast<VDXFilterActivation *>(fa);
+
+	return pThis->Prefetch(frame);
+}
+
+bool __cdecl VDXVideoFilter::FilterPrefetch2(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, sint64 frame, IVDXVideoPrefetcher *prefetcher) {
+	VDXVideoFilter *pThis = *reinterpret_cast<VDXVideoFilter **>(fa->filter_data);
+
+	pThis->fa		= const_cast<VDXFilterActivation *>(fa);
+
+	return pThis->Prefetch2(frame, prefetcher);
+}
+
+bool __cdecl VDXVideoFilter::FilterEvent(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, uint32 event, const void *eventData) {
+	VDXVideoFilter *pThis = *reinterpret_cast<VDXVideoFilter **>(fa->filter_data);
+
+	pThis->fa		= const_cast<VDXFilterActivation *>(fa);
+
+	return pThis->OnEvent(event, eventData);
 }
 
 void VDXVideoFilter::SafePrintf(char *buf, int maxbuf, const char *format, ...) {

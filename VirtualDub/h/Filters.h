@@ -51,6 +51,7 @@ struct VDWaveFormat;
 class VDTimeline;
 struct VDXWaveFormat;
 struct VDXFilterDefinition;
+class VDExternalModule;
 
 ///////////////////
 
@@ -58,179 +59,30 @@ VDXWaveFormat *VDXCopyWaveFormat(const VDXWaveFormat *pFormat);
 
 ///////////////////
 
-class FilterDefinitionInstance;
-
-class VFBitmapInternal : public VBitmap {
+class FilterDefinitionInstance : public ListNode2<FilterDefinitionInstance> {
 public:
-	VFBitmapInternal();
-	VFBitmapInternal(const VFBitmapInternal&);
-	~VFBitmapInternal();
+	FilterDefinitionInstance(VDExternalModule *pfm);
+	~FilterDefinitionInstance();
 
-	VFBitmapInternal& operator=(const VFBitmapInternal&);
+	void Assign(const FilterDefinition& def, int len);
 
-	void Fixup(void *base);
-	void ConvertBitmapLayoutToPixmapLayout();
-	void ConvertPixmapLayoutToBitmapLayout();
-	void ConvertPixmapToBitmap();
+	const FilterDefinition& Attach();
+	void Detach();
 
-public:
-	// Must match layout of VFBitmap!
-	enum {
-		NEEDS_HDC		= 0x00000001L,
-	};
+	const FilterDefinition& GetDef() const { return mDef; }
+	VDExternalModule	*GetModule() const { return mpExtModule; }
 
-	DWORD	dwFlags;
-	HDC		hdc;
-
-	uint32	mFrameRateHi;
-	uint32	mFrameRateLo;
-	sint64	mFrameCount;
-
-	VDXPixmapLayout	*mpPixmapLayout;
-	const VDXPixmap	*mpPixmap;			
-
-public:
-	VDDIBSectionW32	mDIBSection;
-	VDPixmap		mPixmap;
-	VDPixmapLayout	mPixmapLayout;
-};
-
-class FilterInstanceAutoDeinit;
-
-struct VDFilterThreadContext {
-	int					tmp[16];
-	void				*ESPsave;
-};
-
-class VDFilterActivationImpl {		// clone of VDXFilterActivation
-public:
-	const VDXFilterDefinition *filter;
-	void *filter_data;
-	VDXFBitmap&	dst;
-	VDXFBitmap&	src;
-	VDXFBitmap	*_reserved0;
-	VDXFBitmap	*const last;
-	uint32		x1;
-	uint32		y1;
-	uint32		x2;
-	uint32		y2;
-
-	VDXFilterStateInfo	*pfsi;
-	IVDXFilterPreview	*ifp;
-	IVDXFilterPreview2	*ifp2;			// (V11+)
-
-	VDFilterActivationImpl(VDXFBitmap& _dst, VDXFBitmap& _src, VDXFBitmap *_last);
-	VDFilterActivationImpl(const VDFilterActivationImpl& fa, VDXFBitmap& _dst, VDXFBitmap& _src, VDXFBitmap *_last);
-};
-
-class FilterInstance : public ListNode, public VDFilterActivationImpl {
-	FilterInstance& operator=(const FilterInstance&);		// outlaw copy assignment
-
-public:
-	FilterInstance(const FilterInstance& fi);
-	FilterInstance(FilterDefinitionInstance *);
-	~FilterInstance();
-
-	FilterInstance *Clone();
-	void Destroy();
-
-	bool	IsEnabled() const { return mbEnabled; }
-	void	SetEnabled(bool enabled) { mbEnabled = enabled; }
-
-	bool	IsConversionRequired() const { return mbBlitOnEntry; }
-
-	uint32	GetFlags() const { return mFlags; }
-	uint32	GetFrameDelay() const { return mFlags >> 16; }
-
-	uint32	Prepare(const VFBitmapInternal& input);
-
-	void	Start(int accumulatedDelay);
-	void	Stop();
-
-	void	Run(bool firstFrame, sint64 sourceFrame, sint64 outputFrame, sint64 timelineFrame, sint64 sequenceFrame, sint64 sequenceFrameMS, uint32 flags);
-
-	const VDXFilterActivation *AsVDXFilterActivation() const { return (const VDXFilterActivation *)static_cast<const VDFilterActivationImpl *>(this); }
-	VDXFilterActivation *AsVDXFilterActivation() { return (VDXFilterActivation *)static_cast<VDFilterActivationImpl *>(this); }
-
-	sint64	GetSourceFrame(sint64 frame) const;
-
-	uint32		GetSourceFrameWidth()	const { return mRealSrc.w; }
-	uint32		GetSourceFrameHeight()	const { return mRealSrc.h; }
-	VDFraction	GetSourceFrameRate()	const { return VDFraction(mRealSrc.mFrameRateHi, mRealSrc.mFrameRateLo); }
-	sint64		GetSourceFrameCount()	const { return mRealSrc.mFrameCount; }
-
-	uint32		GetOutputFrameWidth()	const { return mRealDst.w; }
-	uint32		GetOutputFrameHeight()	const { return mRealDst.h; }
-	VDFraction	GetOutputFrameRate()	const { return VDFraction(mRealDst.mFrameRateHi, mRealDst.mFrameRateLo); }
-	sint64		GetOutputFrameCount()	const { return mRealDst.mFrameCount; }
-
-	sint64		GetLastSourceFrame()	const { return mfsi.lCurrentSourceFrame; }
-	sint64		GetLastOutputFrame()	const { return mfsi.lCurrentFrame; }
-
-	VDParameterCurve *GetAlphaParameterCurve() const { return mpAlphaCurve; }
-	void SetAlphaParameterCurve(VDParameterCurve *p) { mpAlphaCurve = p; }
+	const VDStringA&	GetName() const { return mName; }
+	const VDStringA&	GetAuthor() const { return mAuthor; }
+	const VDStringA&	GetDescription() const { return mDescription; }
 
 protected:
-	static void ConvertParameters(VDXScriptValue *dst, const VDScriptValue *src, int argc);
-	static void ConvertValue(VDScriptValue& dst, const VDXScriptValue& src);
-	static void ScriptFunctionThunkVoid(IVDScriptInterpreter *, VDScriptValue *, int);
-	static void ScriptFunctionThunkInt(IVDScriptInterpreter *, VDScriptValue *, int);
-	static void ScriptFunctionThunkVariadic(IVDScriptInterpreter *, VDScriptValue *, int);
-
-public:
-	VDFileMappingW32	mFileMapping;
-	VFBitmapInternal	mRealSrcUncropped;
-	VFBitmapInternal	mRealSrc;
-	VFBitmapInternal	mRealDst;
-	VFBitmapInternal	mRealLast;
-	VDPixmap			mExternalSrc;
-	VDPixmap			mExternalDst;
-
-	bool	mbInvalidFormat;
-	bool	mbInvalidFormatHandling;
-	bool	mbBlitOnEntry;
-	int		mBlendBuffer;
-
-	int		mSrcBuf;
-	int		mDstBuf;
-	int		mOrigW;
-	int		mOrigH;
-
-	bool	mbPreciseCrop;
-	int		mCropX1;
-	int		mCropY1;
-	int		mCropX2;
-	int		mCropY2;
-
-	struct DelayInfo {
-		sint64	mSourceFrame;
-		sint64	mOutputFrame;
-		sint64	mTimelineFrame;
-	};
-
-	vdfastvector<DelayInfo>	mFsiDelayRing;
-	uint32		mDelayRingPos;
-	VDXFilterStateInfo mfsi;
-
-	VDPixmap	mBlendPixmap;
-	VDScriptObject	mScriptObj;
-
-protected:
-	uint32		mFlags;
-	bool		mbEnabled;
-	bool		mbStarted;
-
-	VDStringW	mFilterName;
-
-	FilterInstanceAutoDeinit	*mpAutoDeinit;
-
-	std::vector<VDScriptFunctionDef>	mScriptFunc;
-
-	FilterDefinitionInstance *mpFDInst;
-
-	vdrefptr<VDParameterCurve> mpAlphaCurve;
-
-	VDFilterThreadContext	mThreadContext;
+	VDExternalModule	*mpExtModule;
+	FilterDefinition	mDef;
+	VDAtomicInt			mRefCount;
+	VDStringA			mName;
+	VDStringA			mAuthor;
+	VDStringA			mDescription;
 };
 
 //////////
@@ -253,6 +105,6 @@ struct FilterBlurb {
 void				FilterEnumerateFilters(std::list<FilterBlurb>& blurbs);
 
 
-LONG FilterGetSingleValue(HWND hWnd, LONG cVal, LONG lMin, LONG lMax, char *title, IVDXFilterPreview *ifp, void (*pUpdateFunction)(long value, void *data), void *pUpdateFunctionData);
+LONG FilterGetSingleValue(HWND hWnd, LONG cVal, LONG lMin, LONG lMax, char *title, IVDXFilterPreview2 *ifp2, void (*pUpdateFunction)(long value, void *data), void *pUpdateFunctionData);
 
 #endif

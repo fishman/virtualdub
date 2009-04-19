@@ -29,6 +29,16 @@ void VDPixmapRegion::swap(VDPixmapRegion& x) {
 
 VDPixmapPathRasterizer::VDPixmapPathRasterizer()
 	: mpEdgeBlocks(NULL)
+	, mpFreeEdgeBlocks(NULL)
+	, mEdgeBlockIdx(kEdgeBlockMax)
+	, mpScanBuffer(NULL)
+{
+	ClearScanBuffer();
+}
+
+VDPixmapPathRasterizer::VDPixmapPathRasterizer(const VDPixmapPathRasterizer&)
+	: mpEdgeBlocks(NULL)
+	, mpFreeEdgeBlocks(NULL)
 	, mEdgeBlockIdx(kEdgeBlockMax)
 	, mpScanBuffer(NULL)
 {
@@ -37,6 +47,11 @@ VDPixmapPathRasterizer::VDPixmapPathRasterizer()
 
 VDPixmapPathRasterizer::~VDPixmapPathRasterizer() {
 	Clear();
+	FreeEdgeLists();
+}
+
+VDPixmapPathRasterizer& VDPixmapPathRasterizer::operator=(const VDPixmapPathRasterizer&) {
+	return *this;
 }
 
 void VDPixmapPathRasterizer::Clear() {
@@ -249,7 +264,15 @@ void VDPixmapPathRasterizer::FastLine(int x0, int y0, int x1, int y1) {
 			int ix = (xacc+32767)>>16;
 
 			if (mEdgeBlockIdx >= kEdgeBlockMax) {
-				mpEdgeBlocks = new EdgeBlock(mpEdgeBlocks);
+				if (mpFreeEdgeBlocks) {
+					EdgeBlock *newBlock = mpFreeEdgeBlocks;
+					mpFreeEdgeBlocks = mpFreeEdgeBlocks->next;
+					newBlock->next = mpEdgeBlocks;
+					mpEdgeBlocks = newBlock;
+				} else {
+					mpEdgeBlocks = new EdgeBlock(mpEdgeBlocks);
+				}
+
 				mEdgeBlockIdx = 0;
 			}
 
@@ -384,25 +407,42 @@ void VDPixmapPathRasterizer::ScanConvert(VDPixmapRegion& region) {
 }
 
 void VDPixmapPathRasterizer::ClearEdgeList() {
-	while(EdgeBlock *block = mpEdgeBlocks) {
-		mpEdgeBlocks = block->next;
+	if (mpEdgeBlocks) {
+		EdgeBlock *block = mpEdgeBlocks;
+		
+		while(EdgeBlock *next = block->next)
+			block = next;
+
+		block->next = mpFreeEdgeBlocks;
+		mpFreeEdgeBlocks = mpEdgeBlocks;
+		mpEdgeBlocks = NULL;
+	}
+
+	mEdgeBlockIdx = kEdgeBlockMax;
+}
+
+void VDPixmapPathRasterizer::FreeEdgeLists() {
+	ClearEdgeList();
+
+	while(EdgeBlock *block = mpFreeEdgeBlocks) {
+		mpFreeEdgeBlocks = block->next;
 
 		delete block;
 	}
-	mEdgeBlockIdx = kEdgeBlockMax;
 }
 
 void VDPixmapPathRasterizer::ClearScanBuffer() {
 	delete[] mpScanBuffer;
 	mpScanBuffer = mpScanBufferBiased = NULL;
-	mScanYMin = mScanYMax = 0;
+	mScanYMin = 0;
+	mScanYMax = 0;
 }
 
 void VDPixmapPathRasterizer::ReallocateScanBuffer(int ymin, int ymax) {
+	// 
 	// check if there actually is a scan buffer to avoid unintentionally pinning at zero
 	if (mpScanBuffer) {
-		// enforce a minimal growth factor of 1.25 to get amortized linear behavior
-		int nicedelta = ((mScanYMax - mScanYMin) >> 2);
+		int nicedelta = (mScanYMax - mScanYMin);
 
 		if (ymin < mScanYMin) {
 			int yminnice = mScanYMin - nicedelta;
@@ -434,16 +474,17 @@ void VDPixmapPathRasterizer::ReallocateScanBuffer(int ymin, int ymax) {
 		delete[] mpScanBuffer;
 
 		// zero new areas of scan buffer
-		vdfor(int y=ymin; y<mScanYMin; ++y) {
+		for(int y=ymin; y<mScanYMin; ++y) {
 			pNewBufferBiased[y].chain = NULL;
 			pNewBufferBiased[y].count = 0;
 		}
-		vdfor(int y=mScanYMax; y<ymax; ++y) {
+
+		for(int y=mScanYMax; y<ymax; ++y) {
 			pNewBufferBiased[y].chain = NULL;
 			pNewBufferBiased[y].count = 0;
 		}
 	} else {
-		vdfor(int y=ymin; y<ymax; ++y) {
+		for(int y=ymin; y<ymax; ++y) {
 			pNewBufferBiased[y].chain = NULL;
 			pNewBufferBiased[y].count = 0;
 		}
@@ -981,11 +1022,13 @@ bool VDPixmapFillRegionAntialiased8x(const VDPixmap& dst, const VDPixmapRegion& 
 		pxCb.format = nsVDPixmap::kPixFormat_Y8;
 		pxCb.data = dst.data2;
 		pxCb.pitch = dst.pitch2;
+		pxCb.w = dst.w;
 		pxCb.h = dst.h;
 
 		pxCr.format = nsVDPixmap::kPixFormat_Y8;
 		pxCr.data = dst.data3;
 		pxCr.pitch = dst.pitch3;
+		pxCr.w = dst.w;
 		pxCr.h = dst.h;
 
 		uint32 colorY = (color >> 8) & 0xff;

@@ -293,7 +293,7 @@ bad_sequence_exit:
 
 VDStringW VDaswprintf(const wchar_t *format, int args, const void *const *argv) {
 	const void *const *argv0 = argv;
-	vdfastvector<wchar_t> out;
+	vdfastfixedvector<wchar_t, 256> out;
 	wchar_t c;
 
 	VDStringW tempConv;

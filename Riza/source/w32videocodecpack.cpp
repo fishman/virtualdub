@@ -415,6 +415,8 @@ void VDVideoCompressorVCM::Restart() {
 		return;
 
 	mbCompressionRestarted = true;
+	lFrameNum = 0;
+	lKeyRateCounter = 1;
 
 	DWORD res;
 

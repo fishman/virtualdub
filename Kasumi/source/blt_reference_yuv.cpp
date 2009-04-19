@@ -948,7 +948,12 @@ void VDPixmapBlt_YUVPlanar_decode_reference(const VDPixmap& dst, const VDPixmap&
 		hbits = 1;
 
 	bool h_coaligned = true;
-	bool v_coaligned = true;
+	bool v_coaligned = false;
+
+	if (src.format == nsVDPixmap::kPixFormat_YUV422_Planar_Centered ||
+		src.format == nsVDPixmap::kPixFormat_YUV420_Planar_Centered) {
+		h_coaligned = false;
+	}
 
 	tpYUVPlanarVertDecoder vfunc = NULL;
 	tpYUVPlanarHorizDecoder hfunc = NULL;
@@ -963,14 +968,14 @@ void VDPixmapBlt_YUVPlanar_decode_reference(const VDPixmap& dst, const VDPixmap&
 	case 0:		// 4:4:4, 4:2:2
 	case 1:
 		break;
-	case 3:		// 4:2:0 (centered) 
+	case 2:		// 4:2:0 (centered) 
 		vfunc = vert_expand2x_centered;
 		vert_buffer_size = w>>1;
 		yaccum = 6;
 		yinc = 4;
 		yleft >>= 1;
 		break;
-	case 5:		// 4:1:0 (centered)
+	case 4:		// 4:1:0 (centered)
 		vfunc = vert_expand4x_centered;
 		vert_buffer_size = w>>2;
 		yaccum = 5;
@@ -1029,7 +1034,11 @@ void VDPixmapBlt_YUVPlanar_decode_reference(const VDPixmap& dst, const VDPixmap&
 		}
 		break;
 	case 2:		// 4:2:0 MPEG-1 (centered)
-		if (!halfchroma) {
+		if (halfchroma) {
+			hfunc = horiz_realign_to_coaligned;
+			horiz_buffer_size = (w + 1) >> 1;
+			horiz_count = (w + 1) >> 1;
+		} else {
 			hfunc = horiz_expand2x_centered;
 			horiz_buffer_size = w;
 			horiz_count = w;
@@ -1271,6 +1280,8 @@ namespace {
 
 			if (vfunc)
 				vfunc(dst, window + (winpos & (winsize-1)), dstw, winposnext & 255);
+			else if (!hfunc)
+				memcpy(dst, window[winpos & (winsize-1)], dstw);
 
 			winposnext += winstep;
 			vdptrstep(dst, dstpitch);

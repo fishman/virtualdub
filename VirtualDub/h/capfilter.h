@@ -3,6 +3,8 @@
 
 #include <vd2/Kasumi/pixmap.h>
 
+class VDFraction;
+
 class VDINTERFACE IVDCaptureFilterSystem {
 public:
 	enum FilterMode {
@@ -22,8 +24,11 @@ public:
 	virtual void SetVertSquashMode(FilterMode mode) = 0;
 	virtual void SetChainEnable(bool enable, bool force24Bit) = 0;
 
-	virtual void Init(VDPixmapLayout& layout, uint32 usPerFrame) = 0;
-	virtual void Run(VDPixmap& px, void *&data, uint32& size) = 0;
+	virtual VDFraction GetOutputFrameRate() = 0;
+
+	virtual void Init(VDPixmapLayout& layout, const VDFraction& frameRate) = 0;
+	virtual void ProcessIn(const VDPixmap& px) = 0;
+	virtual bool ProcessOut(VDPixmap& px, void *&data, uint32& size) = 0;
 	virtual void Shutdown() = 0;
 };
 

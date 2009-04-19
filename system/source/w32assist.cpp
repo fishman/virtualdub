@@ -175,6 +175,48 @@ void VDEnableMenuItemByCommandW32(HMENU hmenu, UINT cmd, bool checked) {
 	EnableMenuItem(hmenu, cmd, checked ? MF_BYCOMMAND|MF_ENABLED : MF_BYCOMMAND|MF_GRAYED);
 }
 
+VDStringW VDGetMenuItemTextByCommandW32(HMENU hmenu, UINT cmd) {
+	VDStringW s;
+
+	if (VDIsWindowsNT()) {
+		MENUITEMINFOW mmiW;
+		vdfastfixedvector<wchar_t, 256> bufW;
+
+		mmiW.cbSize		= MENUITEMINFO_SIZE_VERSION_400W;
+		mmiW.fMask		= MIIM_TYPE;
+		mmiW.fType		= MFT_STRING;
+		mmiW.dwTypeData	= NULL;
+
+		if (GetMenuItemInfoW(hmenu, cmd, FALSE, &mmiW)) {
+			bufW.resize(mmiW.cch + 1, 0);
+			++mmiW.cch;
+			mmiW.dwTypeData = bufW.data();
+
+			if (GetMenuItemInfoW(hmenu, cmd, FALSE, &mmiW))
+				s = bufW.data();
+		}
+	} else {
+		MENUITEMINFOA mmiA;
+		vdfastfixedvector<char, 256> bufA;
+
+		mmiA.cbSize		= MENUITEMINFO_SIZE_VERSION_400A;
+		mmiA.fMask		= MIIM_TYPE;
+		mmiA.fType		= MFT_STRING;
+		mmiA.dwTypeData	= NULL;
+
+		if (GetMenuItemInfoA(hmenu, cmd, FALSE, &mmiA)) {
+			bufA.resize(mmiA.cch + 1, 0);
+			++mmiA.cch;
+			mmiA.dwTypeData = bufA.data();
+
+			if (GetMenuItemInfoA(hmenu, cmd, FALSE, &mmiA))
+				s = VDTextAToW(bufA.data());
+		}
+	}
+
+	return s;
+}
+
 void VDSetMenuItemTextByCommandW32(HMENU hmenu, UINT cmd, const wchar_t *text) {
 	if (VDIsWindowsNT()) {
 		MENUITEMINFOW mmiW;

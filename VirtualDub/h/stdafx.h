@@ -25,9 +25,11 @@
 #include <wchar.h>
 
 #ifdef _MSC_VER
-#pragma warning(disable: 4786)
-struct MSVC_C4786_Workaround { MSVC_C4786_Workaround() {} };
-static MSVC_C4786_Workaround g_VD_ShutUpYouStupidCompilerAbout255CharacterLimitOnDebugInformation;
+	#if _MSC_VER < 1300
+		#pragma warning(disable: 4786)
+		struct MSVC_C4786_Workaround { MSVC_C4786_Workaround() {} };
+		static MSVC_C4786_Workaround g_VD_ShutUpYouStupidCompilerAbout255CharacterLimitOnDebugInformation;
+	#endif
 #endif
 
 #include <vd2/system/vdtypes.h>

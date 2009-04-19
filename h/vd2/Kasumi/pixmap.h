@@ -21,12 +21,18 @@ namespace nsVDPixmap {
 		kPixFormat_Y8,
 		kPixFormat_YUV422_UYVY,
 		kPixFormat_YUV422_YUYV,
-		kPixFormat_YUV444_XVYU,		// The reason for the strange VYU ordering is to make it easier to convert to UYVY/YUY2.
+		kPixFormat_YUV444_XVYU,				// The reason for the strange VYU ordering is to make it easier to convert to UYVY/YUY2.
 		kPixFormat_YUV444_Planar,
 		kPixFormat_YUV422_Planar,
 		kPixFormat_YUV420_Planar,
 		kPixFormat_YUV411_Planar,
 		kPixFormat_YUV410_Planar,
+		kPixFormat_YUV422_Planar_Centered,	// MPEG-1/MJPEG chroma alignment
+		kPixFormat_YUV420_Planar_Centered,	// MPEG-1/MJPEG chroma alignment
+		kPixFormat_YUV422_Planar_16F,
+		kPixFormat_YUV422_V210,
+		kPixFormat_YUV422_UYVY_709,			// Also known as HDYC.
+		kPixFormat_YUV420_NV12,
 		kPixFormat_Max_Standard
 	};
 }

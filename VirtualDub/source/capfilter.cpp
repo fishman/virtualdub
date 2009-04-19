@@ -7,6 +7,7 @@
 #include <vd2/Riza/bitmap.h>
 #include "capfilter.h"
 #include "filters.h"
+#include "FilterFrameManualSource.h"
 
 static const char g_szCannotFilter[]="Cannot use video filtering: ";
 
@@ -18,7 +19,8 @@ static const char g_szCannotFilter[]="Cannot use video filtering: ";
 
 class VDCaptureFilter : public vdlist<VDCaptureFilter>::node {
 public:
-	virtual void Run(VDPixmap& px) {}
+	virtual bool Run(VDPixmap& px) = 0;
+	virtual bool ProcessOut(VDPixmap& px) { return false; }
 	virtual void Shutdown() {}
 };
 
@@ -31,7 +33,7 @@ public:
 class VDCaptureFilterCrop : public VDCaptureFilter {
 public:
 	void Init(VDPixmapLayout& layout, uint32 x1, uint32 y1, uint32 x2, uint32 y2);
-	void Run(VDPixmap& px);
+	bool Run(VDPixmap& px);
 
 protected:
 	VDPixmapLayout mLayout;
@@ -40,9 +42,9 @@ protected:
 void VDCaptureFilterCrop::Init(VDPixmapLayout& layout, uint32 x1, uint32 y1, uint32 x2, uint32 y2) {
 	const VDPixmapFormatInfo& format = VDPixmapGetInfo(layout.format);
 
-	x1 = (x1 >> (format.qwbits + format.auxwbits)) << (format.qwbits + format.auxwbits);
+	x1 -= x1 % (format.qw << format.auxwbits);
 	y1 = (y1 >> (format.qhbits + format.auxhbits)) << (format.qhbits + format.auxhbits);
-	x2 = (x2 >> (format.qwbits + format.auxwbits)) << (format.qwbits + format.auxwbits);
+	x2 -= x2 % (format.qw << format.auxwbits);
 	y2 = (y2 >> (format.qhbits + format.auxhbits)) << (format.qhbits + format.auxhbits);
 
 	mLayout = VDPixmapLayoutOffset(layout, x1, y1);
@@ -56,8 +58,9 @@ void VDCaptureFilterCrop::Init(VDPixmapLayout& layout, uint32 x1, uint32 y1, uin
 	layout = mLayout;
 }
 
-void VDCaptureFilterCrop::Run(VDPixmap& px) {
+bool VDCaptureFilterCrop::Run(VDPixmap& px) {
 	px = VDPixmapFromLayout(mLayout, px.data);
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -171,7 +174,7 @@ class VDCaptureFilterNoiseReduction : public VDCaptureFilter {
 public:
 	void SetThreshold(int threshold);
 	void Init(VDPixmapLayout& layout);
-	void Run(VDPixmap& px);
+	bool Run(VDPixmap& px);
 
 protected:
 	vdblock<uint32, vdaligned_alloc<uint32> > mBuffer;
@@ -191,14 +194,14 @@ void VDCaptureFilterNoiseReduction::SetThreshold(int threshold) {
 void VDCaptureFilterNoiseReduction::Init(VDPixmapLayout& layout) {
 	const VDPixmapFormatInfo& format = VDPixmapGetInfo(layout.format);
 
-	uint32 rowdwords = -(((-layout.w >> format.qwbits) * format.qsize) >> 2);
+	uint32 rowdwords = ((((layout.w + format.qw - 1) / format.qw) * format.qsize) >> 2);
 	uint32 h = -(-layout.h >> format.qhbits);
 
 	mBuffer.resize(rowdwords * h);
 }
 
 
-void VDCaptureFilterNoiseReduction::Run(VDPixmap& px) {
+bool VDCaptureFilterNoiseReduction::Run(VDPixmap& px) {
 	unsigned w;
 
 	switch(px.format) {
@@ -216,6 +219,8 @@ void VDCaptureFilterNoiseReduction::Run(VDPixmap& px) {
 			dodnrMMX((uint32 *)px.data, mBuffer.data(), w, px.h, px.pitch - (w<<2), 0, mThresh1, mThresh2);
 			break;
 	}
+
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -370,7 +375,7 @@ class VDCaptureFilterLumaSquish : public VDCaptureFilter {
 public:
 	void SetBounds(bool black, bool white);
 	void Init(VDPixmapLayout& layout);
-	void Run(VDPixmap& px);
+	bool Run(VDPixmap& px);
 
 protected:
 	int mBaseMode;
@@ -414,13 +419,15 @@ void VDCaptureFilterLumaSquish::Init(VDPixmapLayout& layout) {
 	}
 }
 
-void VDCaptureFilterLumaSquish::Run(VDPixmap& px) {
+bool VDCaptureFilterLumaSquish::Run(VDPixmap& px) {
 	if ((mMode|mBaseMode) >= 0) {
 		if (px.format == nsVDPixmap::kPixFormat_YUV422_YUYV || px.format == nsVDPixmap::kPixFormat_YUV422_UYVY)
 			lumasquish_MMX(px.data, px.pitch, (px.w+1)>>1, px.h, mMode + mBaseMode);
 		else
 			lumasquish_MMX(px.data, px.pitch, (px.w+3)>>2, px.h, mMode + mBaseMode);
 	}
+
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -431,18 +438,27 @@ void VDCaptureFilterLumaSquish::Run(VDPixmap& px) {
 
 class VDCaptureFilterSwapFields : public VDCaptureFilter {
 public:
-	void Init(VDPixmapLayout& layout) {}
-	void Run(VDPixmap& px);
+	void Init(VDPixmapLayout& layout);
+	bool Run(VDPixmap& px);
 
 	static void SwapPlaneRows(void *p, ptrdiff_t pitch, unsigned w, unsigned h);
+
+protected:
+	uint32 mBytesPerRow;
 };
 
-void VDCaptureFilterSwapFields::Run(VDPixmap& px) {
+void VDCaptureFilterSwapFields::Init(VDPixmapLayout& layout) {
+	const VDPixmapFormatInfo& format = VDPixmapGetInfo(layout.format);
+
+	mBytesPerRow = ((layout.w + format.qw - 1) / format.qw) * format.qsize;
+}
+
+bool VDCaptureFilterSwapFields::Run(VDPixmap& px) {
 	const VDPixmapFormatInfo& format = VDPixmapGetInfo(px.format);
 
 	// swap plane 0 rows
 	if (!format.qhbits)
-		SwapPlaneRows(px.data, px.pitch, -(-px.w >> format.qwbits) * format.qsize, px.h);
+		SwapPlaneRows(px.data, px.pitch, mBytesPerRow, px.h);
 
 	// swap plane 1 and 2 rows
 	if (format.auxbufs && !format.auxhbits) {
@@ -453,6 +469,8 @@ void VDCaptureFilterSwapFields::Run(VDPixmap& px) {
 		if (format.auxbufs >= 2)
 			SwapPlaneRows(px.data3, px.pitch3, auxw, px.h);
 	}
+
+	return true;
 }
 
 void VDCaptureFilterSwapFields::SwapPlaneRows(void *p1, ptrdiff_t pitch, unsigned w, unsigned h) {
@@ -479,7 +497,7 @@ class VDCaptureFilterVertSquash : public VDCaptureFilter {
 public:
 	void SetMode(IVDCaptureFilterSystem::FilterMode mode);
 	void Init(VDPixmapLayout& layout);
-	void Run(VDPixmap& px);
+	bool Run(VDPixmap& px);
 	void Shutdown();
 
 protected:
@@ -495,7 +513,7 @@ void VDCaptureFilterVertSquash::SetMode(IVDCaptureFilterSystem::FilterMode mode)
 void VDCaptureFilterVertSquash::Init(VDPixmapLayout& layout) {
 	const VDPixmapFormatInfo& info = VDPixmapGetInfo(layout.format);
 
-	mDwordsPerRow = -(((-layout.w >> info.qwbits) * info.qsize) >> 2);
+	mDwordsPerRow = (((layout.w + info.qw - 1) / info.qw) * info.qsize) >> 2;
 
 	if (mMode == IVDCaptureFilterSystem::kFilterCubic)
 		mRowBuffers.resize(mDwordsPerRow * 3);
@@ -503,7 +521,7 @@ void VDCaptureFilterVertSquash::Init(VDPixmapLayout& layout) {
 	layout.h >>= 1;
 }
 
-void VDCaptureFilterVertSquash::Run(VDPixmap& px) {
+bool VDCaptureFilterVertSquash::Run(VDPixmap& px) {
 #ifndef _M_AMD64
 	Pixel *srclimit = vdptroffset((Pixel *)px.data, px.pitch * (px.h - 1));
 	Pixel *dst = (Pixel *)px.data;
@@ -588,6 +606,7 @@ void VDCaptureFilterVertSquash::Run(VDPixmap& px) {
 #endif
 
 	px.h >>= 1;
+	return true;
 }
 
 void VDCaptureFilterVertSquash::Shutdown() {
@@ -601,44 +620,210 @@ void VDCaptureFilterVertSquash::Shutdown() {
 //
 ///////////////////////////////////////////////////////////////////////////
 
+class VDCaptureFilterChainFrameSource : public VDFilterFrameManualSource {
+	VDCaptureFilterChainFrameSource(const VDCaptureFilterChainFrameSource&);
+	VDCaptureFilterChainFrameSource& operator=(const VDCaptureFilterChainFrameSource&);
+public:
+	VDCaptureFilterChainFrameSource();
+	~VDCaptureFilterChainFrameSource();
+
+	void Init(uint32 frameCount, const VDPixmapLayout& layout);
+	void PreallocateFrames();
+	void Shutdown();
+
+	void Push(const VDPixmap& px);
+	bool Run();
+	
+protected:
+	VDPosition	mWindowFrameStart;
+	uint32		mWindowFrameCount;
+	uint32		mWindowStartIndex;
+	uint32		mWindowSize;
+
+	typedef vdfastvector<VDFilterFrameBuffer *> FrameQueue;
+	FrameQueue mFrameQueue;
+
+	vdautoptr<IVDPixmapBlitter> mpBlitter;
+};
+
+VDCaptureFilterChainFrameSource::VDCaptureFilterChainFrameSource() {
+}
+
+VDCaptureFilterChainFrameSource::~VDCaptureFilterChainFrameSource() {
+	Shutdown();
+}
+
+void VDCaptureFilterChainFrameSource::Init(uint32 frameCount, const VDPixmapLayout& layout) {
+	VDASSERT(mFrameQueue.empty());
+
+	mWindowFrameStart = 0;
+	mWindowFrameCount = 0;
+	mWindowStartIndex = 0;
+	mWindowSize = frameCount;
+	mLayout = layout;
+
+	mFrameQueue.resize(frameCount, NULL);
+}
+
+void VDCaptureFilterChainFrameSource::PreallocateFrames() {
+	for(uint32 i=0; i<mWindowSize; ++i)
+		mpAllocator->Allocate(&mFrameQueue[i]);
+}
+
+void VDCaptureFilterChainFrameSource::Shutdown() {
+	while(!mFrameQueue.empty()) {
+		VDFilterFrameBuffer *buf = mFrameQueue.back();
+		if (buf)
+			buf->Release();
+
+		mFrameQueue.pop_back();
+	}
+
+	mpBlitter = NULL;
+}
+
+void VDCaptureFilterChainFrameSource::Push(const VDPixmap& px) {
+	while(mWindowFrameCount >= mWindowSize) {
+		++mWindowFrameStart;
+
+		if (++mWindowStartIndex >= mWindowSize)
+			mWindowStartIndex = 0;
+
+		--mWindowFrameCount;
+	}
+
+	int index = (mWindowStartIndex + mWindowFrameCount) % mWindowSize;
+
+	VDFilterFrameBuffer *buf = mFrameQueue[index];
+
+	const VDPixmap pxdst(VDPixmapFromLayout(mLayout, buf->GetBasePointer()));
+
+	if (!mpBlitter)
+		mpBlitter = VDPixmapCreateBlitter(pxdst, px);
+
+	mpBlitter->Blit(pxdst, px);
+	++mWindowFrameCount;
+}
+
+bool VDCaptureFilterChainFrameSource::Run() {
+	if (!mWindowFrameCount)
+		return false;
+
+	bool activity = false;
+
+	VDPosition frame;
+	vdrefptr<VDFilterFrameRequest> req;
+	while(PeekNextRequestFrame(frame)) {
+		uint32 frameWindowOffset = 0;
+
+		if (frame < mWindowFrameStart)
+			frameWindowOffset = 0;
+		else {
+			VDPosition frameOffset = frame - mWindowFrameStart;
+
+			if (frameOffset >= mWindowFrameCount)
+				return false;
+			else
+				frameWindowOffset = (uint32)frameOffset;
+		}
+
+		uint32 frameWindowIndex = frameWindowOffset + mWindowStartIndex;
+		if (frameWindowIndex >= mWindowSize)
+			frameWindowIndex -= mWindowSize;
+
+		VDVERIFY(GetNextRequest(~req));
+		req->SetResultBuffer(mFrameQueue[frameWindowIndex]);
+		req->MarkComplete(true);
+		CompleteRequest(req, false);
+		activity = true;
+	}
+
+	return activity;
+}
+
 class VDCaptureFilterChainAdapter : public VDCaptureFilter {
 public:
-	void SetFrameRate(uint32 usPerFrame);
+	void SetFrameRate(const VDFraction& frameRate);
+	VDFraction GetOutputFrameRate() const { return filters.GetOutputFrameRate(); }
+
 	void Init(VDPixmapLayout& layout);
-	void Run(VDPixmap& px);
+	bool Run(VDPixmap& px);
+	bool ProcessOut(VDPixmap& px);
 	void Shutdown();
 
 protected:
-	sint64	mFrame;
+	sint64		mFrame;
 	double		mFrameToTimeMSFactor;
 	VDFraction	mFrameRate;
+	bool		mbFlushRequestNextCall;
+
+	vdrefptr<VDCaptureFilterChainFrameSource>	mpFrameSource;
+	vdrefptr<IVDFilterFrameClientRequest>	mpRequest;
 };
 
-void VDCaptureFilterChainAdapter::SetFrameRate(uint32 usPerFrame) {
-	mFrameRate.Assign(1000000, usPerFrame);
+void VDCaptureFilterChainAdapter::SetFrameRate(const VDFraction& frameRate) {
+	mFrameRate = frameRate;
 	mFrameToTimeMSFactor = mFrameRate.AsInverseDouble() * 1000.0;
 }
 
 void VDCaptureFilterChainAdapter::Init(VDPixmapLayout& layout) {
-	filters.initLinearChain(&g_listFA, layout.w, layout.h, layout.format, layout.palette, mFrameRate, -1);
-	filters.ReadyFilters();
+	filters.prepareLinearChain(&g_listFA, layout.w, layout.h, layout.format, mFrameRate, -1, VDFraction(0, 0));
 
-	void *p;
-	layout = VDPixmapToLayout(filters.GetOutput(), p);
+	mpFrameSource = new VDCaptureFilterChainFrameSource;
+	mpFrameSource->Init(3, filters.GetInputLayout());
+
+	filters.initLinearChain(&g_listFA, mpFrameSource, layout.w, layout.h, layout.format, layout.palette, mFrameRate, -1, VDFraction(0, 0));
+
+	mpFrameSource->PreallocateFrames();
+
+	filters.ReadyFilters(VDXFilterStateInfo::kStateRealTime);
+
+	layout = filters.GetOutputLayout();
+
+	mFrame = 0;
+	mbFlushRequestNextCall = false;
 }
 
-void VDCaptureFilterChainAdapter::Run(VDPixmap& px) {
-	VDPixmapBlt(filters.GetInput(), px);
+bool VDCaptureFilterChainAdapter::Run(VDPixmap& px) {
+	mpFrameSource->Push(px);
+	return false;
+}
 
-	sint64 frameTime = VDRoundToInt64((double)mFrame * mFrameToTimeMSFactor);
+bool VDCaptureFilterChainAdapter::ProcessOut(VDPixmap& px) {
+	if (mbFlushRequestNextCall) {
+		mbFlushRequestNextCall = false;
+		mpRequest = NULL;
+	}
 
-	filters.RunFilters(mFrame, mFrame, mFrame, frameTime, NULL, VDXFilterStateInfo::kStateRealTime);
-	++mFrame;
+	if (!mpRequest) {
+		filters.RequestFrame(mFrame, ~mpRequest);
+		++mFrame;
+	}
 
-	px = filters.GetOutput();
+	while(!mpRequest->IsCompleted()) {
+		mpFrameSource->Run();
+
+		if (!filters.RunToCompletion())
+			return false;
+	}
+	
+	if (!mpRequest->IsSuccessful()) {
+		VDFilterFrameRequestError *err = mpRequest->GetError();
+
+		if (err)
+			throw MyError("%s", err);
+		else
+			throw MyError("Unknown error occurred while running video filters.");
+	}
+
+	px = VDPixmapFromLayout(filters.GetOutputLayout(), mpRequest->GetResultBuffer()->GetBasePointer());
+	mbFlushRequestNextCall = true;
+	return true;
 }
 
 void VDCaptureFilterChainAdapter::Shutdown() {
+	mpRequest = NULL;
+
 	filters.DeinitFilters();
 	filters.DeallocateBuffers();
 }
@@ -661,15 +846,22 @@ public:
 	void SetVertSquashMode(FilterMode mode);
 	void SetChainEnable(bool enable, bool force24Bit);
 
-	void Init(VDPixmapLayout& layout, uint32 usPerFrame);
-	void Run(VDPixmap& px, void *&outputData, uint32& outputSize);
+	VDFraction GetOutputFrameRate();
+
+	void Init(VDPixmapLayout& layout, const VDFraction& frameRate);
+	void ProcessIn(const VDPixmap& px);
+	bool ProcessOut(VDPixmap& px, void *&outputData, uint32& outputSize);
 	void Shutdown();
 
 protected:
 	void RebuildFilterChain();
 
+	VDPixmap	mLastFrameOutput;
+	bool		mbLastFrameValid;
+
 	ptrdiff_t	mBaseOffset;
 	uint32		mOutputSize;
+	VDFraction	mOutputFrameRate;
 
 	uint32	mCropX1;
 	uint32	mCropY1;
@@ -791,10 +983,15 @@ void VDCaptureFilterSystem::SetChainEnable(bool enable, bool force24Bit) {
 	mbForce24Bit = force24Bit;
 }
 
-void VDCaptureFilterSystem::Init(VDPixmapLayout& pxl, uint32 usPerFrame) {
+VDFraction VDCaptureFilterSystem::GetOutputFrameRate() {
+	return mOutputFrameRate;
+}
+
+void VDCaptureFilterSystem::Init(VDPixmapLayout& pxl, const VDFraction& frameRate) {
 	VDASSERT(!mbInitialized);
 	mbInitialized = true;
 	mbCropEnable = false;
+	mbLastFrameValid = false;
 
 	if (mCropX1|mCropY1|mCropX2|mCropY2) {
 		mbCropEnable = true;
@@ -821,9 +1018,12 @@ void VDCaptureFilterSystem::Init(VDPixmapLayout& pxl, uint32 usPerFrame) {
 		mFilterVertSquash.Init(pxl);
 	}
 
+	mOutputFrameRate = frameRate;
+
 	if (mbChainEnable) {
-		mFilterChainAdapter.SetFrameRate(usPerFrame);
+		mFilterChainAdapter.SetFrameRate(mOutputFrameRate);
 		mFilterChainAdapter.Init(pxl);
+		mOutputFrameRate = mFilterChainAdapter.GetOutputFrameRate();
 	}
 
 	RebuildFilterChain();
@@ -846,17 +1046,37 @@ void VDCaptureFilterSystem::Init(VDPixmapLayout& pxl, uint32 usPerFrame) {
 	mBaseOffset = pxl.data;
 }
 
-void VDCaptureFilterSystem::Run(VDPixmap& px, void*& outputData, uint32& outputSize) {
+void VDCaptureFilterSystem::ProcessIn(const VDPixmap& px0) {
 	tFilterChain::iterator it(mFilterChain.begin()), itEnd(mFilterChain.end());
+	VDPixmap px(px0);
+
+	mbLastFrameValid = false;
 
 	for(; it!=itEnd; ++it) {
 		VDCaptureFilter *pFilt = *it;
 
 		VDAssertValidPixmap(px);
-		pFilt->Run(px);
+		if (!pFilt->Run(px))
+			return;
 	}
 
 	VDAssertValidPixmap(px);
+
+	mLastFrameOutput = px;
+	mbLastFrameValid = true;
+}
+
+bool VDCaptureFilterSystem::ProcessOut(VDPixmap& px, void*& outputData, uint32& outputSize) {
+	if (!mbLastFrameValid) {
+		if (!mFilterChain.empty())
+			mbLastFrameValid = mFilterChain.back()->ProcessOut(mLastFrameOutput);
+
+		if (!mbLastFrameValid)
+			return false;
+	}
+
+	mbLastFrameValid = false;
+	px = mLastFrameOutput;
 
 	// Check if we have to linearize the bitmap.
 	if (mbCropEnable || mbChainEnable) {
@@ -867,6 +1087,8 @@ void VDCaptureFilterSystem::Run(VDPixmap& px, void*& outputData, uint32& outputS
 
 	outputData = (char *)px.data - mBaseOffset;
 	outputSize = mOutputSize;
+
+	return true;
 }
 
 #if _MSC_VER < 1400

@@ -717,7 +717,7 @@ namespace {
 			break;
 		case nsVDPixmap::kPixFormat_YUV444_Planar:
 			VDPixmapRectFillPlane8(px.data, px.pitch, ix, iy, iw, ih, (uint8)(c >> 8));
-			VDPixmapRectFillPlane8(px.data2, px.pitch2, ix, iy, iw, ih, (uint8)(c >> 8));
+			VDPixmapRectFillPlane8(px.data2, px.pitch2, ix, iy, iw, ih, (uint8)c);
 			VDPixmapRectFillPlane8(px.data3, px.pitch3, ix, iy, iw, ih, (uint8)(c >> 16));
 			break;
 		case nsVDPixmap::kPixFormat_YUV422_Planar:
@@ -899,7 +899,7 @@ static long resize_param(FilterActivation *fa, const FilterFunctions *ff) {
 	fa->dst.mpPixmapLayout->pitch = 0;
 	fa->dst.depth = 0;
 
-	return FILTERPARAM_SWAP_BUFFERS | FILTERPARAM_SUPPORTS_ALTFORMATS;
+	return FILTERPARAM_SWAP_BUFFERS | FILTERPARAM_SUPPORTS_ALTFORMATS | FILTERPARAM_PURE_TRANSFORM;
 }
 
 namespace {

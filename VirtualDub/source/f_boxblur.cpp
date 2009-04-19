@@ -44,11 +44,10 @@
 #include "filter.h"
 #include "VBitmap.h"
 #include <vd2/system/cpuaccel.h>
+#include <vd2/system/memory.h>
 
 extern HINSTANCE g_hInst;
 extern "C" unsigned char YUV_clip_table[];
-
-//#define DO_UNSHARP_FILTER
 
 #if defined(VD_COMPILER_MSVC) && defined(VD_CPU_X86)
 	#pragma warning(disable: 4799)		// warning C4799: function has no EMMS instruction
@@ -261,6 +260,7 @@ xloop2:
 		mov			ecx,[esp+16+4]			;ecx = cnt
 		lea			ebx,[ebx+ebx+1]			;ebx = 2*filtwidth+1
 		sub			ecx,ebx					;ecx = cnt - (2*filtwidth+1)
+		jz			xloop3e
 		shl			ebx,2
 		neg			ebx						;ebx = -4*(2*filtwidth+1)
 xloop3:
@@ -284,6 +284,7 @@ xloop3:
 
 		movd		[edx-4],mm2
 		jne			xloop3
+xloop3e:
 
 		;finish up remaining pixels
 
@@ -552,35 +553,43 @@ int boxRunProc(const FilterActivation *fa, const FilterFunctions *ff) {
 	tmp = mfd->rows;
 
 	// Horizontal filtering.
+	int hfiltwidth = mfd->filter_width;
 
+	if (hfiltwidth * 2 + 1 > fa->dst.w)
+		hfiltwidth = (fa->dst.w - 1) >> 1;
+
+	if (hfiltwidth > 0) {
 #ifdef _M_IX86
-	void (*const pRowFilt)(Pixel32*, Pixel32*, int, int, int) = MMX_enabled ? box_filter_row_MMX : box_filter_row;
+		void (*const pRowFilt)(Pixel32*, Pixel32*, int, int, int) = MMX_enabled ? box_filter_row_MMX : box_filter_row;
 #else
-	void (*const pRowFilt)(Pixel32*, Pixel32*, int, int, int) = box_filter_row;
+		void (*const pRowFilt)(Pixel32*, Pixel32*, int, int, int) = box_filter_row;
 #endif
-	int mult = 0xffff / (2*mfd->filter_width+1) + 1;
+		int mult = 0xffff / (2*hfiltwidth+1) + 1;
 
-	h = fa->src.h;
-	do {
-		switch(mfd->filter_power) {
-		case 1:
-			pRowFilt(tmp, src, mfd->filter_width, fa->dst.w, mult);
-			break;
-		case 2:
-			pRowFilt(tmp, src, mfd->filter_width, fa->dst.w, mult);
-			pRowFilt(dst, tmp, mfd->filter_width, fa->dst.w, mult);
-			break;
-		case 3:
-			pRowFilt(tmp, src, mfd->filter_width, fa->dst.w, mult);
-			pRowFilt(dst, tmp, mfd->filter_width, fa->dst.w, mult);
-			pRowFilt(tmp, dst, mfd->filter_width, fa->dst.w, mult);
-			break;
-		}
+		h = fa->src.h;
+		do {
+			switch(mfd->filter_power) {
+			case 1:
+				pRowFilt(tmp, src, hfiltwidth, fa->dst.w, mult);
+				break;
+			case 2:
+				pRowFilt(tmp, src, hfiltwidth, fa->dst.w, mult);
+				pRowFilt(dst, tmp, hfiltwidth, fa->dst.w, mult);
+				break;
+			case 3:
+				pRowFilt(tmp, src, hfiltwidth, fa->dst.w, mult);
+				pRowFilt(dst, tmp, hfiltwidth, fa->dst.w, mult);
+				pRowFilt(tmp, dst, hfiltwidth, fa->dst.w, mult);
+				break;
+			}
 
-		src = (Pixel32 *)((char *)src + fa->src.pitch);
-		dst = (Pixel32 *)((char *)dst + fa->dst.pitch);
-		tmp += (fa->dst.w+1)&-2;
-	} while(--h);
+			src = (Pixel32 *)((char *)src + fa->src.pitch);
+			dst = (Pixel32 *)((char *)dst + fa->dst.pitch);
+			tmp += (fa->dst.w+1)&-2;
+		} while(--h);
+	} else if (mfd->filter_power & 1){
+		VDMemcpyRect(tmp, ((fa->dst.w + 1) & -2)*4, src, fa->src.pitch, fa->src.w * 4, fa->src.h);
+	}
 
 	// Vertical filtering.
 
@@ -596,26 +605,20 @@ int boxRunProc(const FilterActivation *fa, const FilterFunctions *ff) {
 		dstpitch = ((fa->dst.w+1)&-2)*4;
 	}
 
-#ifndef DO_UNSHARP_FILTER
-	for(i=0; i<mfd->filter_power; i++) {
-		if (i & 1)
-			box_do_vertical_pass(src, srcpitch, dst, dstpitch, mfd->trow, fa->dst.w, fa->dst.h, mfd->filter_width);
-		else
-			box_do_vertical_pass(dst, dstpitch, src, srcpitch, mfd->trow, fa->dst.w, fa->dst.h, mfd->filter_width);
-	}
-#else
-	for(i=0; i<mfd->filter_power-1; i++) {
-		if (i & 1)
-			box_do_vertical_pass(src, srcpitch, dst, dstpitch, mfd->trow, fa->dst.w, fa->dst.h, mfd->filter_width);
-		else
-			box_do_vertical_pass(dst, dstpitch, src, srcpitch, mfd->trow, fa->dst.w, fa->dst.h, mfd->filter_width);
-	}
+	int vfiltwidth = mfd->filter_width;
+	if (2*vfiltwidth+1 > fa->dst.h)
+		vfiltwidth = (fa->dst.h - 1) >> 1;
 
-	if (i & 1)
-		box_do_vertical_unsharp_pass(src, srcpitch, dst, dstpitch, fa->src.data, fa->src.pitch, mfd->trow, fa->dst.w, fa->dst.h, mfd->filter_width);
-	else
-		box_do_vertical_unsharp_pass(dst, dstpitch, src, srcpitch, fa->src.data, fa->src.pitch, mfd->trow, fa->dst.w, fa->dst.h, mfd->filter_width);
-#endif
+	if (vfiltwidth > 0) {
+		for(i=0; i<mfd->filter_power; i++) {
+			if (i & 1)
+				box_do_vertical_pass(src, srcpitch, dst, dstpitch, mfd->trow, fa->dst.w, fa->dst.h, vfiltwidth);
+			else
+				box_do_vertical_pass(dst, dstpitch, src, srcpitch, mfd->trow, fa->dst.w, fa->dst.h, vfiltwidth);
+		}
+	} else if (mfd->filter_power & 1) {
+		VDMemcpyRect(dst, dstpitch, src, srcpitch, fa->dst.w * 4, fa->dst.h);
+	}
 
 #ifdef _M_IX86
 	if (MMX_enabled)
@@ -636,12 +639,8 @@ int boxEndProc(FilterActivation *fa, const FilterFunctions *ff) {
 }
 
 long boxParamProc(FilterActivation *fa, const FilterFunctions *ff) {
-#ifndef DO_UNSHARP_FILTER
 	fa->dst.offset = fa->src.offset;
 	return 0;
-#else
-	return FILTERPARAM_SWAP_BUFFERS;
-#endif
 }
 
 

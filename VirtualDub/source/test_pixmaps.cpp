@@ -177,7 +177,7 @@ void VDTestPixmaps() {
 		buffer_cropped.w -= 320;
 		buffer_cropped.h -= 240;
 
-		VDPixmapTriBlt(buffer_cropped, mipchain.Mips(), mipchain.Levels(), vx, 4, idx, 6, kTriBltFilterTrilinear, false, mx);
+		VDPixmapTriBlt(buffer_cropped, mipchain.Mips(), mipchain.Levels(), vx, 4, idx, 6, kTriBltFilterTrilinear, 0.0f, mx);
 
 		th += 0.01;
 #endif

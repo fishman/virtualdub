@@ -32,47 +32,61 @@ class FilterSystemBitmap;
 class VFBitmapInternal;
 struct VDPixmap;
 struct VDPixmapLayout;
+class IVDFilterFrameSource;
+class IVDFilterFrameClientRequest;
+class VDFilterFrameRequest;
 
 class FilterSystem {
 public:
 	FilterSystem();
 	~FilterSystem();
-	void prepareLinearChain(List *listFA, uint32 src_width, uint32 src_height, int src_format, const VDFraction& sourceFrameRate, sint64 sourceFrameCount);
-	void initLinearChain(List *listFA, uint32 src_width, uint32 src_height, int src_format, const uint32 *palette, const VDFraction& sourceFrameRate, sint64 sourceFrameCount);
-	void ReadyFilters();
-	void RestartFilters();
-	bool RunFilters(sint64 outputFrame, sint64 timelineFrame, sint64 sequenceFrame, sint64 sequenceTimeMS, FilterInstance *pfiStopPoint, uint32 flags);
+	void prepareLinearChain(List *listFA, uint32 src_width, uint32 src_height, int src_format, const VDFraction& sourceFrameRate, sint64 sourceFrameCount, const VDFraction& sourcePixelAspect);
+	void initLinearChain(List *listFA, IVDFilterFrameSource *src, uint32 src_width, uint32 src_height, int src_format, const uint32 *palette, const VDFraction& sourceFrameRate, sint64 sourceFrameCount, const VDFraction& sourcePixelAspect);
+	void ReadyFilters(uint32 flags);
+
+	bool RequestFrame(sint64 outputFrame, IVDFilterFrameClientRequest **creq);
+	void AbortFrame();
+	bool RunToCompletion();
+
+	void InvalidateCachedFrames(FilterInstance *startingFilter);
+
 	void DeinitFilters();
 	void DeallocateBuffers();
-	const VDPixmap& GetInput() const;
 	const VDPixmapLayout& GetInputLayout() const;
-	const VDPixmap& GetOutput() const;
 	const VDPixmapLayout& GetOutputLayout() const;
 	bool isRunning();
 	bool isEmpty() const { return listFilters->IsEmpty(); }
 
 	int getFrameLag();
 
-	bool	IsFiltered(VDPosition frame) const;
+	bool GetDirectFrameMapping(VDPosition outputFrame, VDPosition& sourceFrame, int& sourceIndex) const;
 	sint64	GetSourceFrame(sint64 outframe) const;
+	sint64	GetSymbolicFrame(sint64 outframe, IVDFilterFrameSource *source) const;
+	sint64	GetNearestUniqueFrame(sint64 outframe) const;
+
 	const VDFraction GetOutputFrameRate() const;
+	const VDFraction GetOutputPixelAspect() const;
 	sint64	GetOutputFrameCount() const;
 
 private:
 	void AllocateVBitmaps(int count);
 	void AllocateBuffers(uint32 lTotalBufferNeeded);
 
-	uint32 dwFlags;
-	int iBitmapCount;
+	struct Bitmaps;
 
 	enum {
 		FILTERS_INITIALIZED = 0x00000001L,
 		FILTERS_ERROR		= 0x00000002L,
 	};
 
+	uint32 dwFlags;
+
 	VDFraction	mOutputFrameRate;
+	VDFraction	mOutputPixelAspect;
 	sint64		mOutputFrameCount;
-	FilterSystemBitmap *bitmap;
+
+	Bitmaps *mpBitmaps;
+
 	VFBitmapInternal *bmLast;
 	List *listFilters;
 	int nFrameLag;
@@ -81,15 +95,6 @@ private:
 
 	unsigned char *lpBuffer;
 	long lAdditionalBytes;
-	bool fSharedWindow;
-
-	struct RequestInfo {
-		sint64	mSourceFrame;
-		sint64	mOutputFrame;
-		sint64	mTimelineFrame;
-	};
-
-	vdfastvector<RequestInfo>	mRequestStack;
 
 	uint32	mPalette[256];
 };

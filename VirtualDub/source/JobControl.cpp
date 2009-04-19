@@ -28,6 +28,7 @@ bool g_fJobMode;
 VDJobQueue g_VDJobQueue;
 
 static const char g_szRegKeyShutdownWhenFinished[] = "Shutdown after jobs finish";
+static const char g_szRegKeyShutdownMode[] = "Shutdown mode";
 
 IVDJobQueueStatusCallback *g_pVDJobQueueStatusCallback;
 
@@ -1104,7 +1105,8 @@ bool VDJobQueue::RunAllNext() {
 	mbRunAllStop = false;
 	NotifyStatus();
 
-	if (VDRegistryAppKey().getBool(g_szRegKeyShutdownWhenFinished)) {
+	VDRegistryAppKey key;
+	if (key.getBool(g_szRegKeyShutdownWhenFinished)) {
 		if (g_hwndJobs)
 			EnableWindow(g_hwndJobs, FALSE);
 
@@ -1114,7 +1116,7 @@ bool VDJobQueue::RunAllNext() {
 			EnableWindow(g_hwndJobs, TRUE);
 
 		if (do_shutdown) {
-			VDInitiateSystemShutdown();
+			VDInitiateSystemShutdown((VDSystemShutdownMode)key.getInt(g_szRegKeyShutdownMode));
 			PostQuitMessage(0);
 		}
 	}

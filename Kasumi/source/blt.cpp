@@ -6,6 +6,12 @@
 #include <vd2/Kasumi/pixmaputils.h>
 #include <vd2/Kasumi/pixmapops.h>
 
+#if _MSC_VER >= 1300
+	#define VDNOINLINE __declspec(noinline)
+#else
+	#define VDNOINLINE
+#endif
+
 using namespace nsVDPixmap;
 
 namespace {
@@ -77,16 +83,22 @@ bool VDPixmapBltDirect(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vd
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(src.format);
 
 	if (src.format == dst.format) {
-		const int qw = -(-w >> srcinfo.qwbits);
-		const int qh = -(-h >> srcinfo.qhbits);
+		int qw = w;
+		int qh = h;
+
+		if (srcinfo.qchunky) {
+			qw = (qw + srcinfo.qw - 1) / srcinfo.qw;
+			qh = -(-h >> srcinfo.qhbits);
+		}
+
 		const int auxw = -(-w >> srcinfo.auxwbits);
 		const int auxh = -(-h >> srcinfo.auxhbits);
 
 		switch(srcinfo.auxbufs) {
 		case 2:
-			VDMemcpyRect(dst.data3, dst.pitch3, src.data3, src.pitch3, auxw, auxh);
+			VDMemcpyRect(dst.data3, dst.pitch3, src.data3, src.pitch3, srcinfo.auxsize * auxw, auxh);
 		case 1:
-			VDMemcpyRect(dst.data2, dst.pitch2, src.data2, src.pitch2, auxw, auxh);
+			VDMemcpyRect(dst.data2, dst.pitch2, src.data2, src.pitch2, srcinfo.auxsize * auxw, auxh);
 		case 0:
 			VDMemcpyRect(dst.data, dst.pitch, src.data, src.pitch, srcinfo.qsize * qw, qh);
 		}
@@ -94,28 +106,12 @@ bool VDPixmapBltDirect(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vd
 		return true;
 	}
 
-	void *pBlitter = VDPixmapGetBlitterTable()[src.format][dst.format];
+	VDPixmapBlitterFn pBlitter = VDPixmapGetBlitterTable()[src.format][dst.format];
 
 	if (!pBlitter)
 		return false;
 
-	if (srcinfo.auxbufs > 0 || VDPixmapGetInfo(dst.format).auxbufs > 0) {
-		tpPlanarBlitter p = (tpPlanarBlitter)pBlitter;
-
-		p(dst, src, w, h);
-	} else if (src.format == kPixFormat_Pal1 || src.format == kPixFormat_Pal2 || src.format == kPixFormat_Pal4 || src.format == kPixFormat_Pal8) {
-		tpPalettedBlitter p = (tpPalettedBlitter)pBlitter;
-
-		if (dst.format == kPixFormat_XRGB8888)
-			p(dst.data, dst.pitch, src.data, src.pitch, w, h, src.palette);
-		else
-			VDPixmapBltDirectPalettedConversion(dst, src, w, h, p);
-	} else {
-		tpChunkyBlitter p = (tpChunkyBlitter)pBlitter;
-
-		p(dst.data, dst.pitch, src.data, src.pitch, w, h);
-	}
-
+	pBlitter(dst, src, w, h);
 	return true;
 }
 
@@ -138,11 +134,7 @@ bool VDPixmapIsBltPossible(int dst_format, int src_format) {
 			||(tab[src_format][kPixFormat_XRGB8888] && tab[kPixFormat_XRGB8888][dst_format]);
 }
 
-bool VDPixmapBltFast(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h) {
-	if (VDPixmapBltDirect(dst, src, w, h))
-		return true;
-
-	// Oro... let's see if we can do a two-stage conversion.
+bool VDNOINLINE VDPixmapBltTwoStage(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h) {
 	const VDPixmapFormatInfo& srcinfo = VDPixmapGetInfo(src.format);
 	const VDPixmapFormatInfo& dstinfo = VDPixmapGetInfo(dst.format);
 
@@ -157,29 +149,51 @@ bool VDPixmapBltFast(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpi
 
 	// Allocate a 4xW buffer and try round-tripping through either
 	// RGB32 or XYVU.
-	vdblock<uint32>		tempBuf(w + 1);
-
+	vdblock<uint32>		tempBuf;
+	
 	tpVDPixBltTable tab(VDPixmapGetBlitterTable());
 
-	void *dstp = dst.data;
-	const void *srcp = src.data;
+	VDPixmap linesrc(src);
+	VDPixmap linedst(dst);
+	VDPixmap linetmp = {};
 
-	tpChunkyBlitter pb1 = (tpChunkyBlitter)tab[src.format][kPixFormat_YUV444_XVYU];
-	tpChunkyBlitter pb2 = (tpChunkyBlitter)tab[kPixFormat_YUV444_XVYU][dst.format];
+	if (w < 1024) {
+		linetmp.data = _alloca(sizeof(uint32) * w);
+	} else {
+		tempBuf.resize(w + 1);
+		linetmp.data = tempBuf.data();
+	}
+	linetmp.pitch = 0;
+	linetmp.format = kPixFormat_YUV444_XVYU;
+	linetmp.w = w;
+	linetmp.h = 1;
+
+	VDPixmapBlitterFn pb1 = tab[src.format][kPixFormat_YUV444_XVYU];
+	VDPixmapBlitterFn pb2 = tab[kPixFormat_YUV444_XVYU][dst.format];
 	if (!pb1 || !pb2) {
-		pb1 = (tpChunkyBlitter)tab[src.format][kPixFormat_XRGB8888];
-		pb2 = (tpChunkyBlitter)tab[kPixFormat_XRGB8888][dst.format];
+		pb1 = tab[src.format][kPixFormat_XRGB8888];
+		pb2 = tab[kPixFormat_XRGB8888][dst.format];
 		if (!pb1 || !pb2)
 			return false;
+
+		linetmp.format = kPixFormat_XRGB8888;
 	}
 
 	do {
-		pb1(tempBuf.data(), 0, srcp, 0, w, 1);
-		pb2(dstp, 0, tempBuf.data(), 0, w, 1);
-		vdptrstep(srcp, src.pitch);
-		vdptrstep(dstp, dst.pitch);
+		pb1(linetmp, linesrc, w, 1);
+		pb2(linedst, linetmp, w, 1);
+		vdptrstep(linesrc.data, linesrc.pitch);
+		vdptrstep(linedst.data, linedst.pitch);
 	} while(--h);
 	return true;
+}
+
+bool VDPixmapBltFast(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h) {
+	if (VDPixmapBltDirect(dst, src, w, h))
+		return true;
+
+	// Oro... let's see if we can do a two-stage conversion.
+	return VDPixmapBltTwoStage(dst, src, w, h);
 }
 
 bool VDPixmapBlt(const VDPixmap& dst, const VDPixmap& src) {

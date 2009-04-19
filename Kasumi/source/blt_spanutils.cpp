@@ -197,6 +197,42 @@ namespace nsVDPixmapSpanUtils {
 		}
 	}
 
+	void horiz_realign_to_centered(uint8 *dst, const uint8 *src, sint32 w) {
+		// luma samples:	Y		Y		Y		Y		Y
+		// coaligned:		C				C				C
+		// centered:			C				C
+		//
+		// To realign coaligned samples to centered, we need to shift them
+		// right by a quarter sample in chroma space. This can be done via
+		// a [3 1]/4 filter.
+
+		for(sint32 i=1; i<w; ++i) {
+			dst[0] = (uint8)((3*(uint32)src[0] + (uint32)src[1] + 2) >> 2);
+			++dst;
+			++src;
+		}
+
+		*dst++ = *src++;
+	}
+
+	void horiz_realign_to_coaligned(uint8 *dst, const uint8 *src, sint32 w) {
+		// luma samples:	Y		Y		Y		Y		Y
+		// coaligned:		C				C				C
+		// centered:			C				C
+		//
+		// To realign centered samples to coaligned, we need to shift them
+		// left by a quarter sample in chroma space. This can be done via
+		// a [1 3]/4 filter.
+
+		*dst++ = *src++;
+
+		for(sint32 i=1; i<w; ++i) {
+			dst[0] = (uint8)(((uint32)src[-1] + 3*(uint32)src[0] + 2) >> 2);
+			++dst;
+			++src;
+		}
+	}
+
 	void vert_expand2x_centered(uint8 *dst, const uint8 *const *srcs, sint32 w, uint8 phase) {
 		const uint8 *src3 = srcs[0];
 		const uint8 *src1 = srcs[1];

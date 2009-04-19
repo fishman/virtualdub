@@ -52,7 +52,7 @@ class VDINTERFACE IVDVideoUploadContextD3D9 : public IVDRefCount {
 public:
 	virtual IDirect3DTexture9 *GetD3DTexture(int i) = 0;
 
-	virtual bool Init(const VDPixmap& source, bool allowConversion, int buffers = 1) = 0;
+	virtual bool Init(const VDPixmap& source, bool allowConversion, bool preserveYCbCr, int buffers) = 0;
 	virtual void Shutdown() = 0;
 
 	virtual bool Update(const VDPixmap& source, int fieldMask) = 0;

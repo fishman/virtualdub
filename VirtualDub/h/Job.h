@@ -30,12 +30,14 @@ bool JobPollAutoRun();
 void JobSetQueueFile(const wchar_t *filename, bool distributed, bool autorun);
 void JobAddConfiguration(const DubOptions *, const wchar_t *szFileInput, const wchar_t *pszInputDriver, const wchar_t *szFileOutput, bool fUseCompatibility, List2<InputFilenameNode> *pListAppended, long lSpillThreshold, long lSpillFrameThreshold, bool bIncludeEditList = true);
 void JobAddConfigurationImages(const DubOptions *opt, const wchar_t *szFileInput, const wchar_t *pszInputDriver, const wchar_t *szFileOutputPrefix, const wchar_t *szFileOutputSuffix, int minDigits, int imageFormat, int quality, List2<InputFilenameNode> *pListAppended);
+void JobAddConfigurationSaveAudio(const DubOptions *opt, const wchar_t *srcFile, const wchar_t *srcInputDriver, List2<InputFilenameNode> *pListAppended, const wchar_t *dstFile, bool raw, bool includeEditList);
+void JobAddConfigurationRunVideoAnalysisPass(const DubOptions *opt, const wchar_t *srcFile, const wchar_t *srcInputDriver, List2<InputFilenameNode> *pListAppended, bool includeEditList);
 void JobWriteConfiguration(const wchar_t *filename, DubOptions *, bool bIncludeEditList = true, bool bIncludeTextInfo = true);
 void JobLockDubber();
 void JobUnlockDubber();
 void JobPositionCallback(VDPosition start, VDPosition cur, VDPosition end, int progress, void *cookie);
 void JobClearList();
-bool JobRunList();
+void JobRunList();
 void JobAddBatchFile(const wchar_t *srcDir, const wchar_t *dstDir);
 void JobAddBatchDirectory(const wchar_t *srcDir, const wchar_t *dstDir);
 

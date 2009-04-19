@@ -45,7 +45,7 @@ extern const char *LookupVideoCodec(uint32);
 
 bool VDPreferencesIsPreferInternalVideoDecodersEnabled();
 
-IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBitmapInfoHeader& hdr, uint32 hdrSize, bool preferInternal);
+IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBitmapInfoHeader *hdr, uint32 hdrlen, bool preferInternal);
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -287,7 +287,7 @@ public:
 	const void *		VDXAPIENTRY GetFrameBufferBase();
 
 protected:
-	VDPosition	mCurrentSample;
+	VDPosition	mCurrentFrame;
 	VDXPixmap	mFrameBuffer;
 	int			mWidth;
 	int			mHeight;
@@ -297,8 +297,7 @@ protected:
 };
 
 VDVideoDecoderDefault::VDVideoDecoderDefault(IVDVideoDecompressor *decomp, int w, int h)
-	: mCurrentSample(-1)
-	, mpDecompressor(decomp)
+	: mpDecompressor(decomp)
 	, mWidth(w)
 	, mHeight(h)
 	, mpFrameBufferBase(malloc(((w + 3) & ~3) * h * 4))
@@ -312,13 +311,8 @@ VDVideoDecoderDefault::~VDVideoDecoderDefault() {
 }
 
 const void * VDXAPIENTRY VDVideoDecoderDefault::DecodeFrame(const void *inputBuffer, uint32 data_len, bool is_preroll, sint64 sampleNumber, sint64 targetFrame) {
-	if (inputBuffer) {
-		mCurrentSample = -1;
-
+	if (inputBuffer)
 		mpDecompressor->DecompressFrame(mpFrameBufferBase, inputBuffer, data_len, !is_preroll, is_preroll);
-
-		mCurrentSample = sampleNumber;
-	}
 
 	return mpFrameBufferBase;
 }
@@ -328,11 +322,11 @@ uint32 VDXAPIENTRY VDVideoDecoderDefault::GetDecodePadding() {
 }
 
 void VDXAPIENTRY VDVideoDecoderDefault::Reset() {
-	mCurrentSample = -1;
+	mCurrentFrame = -1;
 }
 
 bool VDXAPIENTRY VDVideoDecoderDefault::IsFrameBufferValid() {
-	return mCurrentSample >= 0;
+	return mCurrentFrame >= 0;
 }
 
 const VDXPixmap& VDXAPIENTRY VDVideoDecoderDefault::GetFrameBuffer() {
@@ -371,7 +365,7 @@ bool VDXAPIENTRY VDVideoDecoderDefault::SetDecompressedFormat(const VDXBITMAPINF
 }
 
 bool VDXAPIENTRY VDVideoDecoderDefault::IsDecodable(sint64 sample_num) {
-	return sample_num == mCurrentSample + 1;
+	return sample_num == mCurrentFrame + 1;
 }
 
 const void * VDXAPIENTRY VDVideoDecoderDefault::GetFrameBufferBase() {
@@ -389,6 +383,8 @@ public:
 
 	// VideoSource
 	const void *getFrameBuffer();
+	const VDFraction getPixelAspectRatio() const;
+
 	const VDPixmap& getTargetFormat();
 	bool setTargetFormat(int format);
 	bool setDecompressedFormat(int depth);
@@ -471,11 +467,11 @@ VDVideoSourcePlugin::VDVideoSourcePlugin(IVDXVideoSource *pVS, VDInputDriverCont
 
 	if (!mpXVDec) {
 		if (format) {
-			const VDAVIBitmapInfoHeader& hdr = *(const VDAVIBitmapInfoHeader *)format;
+			const VDAVIBitmapInfoHeader *hdr = (const VDAVIBitmapInfoHeader *)format;
 			IVDVideoDecompressor *dec = VDFindVideoDecompressorEx(mSSInfo.mfccHandler, hdr, formatLen, VDPreferencesIsPreferInternalVideoDecodersEnabled());
 
 			if (dec)
-				mpXVDec = new VDVideoDecoderDefault(dec, hdr.biWidth, hdr.biHeight);
+				mpXVDec = new VDVideoDecoderDefault(dec, hdr->biWidth, hdr->biHeight);
 		}
 
 		if (!mpXVDec) {
@@ -588,6 +584,10 @@ const void *VDVideoSourcePlugin::getFrameBuffer() {
 	}
 
 	return p;
+}
+
+const VDFraction VDVideoSourcePlugin::getPixelAspectRatio() const {
+	return VDFraction(mSSInfo.mInfo.mPixelAspectRatio.mNumerator, mSSInfo.mInfo.mPixelAspectRatio.mDenominator);
 }
 
 const VDPixmap& VDVideoSourcePlugin::getTargetFormat() {

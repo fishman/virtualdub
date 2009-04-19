@@ -453,6 +453,7 @@ private:
 	int last_packet[2];
 	int width, height;
 	VDFraction mFrameRate;
+	VDFraction mPixelAspectRatio;
 	bool fInterleaved, fHasAudio, fIsVCD;
 	bool fAbort;
 
@@ -566,6 +567,9 @@ public:
 	~VideoSourceMPEG();
 
 	void init();
+
+	const VDFraction getPixelAspectRatio() const { return parentPtr->mPixelAspectRatio; }
+
 	char getFrameTypeChar(VDPosition lFrameNum);
 	bool _isKey(VDPosition lSample);
 	virtual VDPosition nearestKey(VDPosition lSample);
@@ -1010,7 +1014,8 @@ int VideoSourceMPEG::streamGetRequiredCount(long *pSize) {
 	return needed;
 }
 
-const void *VideoSourceMPEG::streamGetFrame(const void *inputBuffer, uint32 data_len, bool is_preroll, VDPosition frame_num64, VDPosition target_num) {
+const void *VideoSourceMPEG::streamGetFrame(const void *inputBuffer, uint32 data_len, bool is_preroll, VDPosition frame_num64, VDPosition target_num64) {
+	long target_num = (long)target_num64;
 	long frame_num = (long)frame_num64;
 	int buffer;
 
@@ -2047,6 +2052,7 @@ private:
 public:
 	VDFraction mFrameRate;
 	int width, height;
+	uint8	mAspectRatioCode;
 
 	MPEGVideoParser();
 
@@ -2071,6 +2077,8 @@ MPEGVideoParser::MPEGVideoParser()
 	fFoundSequenceStart = false;
 
 	idx = bytes = 0;
+
+	mAspectRatioCode = 0;
 }
 
 void MPEGVideoParser::setPos(__int64 pos) {
@@ -2130,6 +2138,8 @@ void MPEGVideoParser::Parse(const void *pData, int len, DataVector *dst) {
 						if (bytes == 8) {
 							width	= (buf[0]<<4) + (buf[1]>>4);
 							height	= ((buf[1]<<8)&0xf00) + buf[2];
+
+							mAspectRatioCode = (uint8)buf[3] >> 4;
 
 							switch((unsigned char)buf[3] & 15) {
 							case 1:		mFrameRate = VDFraction(24000, 1001);	break;		// 1 (23.976) - NTSC FILM interlaced
@@ -2412,7 +2422,6 @@ void InputFileMPEG::Init(const wchar_t *szFile) {
 			Skip(softskip);
 
 		bool forceAbort = false;
-		int errorCode;
 
 		try {
 			do {
@@ -2421,7 +2430,7 @@ void InputFileMPEG::Init(const wchar_t *szFile) {
 
 				file_cpos = Tell();
 
-				if (!guiDlgMessageLoop(hWndStatus, &errorCode))
+				if (!guiDlgMessageLoop(hWndStatus))
 					fAbort = forceAbort = true;
 
 				if (fAbort)
@@ -2610,7 +2619,6 @@ void InputFileMPEG::Init(const wchar_t *szFile) {
 		} catch(const MyUserAbortError&) {
 			if (forceAbort) {
 				delete mpScanPrefetcher;
-				::PostQuitMessage(errorCode);
 				throw;
 			}
 
@@ -2640,6 +2648,24 @@ void InputFileMPEG::Init(const wchar_t *szFile) {
 		this->width = videoParser.width;
 		this->height = videoParser.height;
 		this->mFrameRate = videoParser.mFrameRate;
+
+		switch(videoParser.mAspectRatioCode) {
+			case  1:	mPixelAspectRatio.Assign(    1,     1); break;	// 1.0000
+			case  2:	mPixelAspectRatio.Assign(10000,  6735); break;	// 0.6735
+			case  3:	mPixelAspectRatio.Assign(10000,  7031); break;	// 0.7031
+			case  4:	mPixelAspectRatio.Assign(10000,  7615); break;	// 0.7615
+			case  5:	mPixelAspectRatio.Assign(10000,  8055); break;	// 0.8055
+			case  6:	mPixelAspectRatio.Assign(10000,  8437); break;	// 0.8437
+			case  7:	mPixelAspectRatio.Assign(10000,  8935); break;	// 0.8935
+			case  8:	mPixelAspectRatio.Assign(   54,    59); break;	// 0.9157 - CCIR Rec.601, 625-line (54/59)
+			case  9:	mPixelAspectRatio.Assign(10000,  9815); break;	// 0.9815 = 53/54
+			case 10:	mPixelAspectRatio.Assign(10000, 10255); break;	// 1.0255
+			case 11:	mPixelAspectRatio.Assign(10000, 10695); break;	// 1.0695
+			case 12:	mPixelAspectRatio.Assign(   10,    11); break;	// 1.0950 - CCIR Rec.601, 525-line (11/10)
+			case 13:	mPixelAspectRatio.Assign(10000, 11575); break;	// 1.1575
+			case 14:	mPixelAspectRatio.Assign(10000, 12015); break;	// 1.2015
+			default:	mPixelAspectRatio.Assign(0, 0); break;
+		}
 
 		// Construct stream and packet lookup tables.
 

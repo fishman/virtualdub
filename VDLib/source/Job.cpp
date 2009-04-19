@@ -38,6 +38,14 @@ bool VDJob::operator==(const VDJob& job) const {
 	return true;
 }
 
+void VDJob::SetInputFile(const wchar_t *file) {
+	mInputFile = VDTextWToA(file);
+}
+
+void VDJob::SetOutputFile(const wchar_t *file) {
+	mOutputFile = VDTextWToA(file);
+}
+
 void VDJob::SetState(int state) {
 	mState = state;
 	mbModified = true;

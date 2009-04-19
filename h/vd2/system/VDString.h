@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <functional>
 
 #include <vd2/system/vdtypes.h>
 #include <vd2/system/text.h>
@@ -110,6 +111,19 @@ public:
 		return p ? (const value_type *)p - mpBegin : npos;
 	}
 
+	int compare(const VDStringSpanA& s) const {
+		size_type l1 = mpEnd - mpBegin;
+		size_type l2 = s.mpEnd - s.mpBegin;
+		size_type lm = l1 < l2 ? l1 : l2;
+
+		int r = memcmp(mpBegin, s.mpBegin, lm);
+
+		if (!r)
+			r = (int)mpBegin[lm] - (int)s.mpBegin[lm];
+
+		return r;
+	}
+
 	const VDStringSpanA trim(const value_type *s) const {
 		bool flags[256]={false};
 
@@ -158,6 +172,22 @@ inline bool operator==(const char *x, const VDStringSpanA& y) { return y == x; }
 inline bool operator!=(const VDStringSpanA& x, const VDStringSpanA& y) { return !(x == y); }
 inline bool operator!=(const VDStringSpanA& x, const char *y) { return !(x == y); }
 inline bool operator!=(const char *x, const VDStringSpanA& y) { return !(y == x); }
+
+inline bool operator<(const VDStringSpanA& x, const VDStringSpanA& y) {
+	return x.compare(y) < 0;
+}
+
+inline bool operator>(const VDStringSpanA& x, const VDStringSpanA& y) {
+	return x.compare(y) > 0;
+}
+
+inline bool operator<=(const VDStringSpanA& x, const VDStringSpanA& y) {
+	return x.compare(y) <= 0;
+}
+
+inline bool operator>=(const VDStringSpanA& x, const VDStringSpanA& y) {
+	return x.compare(y) >= 0;
+}
 
 class VDStringRefA : public VDStringSpanA {
 public:
@@ -575,6 +605,15 @@ inline VDStringA operator+(const VDStringA& str, char c) {
 	result.assign(str);
 	result += c;
 	return result;
+}
+
+namespace std {
+	template<>
+	struct less<VDStringA> : binary_function<VDStringA, VDStringA, bool> {
+		bool operator()(const VDStringA& x, const VDStringA& y) const {
+			return x.compare(y) < 0;
+		}
+	};
 }
 
 ///////////////////////////////////////////////////////////////////////////

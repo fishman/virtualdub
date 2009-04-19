@@ -43,6 +43,8 @@ extern void VDMemcpyRect(void *dst, ptrdiff_t dststride, const void *src, ptrdif
 
 extern IVDVideoDisplayMinidriver *VDCreateVideoDisplayMinidriverD3DFX();
 
+vdautoptr<VDVideoDisplayManager> g_pVDVideoDisplayManager;
+
 ///////////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -118,7 +120,7 @@ protected:
 	void ReleaseActiveFrame();
 	void RequestNextFrame();
 	void DispatchNextFrame();
-	void DispatchActiveFrame();
+	bool DispatchActiveFrame();
 
 protected:
 	static LRESULT CALLBACK StaticChildWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -196,6 +198,8 @@ public:
 	static bool		sbEnableOGL;
 	static bool		sbEnableTS;
 	static bool		sbEnableDebugInfo;
+	static bool		sbEnableHighPrecision;
+	static bool		sbEnableBackgroundFallback;
 };
 
 ATOM									VDVideoDisplayWindow::sChildWindowClass;
@@ -206,6 +210,8 @@ bool VDVideoDisplayWindow::sbEnableD3DFX;
 bool VDVideoDisplayWindow::sbEnableOGL;
 bool VDVideoDisplayWindow::sbEnableTS;
 bool VDVideoDisplayWindow::sbEnableDebugInfo;
+bool VDVideoDisplayWindow::sbEnableHighPrecision;
+bool VDVideoDisplayWindow::sbEnableBackgroundFallback;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -213,13 +219,21 @@ void VDVideoDisplaySetDebugInfoEnabled(bool enable) {
 	VDVideoDisplayWindow::sbEnableDebugInfo = enable;
 }
 
-void VDVideoDisplaySetFeatures(bool enableDirectX, bool enableDirectXOverlay, bool enableTermServ, bool enableOpenGL, bool enableDirect3D, bool enableDirect3DFX) {
+void VDVideoDisplaySetBackgroundFallbackEnabled(bool enable) {
+	VDVideoDisplayWindow::sbEnableBackgroundFallback = enable;
+
+	if (g_pVDVideoDisplayManager)
+		g_pVDVideoDisplayManager->SetBackgroundFallbackEnabled(enable);
+}
+
+void VDVideoDisplaySetFeatures(bool enableDirectX, bool enableDirectXOverlay, bool enableTermServ, bool enableOpenGL, bool enableDirect3D, bool enableDirect3DFX, bool enableHighPrecision) {
 	VDVideoDisplayWindow::sbEnableDX = enableDirectX;
 	VDVideoDisplayWindow::sbEnableDXOverlay = enableDirectXOverlay;
 	VDVideoDisplayWindow::sbEnableD3D = enableDirect3D;
 	VDVideoDisplayWindow::sbEnableD3DFX = enableDirect3DFX;
 	VDVideoDisplayWindow::sbEnableOGL = enableOpenGL;
 	VDVideoDisplayWindow::sbEnableTS = enableTermServ;
+	VDVideoDisplayWindow::sbEnableHighPrecision = enableHighPrecision;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -279,7 +293,7 @@ VDVideoDisplayWindow::VDVideoDisplayWindow(HWND hwnd, const CREATESTRUCT& create
 	, mInhibitRefresh(0)
 	, mSyncDelta(0.0f)
 	, mFilterMode(kFilterAnySuitable)
-	, mAccelMode(kAccelOnlyInForeground)
+	, mAccelMode(VDVideoDisplayWindow::sbEnableBackgroundFallback ? kAccelOnlyInForeground : kAccelAlways)
 	, mbIgnoreMouse(false)
 	, mbUseSubrect(false)
 	, mbReturnFocus(false)
@@ -557,7 +571,7 @@ void VDVideoDisplayWindow::DispatchNextFrame() {
 	DispatchActiveFrame();
 }
 
-void VDVideoDisplayWindow::DispatchActiveFrame() {
+bool VDVideoDisplayWindow::DispatchActiveFrame() {
 	if (mpActiveFrame) {
 		VDVideoDisplaySourceInfo params;
 
@@ -590,9 +604,16 @@ void VDVideoDisplayWindow::DispatchActiveFrame() {
 
 		params.mpCB				= this;
 
-		SyncSetSource(false, params);
+		if (!SyncSetSource(false, params)) {
+			ReleaseActiveFrame();
+			return false;
+		}
+
 		SyncUpdate(flags);
+		return true;
 	}
+
+	return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1116,6 +1137,7 @@ bool VDVideoDisplayWindow::InitMiniDriver() {
 	mpMiniDriver->SetSubrect(mbUseSubrect ? &mSourceSubrect : NULL);
 	mpMiniDriver->SetDisplayDebugInfo(sbEnableDebugInfo);
 	mpMiniDriver->SetFullScreen(mbFullScreen);
+	mpMiniDriver->SetHighPrecision(sbEnableHighPrecision);
 
 	if (!mpMiniDriver->Init(mhwndChild, mSource)) {
 		DestroyWindow(mhwndChild);
@@ -1170,12 +1192,11 @@ void VDVideoDisplayWindow::VerifyDriverResult(bool result) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-vdautoptr<VDVideoDisplayManager> g_pVDVideoDisplayManager;
-
 VDVideoDisplayManager *VDGetVideoDisplayManager() {
 	if (!g_pVDVideoDisplayManager) {
 		g_pVDVideoDisplayManager = new VDVideoDisplayManager;
 		g_pVDVideoDisplayManager->Init();
+		g_pVDVideoDisplayManager->SetBackgroundFallbackEnabled(VDVideoDisplayWindow::sbEnableBackgroundFallback);
 	}
 
 	return g_pVDVideoDisplayManager;

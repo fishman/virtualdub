@@ -203,7 +203,7 @@ static int sharpen_config(FilterActivation *fa, const FilterFunctions *ff, VDXHW
 	}
 	cfd = (ConvoluteFilterData *)fa->filter_data;
 
-	lv = FilterGetSingleValue((HWND)hWnd, -cfd->m[0], 0, 64, "sharpen", fa->ifp, sharpen_update, cfd);
+	lv = FilterGetSingleValue((HWND)hWnd, -cfd->m[0], 0, 64, "sharpen", fa->ifp2, sharpen_update, cfd);
 
 	sharpen_update(lv, fa->filter_data);
 	return 0;

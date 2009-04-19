@@ -80,6 +80,10 @@ DEFINE_TEST(Pixmap) {
 				if (dstformat == kPixFormat_YUV444_XVYU)
 					continue;
 
+				VDPixmap srccrop(src);
+				srccrop.w = size;
+				srccrop.h = size;
+
 				VDPixmapBuffer in(size, size, srcformat);
 				VDPixmapBuffer out(size, size, dstformat);
 
@@ -99,7 +103,7 @@ DEFINE_TEST(Pixmap) {
 				for(int v=0; v<maxtest; ++v) {
 					VDMemset32Rect(src.data, src.pitch, kColors[v], size, size);
 
-					VDVERIFY(VDPixmapBlt(in, src));
+					VDVERIFY(VDPixmapBlt(in, srccrop));
 					VDVERIFY(VDPixmapBlt(out, in));
 					VDVERIFY(VDPixmapBlt(output, out));
 

@@ -48,7 +48,7 @@ void Draw3DRect(HDC hDC, LONG x, LONG y, LONG dx, LONG dy, BOOL inverted) {
 //	HKEY_CURRENT_USER\Software\Freeware\VirtualDub\
 
 HKEY OpenConfigKey(const char *szKeyName) {
-	char temp[MAX_PATH]="Software\\Freeware\\VirtualDub";
+	char temp[MAX_PATH]="Software\\VirtualDub.org\\VirtualDub";
 	HKEY hkey;
 
 	if (szKeyName) {
@@ -62,7 +62,7 @@ HKEY OpenConfigKey(const char *szKeyName) {
 }
 
 HKEY CreateConfigKey(const char *szKeyName) {
-	char temp[MAX_PATH]="Software\\Freeware\\VirtualDub";
+	char temp[MAX_PATH]="Software\\VirtualDub.org\\VirtualDub";
 	HKEY hkey;
 	DWORD dwDisposition;
 
@@ -470,12 +470,31 @@ static void ExitWindowsExDammit(UINT uFlags, DWORD dwReserved) {
 	ExitWindowsEx(uFlags, dwReserved);
 }
 
-void VDInitiateSystemShutdown() {
-	// In theory, this is an illegal combination of flags, but it
-	// seems to be necessary to properly power off both Windows 98
-	// and Windows XP.  In particular, Windows 98 just logs off if
-	// you try EWX_POWEROFF.  Joy.
-	ExitWindowsExDammit(EWX_SHUTDOWN|EWX_POWEROFF|EWX_FORCEIFHUNG, 0);
+bool VDInitiateSystemShutdown(VDSystemShutdownMode mode) {
+	if (mode != kVDSystemShutdownMode_Shutdown) {
+		HMODULE hmodPowrProf = LoadLibraryA("powrprof");
+		bool success = false;
+
+		if (hmodPowrProf) {
+			typedef BOOLEAN (APIENTRY *tpSetSuspendState)(BOOL Hibernate, BOOL ForceCritical, BOOL DisableWakeEvent);
+			tpSetSuspendState pSetSuspendState = (tpSetSuspendState)GetProcAddress(hmodPowrProf, "SetSuspendState");
+			if (pSetSuspendState) {
+				if (pSetSuspendState(mode == kVDSystemShutdownMode_Hibernate, FALSE, FALSE))
+					success = true;
+			}
+
+			FreeLibrary(hmodPowrProf);
+		}
+
+		return success;
+	} else {
+		// In theory, this is an illegal combination of flags, but it
+		// seems to be necessary to properly power off both Windows 98
+		// and Windows XP.  In particular, Windows 98 just logs off if
+		// you try EWX_POWEROFF.  Joy.
+		ExitWindowsExDammit(EWX_SHUTDOWN|EWX_POWEROFF|EWX_FORCEIFHUNG, 0);
+		return true;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////

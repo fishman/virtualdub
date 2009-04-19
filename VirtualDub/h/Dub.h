@@ -127,11 +127,6 @@ public:
 	DubVideoPosition mSelectionStart;
 	DubVideoPosition mSelectionEnd;
 
-	bool	fInvTelecine;
-	bool	fIVTCMode;
-	int		nIVTCOffset;
-	bool	fIVTCPolarity;
-
 	PreviewFieldMode	previewFieldMode;
 };
 
@@ -202,6 +197,16 @@ public:
 	bool	fAudioOnly;
 };
 
+struct VDDubPerfStatus {
+	uint32	mVideoBuffersActive;
+	uint32	mVideoBuffersTotal;
+	uint32	mVideoRequestsActive;
+	uint32	mAudioBufferInUse;
+	uint32	mAudioBufferTotal;
+	float	mIOActivityRatio;
+	float	mProcActivityRatio;
+};
+
 class IDubber {
 public:
 	virtual ~IDubber()					=0;
@@ -226,6 +231,8 @@ public:
 	virtual void UpdateFrames()=0;
 
 	virtual void SetThrottleFactor(float throttleFactor) = 0;
+
+	virtual void GetPerfStatus(VDDubPerfStatus& status) = 0;
 
 	virtual VDEvent<IDubber, bool>& Stopped() = 0;
 };

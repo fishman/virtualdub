@@ -24,36 +24,36 @@
 #include "VideoSource.h"
 #include "Audio.h"
 #include "AVIPipe.h"
+#include "DubFrameRequestQueue.h"
 
 using namespace nsVDDub;
 
 VDDubIOThread::VDDubIOThread(
 		IDubberInternal		*pParent,
-		bool				bPhantom,
 		const vdfastvector<IVDVideoSource *>& videoSources,
-		VDRenderFrameIterator& videoFrameIterator,
 		AudioStream			*pAudio,
 		AVIPipe				*const pVideoPipe,
 		VDAudioPipeline		*const pAudioPipe,
-		VDAtomicInt&		bAbort,
 		DubAudioStreamInfo&	_aInfo,
 		DubVideoStreamInfo& _vInfo,
-		VDAtomicInt&		threadCounter
+		VDAtomicInt&		threadCounter,
+		VDDubFrameRequestQueue *videoRequestQueue
 							 )
 	: VDThread("Dub-I/O")
 	, mpParent(pParent)
 	, mbError(false)
-	, mbPhantom(bPhantom)
-	, mbCompleted(false)
+	, mbVideoRequestActive(false)
+	, mbVideoRequestFirstSample(false)
+	, mpVideoRequestSource(NULL)
 	, mVideoSources(videoSources)
-	, mVideoFrameIterator(videoFrameIterator)
 	, mpAudio(pAudio)
 	, mpVideoPipe(pVideoPipe)
 	, mpAudioPipe(pAudioPipe)
-	, mbAbort(bAbort)
 	, aInfo(_aInfo)
 	, vInfo(_vInfo)
 	, mThreadCounter(threadCounter)
+	, mpVideoRequestQueue(videoRequestQueue)
+	, mbAbort(false)
 	, mpCurrentAction("starting up")
 {
 }
@@ -65,11 +65,19 @@ void VDDubIOThread::SetThrottle(float f) {
 	mLoopThrottle.SetThrottleFactor(f);
 }
 
+void VDDubIOThread::Abort() {
+	mbAbort = true;
+	mAbortSignal.signal();
+}
+
 void VDDubIOThread::ThreadRun() {
 	VDRTProfileChannel profchan("I/O");
 
 	bool bAudioActive = mpAudioPipe && (mpAudio != 0);
 	bool bVideoActive = mpVideoPipe && !mVideoSources.empty();
+
+	mbVideoWaitingForSpace = false;
+	mbVideoWaitingForRequest = false;
 
 	double nVideoRate = 0;
 
@@ -87,6 +95,8 @@ void VDDubIOThread::ThreadRun() {
 			minAudioBufferSpace += 4;
 	}
 
+	bool waitingForAudioSpace = false;
+
 	try {
 		mpCurrentAction = "running main loop";
 
@@ -98,14 +108,14 @@ void VDDubIOThread::ThreadRun() {
 			if (!mLoopThrottle.Delay())
 				continue;
 
-			bool bCanWriteVideo = bVideoActive && !mpVideoPipe->full();
-			bool bCanWriteAudio = bAudioActive && mpAudioPipe->getSpace() >= minAudioBufferSpace;
+			bool bCanWriteVideo = bVideoActive && !mbVideoWaitingForRequest && !mbVideoWaitingForSpace;
+			bool bCanWriteAudio = bAudioActive && !waitingForAudioSpace;
 			int preferAudio = 0;
 
 			if (bCanWriteVideo && bCanWriteAudio) {
 				const int nAudioLevel = mpAudioPipe->getLevel();
-				int nVideoTotal, nVideoFinalQueued;
-				mpVideoPipe->getQueueInfo(nVideoTotal, nVideoFinalQueued);
+				int nVideoTotal, nVideoFinalQueued, nVideoAllocated;
+				mpVideoPipe->getQueueInfo(nVideoTotal, nVideoFinalQueued, nVideoAllocated);
 
 				if (nAudioLevel * nVideoRate < nVideoFinalQueued * nAudioRate)
 					preferAudio = 1;
@@ -121,10 +131,7 @@ void VDDubIOThread::ThreadRun() {
 
 							profchan.Begin(0xffe0e0, "Video");
 
-							if (!MainAddVideoFrame() && vInfo.cur_dst >= vInfo.end_dst) {
-								bVideoActive = false;
-								mpVideoPipe->finalize();
-							}
+							MainAddVideoFrame();
 
 							profchan.End();
 							goto restart_service_loop;
@@ -132,7 +139,15 @@ void VDDubIOThread::ThreadRun() {
 						break;
 
 					case 1:
-						if (bCanWriteAudio) {
+						if (!bCanWriteAudio)
+							break;
+
+						if (mpAudioPipe->getSpace() < minAudioBufferSpace) {
+							waitingForAudioSpace = true;
+							break;
+						}
+
+						{
 							bBlocked = false;
 
 							VDDubAutoThreadLocation loc(mpCurrentAction, "reading audio data");
@@ -164,13 +179,39 @@ void VDDubIOThread::ThreadRun() {
 
 				VDDubAutoThreadLocation loc(mpCurrentAction, "stalled due to full pipe to processing thread");
 
-				if (bAudioActive) {
-					if (bVideoActive)
-						mpVideoPipe->getReadSignal().wait(&mpAudioPipe->getReadSignal());
-					else
-						mpAudioPipe->getReadSignal().wait();
-				} else if (mpVideoPipe)
-					mpVideoPipe->getReadSignal().wait();
+				const VDSignalBase *signals[4] = { &mAbortSignal };
+				int activeSignals = 1;
+				int waitIndexAudioSpace = -2;
+				int waitIndexVideoSpace = -2;
+				int waitIndexVideoRequest = -2;
+
+				if (waitingForAudioSpace) {
+					waitIndexAudioSpace = activeSignals;
+					signals[activeSignals++] = &mpAudioPipe->getReadSignal();
+				}
+
+				if (mbVideoWaitingForSpace) {
+					waitIndexVideoSpace = activeSignals;
+					signals[activeSignals++] = &mpVideoPipe->getReadSignal();
+				} else if (mbVideoWaitingForRequest) {
+					waitIndexVideoRequest = activeSignals;
+					signals[activeSignals++] = &mpVideoRequestQueue->GetNotEmptySignal();
+				}
+
+				mLoopThrottle.BeginWait();
+				int result = VDSignalBase::waitMultiple(signals, activeSignals);
+				mLoopThrottle.EndWait();
+
+				if (result == waitIndexAudioSpace) {
+					if (mpAudioPipe->getSpace() >= minAudioBufferSpace)
+						waitingForAudioSpace = false;
+				}
+
+				if (result == waitIndexVideoSpace)
+					mbVideoWaitingForSpace = false;
+
+				if (result == waitIndexVideoRequest)
+					mbVideoWaitingForRequest = false;
 			}
 restart_service_loop:
 			;
@@ -184,151 +225,144 @@ restart_service_loop:
 		mpParent->InternalSignalStop();
 	}
 
-	mbCompleted = !bAudioActive && !bVideoActive;
-
 	if (mpAudioPipe)
 		mpAudioPipe->CloseInput();
 	if (mpVideoPipe)
 		mpVideoPipe->finalize();
 }
 
-void VDDubIOThread::ReadVideoFrame(int sourceIndex, VDPosition stream_frame, VDPosition target_frame, VDPosition orig_display_frame, VDPosition display_frame, VDPosition timeline_frame, VDPosition sequence_frame, bool preload, bool direct, bool sameAsLast) {
-	int hr;
+bool VDDubIOThread::MainAddVideoFrame() {
+	const int srcIndex = 0;
 
-	void *buffer;
-	int handle;
+	if (!mbVideoRequestActive) {
+		if (!mpVideoRequestQueue->RemoveRequest(mVideoRequest)) {
+			mbVideoWaitingForRequest = true;
+			return false;
+		}
 
+		if (mVideoRequest.mSrcFrame < 0) {
+			if (mpVideoPipe)
+				mpVideoPipe->finalize();
+			return false;
+		}
+
+		mbVideoRequestActive = true;
+		mbVideoRequestFirstSample = true;
+
+		mpVideoRequestSource = mVideoSources[srcIndex];
+
+		sint64 len = mpVideoRequestSource->asStream()->getLength();
+		if (len > 0 && mVideoRequest.mSrcFrame >= len) {
+			mVideoRequest.mSrcFrame = len - 1;
+		}
+
+		mVideoRequestTargetSample = -1;
+
+		if (!mVideoRequest.mbDirect) {
+			mpVideoRequestSource->streamSetDesiredFrame(mVideoRequest.mSrcFrame);
+			mVideoRequestTargetSample = mpVideoRequestSource->displayToStreamOrder(mVideoRequest.mSrcFrame);
+		}
+	}
+
+	if (mpVideoPipe->full()) {
+		mbVideoWaitingForSpace = true;
+		return false;
+	}
+
+	// for the direct case, just read the frame and return
+	if (mVideoRequest.mbDirect) {
+		ReadRawVideoFrame(srcIndex, mpVideoRequestSource->displayToStreamOrder(mVideoRequest.mSrcFrame), mVideoRequest.mSrcFrame, mVideoRequestTargetSample, false, true);
+		mbVideoRequestActive = false;
+		return true;
+	}
+
+	// for the source frame case, read the next required frame and return
+	bool preroll;
+
+	VDPosition pos = mpVideoRequestSource->streamGetNextRequiredFrame(preroll);
+	if (pos >= 0)
+		ReadRawVideoFrame(srcIndex, pos, mVideoRequest.mSrcFrame, mVideoRequestTargetSample, preroll, false);
+	else if (mbVideoRequestFirstSample)
+		ReadNullVideoFrame(srcIndex, mVideoRequest.mSrcFrame, mVideoRequestTargetSample);
+
+	mbVideoRequestFirstSample = false;
+
+	if (!preroll)
+		mbVideoRequestActive = false;
+	return true;
+}
+
+void VDDubIOThread::ReadRawVideoFrame(int sourceIndex, VDPosition streamFrame, VDPosition displayFrame, VDPosition targetSample, bool preload, bool direct) {
 	IVDVideoSource *vsrc = mVideoSources[sourceIndex];
 
 	VDRenderVideoPipeFrameInfo frameInfo;
 	frameInfo.mLength			= 0;
-	frameInfo.mRawFrame			= stream_frame;
-	frameInfo.mTargetFrame		= target_frame;
-	frameInfo.mOrigDisplayFrame	= orig_display_frame;
-	frameInfo.mDisplayFrame		= display_frame;
-	frameInfo.mTimelineFrame	= timeline_frame;
-	frameInfo.mSequenceFrame	= sequence_frame;
+	frameInfo.mStreamFrame		= streamFrame;
+	frameInfo.mDisplayFrame		= displayFrame;
+	frameInfo.mTargetSample		= targetSample;
 	frameInfo.mSrcIndex			= sourceIndex;
-	frameInfo.mFlags			= (vsrc->isKey(display_frame) ? 0 : kBufferFlagDelta) + (preload ? kBufferFlagPreload : 0);
+	frameInfo.mFlags			= (vsrc->isKey(displayFrame) ? 0 : kBufferFlagDelta) + (preload ? kBufferFlagPreload : 0);
 	frameInfo.mDroptype			= 0;
-	frameInfo.mbFinal			= !preload;
 
 	if (direct)
 		frameInfo.mFlags |= kBufferFlagDirectWrite;
 
-	if (sameAsLast)
-		frameInfo.mFlags |= kBufferFlagSameAsLast;
-
-	if (mbPhantom) {
-		buffer = mpVideoPipe->getWriteBuffer(0, &handle);
-		if (!buffer)
-			return;	// hmm, aborted...
-
-		frameInfo.mFlags |= kBufferFlagDirectWrite;
-		mpVideoPipe->postBuffer(frameInfo);
-		return;
-	}
-
-//	VDDEBUG("Reading frame %ld (%s)\n", lVStreamPos, preload ? "preload" : "process");
-
+	// get frame size
 	uint32 size;
+	int hr;
 	{
 		VDDubAutoThreadLocation loc(mpCurrentAction, "reading video data from disk");
 
-		hr = vsrc->asStream()->read(stream_frame, 1, NULL, 0x7FFFFFFF, &size, NULL);
+		hr = vsrc->asStream()->read(streamFrame, 1, NULL, 0x7FFFFFFF, &size, NULL);
 	}
+
 	if (hr) {
 		if (hr == DubSource::kFileReadError)
-			throw MyError("Video frame %d could not be read from the source. The file may be corrupt.", stream_frame);
+			throw MyError("Video frame %d could not be read from the source. The file may be corrupt.", streamFrame);
 		else
 			throw MyAVIError("Dub/IO-Video", hr);
 	}
 
-	buffer = mpVideoPipe->getWriteBuffer(size + vsrc->streamGetDecodePadding(), &handle);
-	if (!buffer) return;	// hmm, aborted...
+	// allocate write buffer
+	int handle;
+	void *buffer = mpVideoPipe->getWriteBuffer(size + vsrc->streamGetDecodePadding(), &handle);
+	if (!buffer)
+		return;	// hmm, aborted...
 
+	// read frame
 	uint32 lActualBytes;
 	{
 		VDDubAutoThreadLocation loc(mpCurrentAction, "reading video data from disk");
-		hr = vsrc->asStream()->read(stream_frame, 1, buffer, size,	&lActualBytes,NULL); 
+		hr = vsrc->asStream()->read(streamFrame, 1, buffer, size, &lActualBytes, NULL); 
 	}
+
 	if (hr) {
 		if (hr == DubSource::kFileReadError)
-			throw MyError("Video frame %d could not be read from the source. The file may be corrupt.", stream_frame);
+			throw MyError("Video frame %d could not be read from the source. The file may be corrupt.", streamFrame);
 		else
 			throw MyAVIError("Dub/IO-Video", hr);
 	}
 
 	vsrc->streamFillDecodePadding(buffer, size);
 
-	display_frame = vsrc->streamToDisplayOrder(stream_frame);
-
+	// push into pipe
 	frameInfo.mLength	= lActualBytes;
-	frameInfo.mDroptype	= vsrc->getDropType(display_frame);
+	frameInfo.mDroptype	= vsrc->getDropType(displayFrame);
+	frameInfo.mbFinal	= !preload;
 	mpVideoPipe->postBuffer(frameInfo);
 }
 
-void VDDubIOThread::ReadNullVideoFrame(int sourceIndex, VDPosition origDisplayFrame, VDPosition displayFrame, VDPosition timelineFrame, VDPosition sequenceFrame, bool direct, bool sameAsLast) {
-	void *buffer;
-	int handle;
-
-	buffer = mpVideoPipe->getWriteBuffer(1, &handle);
-	if (!buffer) return;	// hmm, aborted...
-
-	IVDVideoSource *vsrc = mVideoSources[sourceIndex];
-
+void VDDubIOThread::ReadNullVideoFrame(int sourceIndex, VDPosition displayFrame, VDPosition targetSample) {
 	VDRenderVideoPipeFrameInfo frameInfo;
 	frameInfo.mLength			= 0;
-	frameInfo.mOrigDisplayFrame	= origDisplayFrame;
+	frameInfo.mStreamFrame		= -1;
 	frameInfo.mDisplayFrame		= displayFrame;
-	frameInfo.mTimelineFrame	= timelineFrame;
-	frameInfo.mSequenceFrame	= sequenceFrame;
-	frameInfo.mTargetFrame		= vsrc->displayToStreamOrder(displayFrame);
+	frameInfo.mTargetSample		= targetSample;
 	frameInfo.mSrcIndex			= sourceIndex;
-	frameInfo.mbFinal			= true;
-
-	if (displayFrame >= 0) {
-		frameInfo.mRawFrame			= -1;
-		frameInfo.mFlags			= (vsrc->isKey(displayFrame) ? 0 : kBufferFlagDelta);
-		frameInfo.mDroptype			= vsrc->getDropType(displayFrame);
-	} else {
-		// can happen in direct mode for pad frames
-		frameInfo.mRawFrame			= -1;
-		frameInfo.mTargetFrame		= -1;
-		frameInfo.mFlags			= kBufferFlagDelta;
-		frameInfo.mDroptype			= AVIPipe::kDroppable;
-	}
-
-	if (direct)
-		frameInfo.mFlags |= kBufferFlagDirectWrite;
-
-	if (sameAsLast)
-		frameInfo.mFlags |= kBufferFlagSameAsLast;
-
-	frameInfo.mFlags |= kBufferFlagInternalDecode;
-
+	frameInfo.mFlags			= 0;
+	frameInfo.mDroptype			= IVDVideoSource::kDependant;
+	frameInfo.mbFinal			= false;
 	mpVideoPipe->postBuffer(frameInfo);
-}
-
-//////////////////////
-
-bool VDDubIOThread::MainAddVideoFrame() {
-	if (vInfo.cur_dst >= vInfo.end_dst)
-		return false;
-	
-	VDRenderFrameStep step(mVideoFrameIterator.Next());
-
-	VDASSERT(step.mSrcIndex >= 0);
-
-	if (step.mSourceFrame < 0)
-		ReadNullVideoFrame(step.mSrcIndex, step.mOrigDisplayFrame, step.mDisplayFrame, step.mTimelineFrame, step.mSequenceFrame, step.mbDirect, step.mbSameAsLast);
-	else
-		ReadVideoFrame(step.mSrcIndex, step.mSourceFrame, step.mTargetSample, step.mOrigDisplayFrame, step.mDisplayFrame, step.mTimelineFrame, step.mSequenceFrame, step.mbIsPreroll, step.mbDirect, step.mbSameAsLast);
-
-	if (!step.mbIsPreroll)
-		++vInfo.cur_dst;
-
-	return true;
 }
 
 bool VDDubIOThread::MainAddAudioFrame() {

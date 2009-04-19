@@ -26,10 +26,11 @@
 #include <vd2/system/vdstl.h>
 #include <vd2/Riza/audioout.h>
 #include "AVIOutput.h"
+#include "DubPreviewClock.h"
 
 class IVDAudioOutput;
 
-class AVIAudioPreviewOutputStream : public AVIOutputStream {
+class AVIAudioPreviewOutputStream : public AVIOutputStream, public IVDDubPreviewTimer {
 public:
 	AVIAudioPreviewOutputStream();
 	~AVIAudioPreviewOutputStream();
@@ -50,6 +51,9 @@ public:
 	bool isFrozen();
 	bool isSilent();
 	void stop();
+
+protected:
+	uint32 GetPreviewTime();
 
 private:
 	void initAudio();

@@ -69,6 +69,7 @@ public:
 	int		 getWriteSpace() const;
 	T *		 getWritePtr() const { return pBuffer+nWritePoint; }
 
+	int		 size() const { return nSize; }
 	bool	 empty() const { return !nLevel; }
 	bool	 full() const { return nLevel == nSize; }
 

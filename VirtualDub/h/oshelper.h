@@ -44,7 +44,14 @@ void VDSubstituteStrings(VDStringW& s);
 
 void LaunchURL(const char *pURL);
 
-void VDInitiateSystemShutdown();
+enum VDSystemShutdownMode
+{
+	kVDSystemShutdownMode_Shutdown,
+	kVDSystemShutdownMode_Hibernate,
+	kVDSystemShutdownMode_Sleep
+};
+
+bool VDInitiateSystemShutdown(VDSystemShutdownMode mode);
 
 class VDCPUUsageReader {
 public:

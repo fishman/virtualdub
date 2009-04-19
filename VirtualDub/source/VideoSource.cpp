@@ -180,16 +180,16 @@ void VDVideoDecompressorMJPEG::Stop() {
 void VDVideoDecompressorMJPEG::DecompressFrame(void *dst, const void *src, uint32 srcSize, bool keyframe, bool preroll) {
 	switch(mFormat) {
 	case nsVDPixmap::kPixFormat_XRGB1555:
-		mpDecoder->decodeFrameRGB15((unsigned long *)dst, (unsigned char *)src, srcSize);
+		mpDecoder->decodeFrameRGB15((uint32 *)dst, (uint8 *)src, srcSize);
 		break;
 	case nsVDPixmap::kPixFormat_XRGB8888:
-		mpDecoder->decodeFrameRGB32((unsigned long *)dst, (unsigned char *)src, srcSize);
+		mpDecoder->decodeFrameRGB32((uint32 *)dst, (uint8 *)src, srcSize);
 		break;
 	case nsVDPixmap::kPixFormat_YUV422_UYVY:
-		mpDecoder->decodeFrameUYVY((unsigned long *)dst, (unsigned char *)src, srcSize);
+		mpDecoder->decodeFrameUYVY((uint32 *)dst, (uint8 *)src, srcSize);
 		break;
 	case nsVDPixmap::kPixFormat_YUV422_YUYV:
-		mpDecoder->decodeFrameYUY2((unsigned long *)dst, (unsigned char *)src, srcSize);
+		mpDecoder->decodeFrameYUY2((uint32 *)dst, (uint8 *)src, srcSize);
 		break;
 	default:
 		throw MyError("Cannot find compatible target format for video decompression.");
@@ -787,7 +787,7 @@ bool VDPixmapIsYCbCrFormat(int format) {
 	}
 }
 
-IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBitmapInfoHeader& hdr, uint32 hdrSize, bool preferInternal) {
+IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBitmapInfoHeader *hdr, uint32 hdrlen, bool preferInternal) {
 	IVDVideoDecompressor *dec;
 
 	// get a decompressor
@@ -798,7 +798,7 @@ IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBi
 	// NOTE: Don't handle RLE4/RLE8 here.  RLE is slightly different in AVI files!
 
 	int variant;
-	int format = VDBitmapFormatToPixmapFormat(hdr, variant);
+	int format = VDBitmapFormatToPixmapFormat(*hdr, variant);
 
 	if (!VDPreferencesIsDirectYCbCrInputEnabled()) {
 		if (VDPixmapIsYCbCrFormat(format))
@@ -810,18 +810,18 @@ IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBi
 		dec = new VDVideoDecompressorDIB;
 		if (dec) {
 			VDPixmapLayout layout;
-			VDMakeBitmapCompatiblePixmapLayout(layout, hdr.biWidth, hdr.biHeight, format, variant);
+			VDMakeBitmapCompatiblePixmapLayout(layout, hdr->biWidth, hdr->biHeight, format, variant);
 
-			const uint32 *palette = (const uint32 *)(&hdr + 1);
-			static_cast<VDVideoDecompressorDIB *>(dec)->Init(layout, palette, hdrSize >= sizeof(VDAVIBitmapInfoHeader) ? (hdrSize - sizeof(VDAVIBitmapInfoHeader)) >> 2 : 0);
+			const uint32 *palette = (const uint32 *)(hdr + 1);
+			static_cast<VDVideoDecompressorDIB *>(dec)->Init(layout, palette, hdrlen >= sizeof(VDAVIBitmapInfoHeader) ? (hdrlen - sizeof(VDAVIBitmapInfoHeader)) >> 2 : 0);
 			return dec;
 		}
 	}
 
-	if (hdr.biCompression == VDAVIBitmapInfoHeader::kCompressionBitfields && (hdr.biBitCount == 16 || hdr.biBitCount == 32)) {
+	if (hdr->biCompression == VDAVIBitmapInfoHeader::kCompressionBitfields && (hdr->biBitCount == 16 || hdr->biBitCount == 32)) {
 		dec = new VDVideoDecompressorDIBBitfields;
 		if (dec) {
-			static_cast<VDVideoDecompressorDIBBitfields *>(dec)->Init(hdr.biWidth, hdr.biHeight, hdr.biBitCount == 32, (const uint32 *)(&hdr + 1));
+			static_cast<VDVideoDecompressorDIBBitfields *>(dec)->Init(hdr->biWidth, hdr->biHeight, hdr->biBitCount == 32, (const uint32 *)(hdr + 1));
 
 			return dec;
 		}
@@ -830,19 +830,17 @@ IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBi
 
 	// If we aren't preferring internal decoders, look for an external decoder.
 	if (!preferInternal) {
-		dec = VDFindVideoDecompressor(fccHandler, &hdr, hdrSize);
+		dec = VDFindVideoDecompressor(fccHandler, hdr, hdrlen);
 		if (dec)
 			return dec;
 	}
 
-	const int w = hdr.biWidth;
-	const int h = abs((int)hdr.biHeight);
+	const int w = hdr->biWidth;
+	const int h = abs((int)hdr->biHeight);
 
 	// If it's Motion JPEG, use the internal decoder.
-	// TODO: AMD64 currently does not have a working MJPEG decoder.
-#ifndef _M_AMD64
-	bool is_mjpeg	 = isEqualFOURCC(hdr.biCompression, 'GPJM')
-					|| isEqualFOURCC(hdr.biCompression, '1bmd');
+	bool is_mjpeg	 = isEqualFOURCC(hdr->biCompression, 'GPJM')
+					|| isEqualFOURCC(hdr->biCompression, '1bmd');
 	if (is_mjpeg) {
 		vdautoptr<VDVideoDecompressorMJPEG> pDecoder(new_nothrow VDVideoDecompressorMJPEG);
 		if (pDecoder) {
@@ -851,12 +849,19 @@ IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBi
 			return pDecoder.release();
 		}
 	}
-#endif
 
 	// If it's DV, use the internal decoder.
-	bool is_dv = isEqualFOURCC(hdr.biCompression, 'dsvd');
+	bool is_dv = isEqualFOURCC(hdr->biCompression, 'dsvd');
 	if (is_dv && w==720 && (h == 480 || h == 576)) {
 		dec = VDCreateVideoDecompressorDV(w, h);
+		if (dec)
+			return dec;
+	}
+
+	// If it's DV, use the internal decoder.
+	bool is_huffyuv = isEqualFOURCC(hdr->biCompression, 'uyfh');
+	if (is_huffyuv && !(w & 1)) {
+		dec = VDCreateVideoDecompressorHuffyuv(w, h, hdr->biBitCount, (const uint8 *)(hdr + 1), hdrlen - sizeof(*hdr));
 		if (dec)
 			return dec;
 	}
@@ -864,7 +869,7 @@ IVDVideoDecompressor *VDFindVideoDecompressorEx(uint32 fccHandler, const VDAVIBi
 	// if we were asked to use an internal decoder and failed, try external decoders
 	// now
 	if (preferInternal) {
-		dec = VDFindVideoDecompressor(fccHandler, &hdr, hdrSize);
+		dec = VDFindVideoDecompressor(fccHandler, hdr, hdrlen);
 		if (dec)
 			return dec;
 	}
@@ -878,6 +883,7 @@ VideoSource::VideoSource()
 	: stream_current_frame(-1)
 	, mpFrameBuffer(NULL)
 	, mFrameBufferSize(0)
+	, mpStreamOwner(NULL)
 {
 }
 
@@ -899,6 +905,10 @@ void VideoSource::FreeFrameBuffer() {
 		VDAlignedFree(mpFrameBuffer);
 		mpFrameBuffer = NULL;
 	}
+}
+
+const VDFraction VideoSource::getPixelAspectRatio() const {
+	return VDFraction(0, 0);
 }
 
 bool VideoSource::setTargetFormat(int format) {
@@ -984,6 +994,24 @@ bool VideoSource::setDecompressedFormat(const VDAVIBitmapInfoHeader *pbih) {
 	}
 
 	return false;
+}
+
+bool VideoSource::streamOwn(void *owner) {
+	if (owner == mpStreamOwner)
+		return true;
+
+	if (mpStreamOwner)
+		streamEnd();
+
+	mpStreamOwner = owner;
+	return false;
+}
+
+void VideoSource::streamDisown(void *owner) {
+	if (mpStreamOwner == owner) {
+		mpStreamOwner = NULL;
+		streamEnd();
+	}
 }
 
 void VideoSource::streamBegin(bool, bool) {
@@ -1347,7 +1375,7 @@ bool VideoSourceAVI::_construct(int streamIndex) {
 	if (!AllocFrameBuffer(bmih->biWidth * 4 * abs((int)bmih->biHeight) + 4))
 		throw MyMemoryError();
 
-	mpDecompressor = VDFindVideoDecompressorEx(streamInfo.fccHandler, *bmih, format_len, use_internal);
+	mpDecompressor = VDFindVideoDecompressorEx(streamInfo.fccHandler, bmih, format_len, use_internal);
 
 	if (!mpDecompressor) {
 		const char *s = LookupVideoCodec(bmih->biCompression);

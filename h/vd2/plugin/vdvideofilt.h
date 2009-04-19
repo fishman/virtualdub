@@ -38,12 +38,55 @@ struct VDXFilterVTbls;
 //////////////////
 
 enum {
+	/// Request distinct source and destination buffers. Otherwise, the source and destination buffers
+	/// alias (in-place mode).
 	FILTERPARAM_SWAP_BUFFERS		= 0x00000001L,
+
+	/// Request an extra buffer for the previous source frame.
 	FILTERPARAM_NEEDS_LAST			= 0x00000002L,
+
+	/// Filter supports image formats other than RGB32. Filters that support format negotiation must
+	/// set this flag for all calls to paramProc.
 	FILTERPARAM_SUPPORTS_ALTFORMATS	= 0x00000004L,
+
+	/// Filter requests 16 byte alignment for source and destination buffers. This guarantees that:
+	///
+	///		- data and pitch fields are multiples of 16 bytes (aligned)
+	///		- an integral number of 16 byte vectors may be read, even if the last vector includes
+	///		  some bytes beyond the end of the scanline (their values are undefined)
+	///		- an integral number of 16 byte vectors may be written, even if the last vector includes
+	///		  some bytes beyong the end of the scanline (their values are ignored)
+	///
+	FILTERPARAM_ALIGN_SCANLINES		= 0x00000008L,
+
+	/// Filter's output is purely a function of configuration parameters and source image data, and not
+	/// source or output frame numbers. In other words, two output frames produced by a filter instance
+	/// can be assumed to be identical images if:
+	///
+	///		- the same number of source frames are prefetched
+	///		- the same type of prefetches are performed (direct vs. non-direct)
+	///		- the frame numbers for the two prefetch lists, taken in order, correspond to identical
+	///		  source frames
+	///		- the prefetch cookies match
+	///
+	/// Enabling this flag improves the ability of the host to identify identical frames and drop them
+	/// in preview or in the output file.
+	///
+	FILTERPARAM_PURE_TRANSFORM		= 0x00000010L,
+
+	/// Filter cannot support the requested source format. Note that this sets all bits, so the meaning
+	/// of other bits is ignored. The one exception is that FILTERPARAM_SUPPORTS_ALTFORMATS is assumed
+	/// to be implicitly set.
 	FILTERPARAM_NOT_SUPPORTED		= (long)0xFFFFFFFF
 };
 
+/// The filter has a delay from source to output. For instance, a lag of 3 indicates that the
+/// filter internally buffers three frames, so when it is fed frames in sequence, frame 0 emerges
+/// after frame 3 has been processed. The host attempts to correct timestamps in order to compensate.
+///
+/// VirtualDub 1.9.1 or later: Setting this flag can have a performance penalty, as it causes the host
+/// to request additional frames to try to produce the correct requested output frames.
+///
 #define FILTERPARAM_HAS_LAG(frames) ((int)(frames) << 16)
 
 ///////////////////
@@ -52,6 +95,12 @@ class VDXFBitmap;
 class VDXFilterActivation;
 struct VDXFilterFunctions;
 struct VDXFilterModule;
+class IVDXVideoPrefetcher;
+
+enum {
+	kVDXVFEvent_None				= 0,
+	kVDXVFEvent_InvalidateCaches	= 1
+};
 
 typedef int  (__cdecl *VDXFilterInitProc     )(VDXFilterActivation *fa, const VDXFilterFunctions *ff);
 typedef void (__cdecl *VDXFilterDeinitProc   )(VDXFilterActivation *fa, const VDXFilterFunctions *ff);
@@ -67,6 +116,9 @@ typedef int  (__cdecl *VDXFilterSerialize    )(VDXFilterActivation *fa, const VD
 typedef void (__cdecl *VDXFilterDeserialize  )(VDXFilterActivation *fa, const VDXFilterFunctions *ff, const char *buf, int maxbuf);
 typedef void (__cdecl *VDXFilterCopy         )(VDXFilterActivation *fa, const VDXFilterFunctions *ff, void *dst);
 typedef sint64 (__cdecl *VDXFilterPrefetch   )(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, sint64 frame);
+typedef void (__cdecl *VDXFilterCopy2Proc    )(VDXFilterActivation *fa, const VDXFilterFunctions *ff, void *dst, VDXFilterActivation *fa2, const VDXFilterFunctions *ff2);
+typedef bool (__cdecl *VDXFilterPrefetch2Proc)(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, sint64 frame, IVDXVideoPrefetcher *prefetcher);
+typedef bool (__cdecl *VDXFilterEventProc	 )(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, uint32 event, const void *eventData);
 
 typedef int (__cdecl *VDXFilterModuleInitProc)(VDXFilterModule *fm, const VDXFilterFunctions *ff, int& vdfd_ver, int& vdfd_compat);
 typedef void (__cdecl *VDXFilterModuleDeinitProc)(VDXFilterModule *fm, const VDXFilterFunctions *ff);
@@ -98,11 +150,35 @@ public:
 	virtual bool IsPreviewDisplayed() = 0;
 };
 
+class IVDXVideoPrefetcher : public IVDXUnknown {
+public:
+	enum { kIID = VDXMAKEFOURCC('X', 'v', 'p', 'f') };
+
+	/// Request a video frame fetch from an upstream source.
+	virtual void VDXAPIENTRY PrefetchFrame(sint32 srcIndex, sint64 frame, uint64 cookie) = 0;
+
+	/// Request a video frame fetch from an upstream source in direct mode.
+	/// This specifies that the output frame is the same as the input frame.
+	/// There cannot be more than one direct fetch and there must be no standard
+	/// fetches at the same time. There can, however, be symbolic fetches.
+	virtual void VDXAPIENTRY PrefetchFrameDirect(sint32 srcIndex, sint64 frame) = 0;
+
+	/// Request a symbolic fetch from a source. This does not actually fetch
+	/// any frames, but marks an association from source to output. This is
+	/// useful for indicating the approximate center of where an output derives
+	/// in a source, even if those frames aren't fetched (perhaps due to caching).
+	/// There may be either zero or one symbolic fetch per source.
+	///
+	/// If no symbolic fetches are performed, the symbolic frame is assumed to
+	/// be the rounded mean of the fetched source frames.
+	virtual void VDXAPIENTRY PrefetchFrameSymbolic(sint32 srcIndex, sint64 frame) = 0;
+};
+
 //////////
 
 enum {
 	// This is the highest API version supported by this header file.
-	VIRTUALDUB_FILTERDEF_VERSION		= 13,
+	VIRTUALDUB_FILTERDEF_VERSION		= 14,
 
 	// This is the absolute lowest API version supported by this header file.
 	// Note that V4 is rather old, corresponding to VirtualDub 1.2.
@@ -128,6 +204,7 @@ enum {
 // v11 (1.7.0): guaranteed src structure setup before configProc; added IVDFilterPreview2
 // v12 (1.7.4): support for frame alteration
 // v13 (1.8.2): added mOutputFrame field to VDXFilterStateInfo
+// v14 (1.9.1): added copyProc2, prefetchProc2, input/output frame arrays
 
 struct VDXFilterDefinition {
 	void *_next;		// deprecated - set to NULL
@@ -160,6 +237,11 @@ struct VDXFilterDefinition {
 	VDXFilterCopy			copyProc;
 
 	VDXFilterPrefetch		prefetchProc;		// (V12/V1.7.4+)
+
+	// NEW - V14 / 1.9.1
+	VDXFilterCopy2Proc		copyProc2;
+	VDXFilterPrefetch2Proc	prefetchProc2;
+	VDXFilterEventProc		eventProc;
 };
 
 //////////
@@ -235,7 +317,15 @@ public:
 	sint64	mFrameCount;		// Frame count; -1 if unlimited or indeterminate (V1.7.4+)
 
 	VDXPixmapLayout	*mpPixmapLayout;
-	const VDXPixmap	*mpPixmap;			
+	const VDXPixmap	*mpPixmap;
+
+	uint32	mAspectRatioHi;				///< Pixel aspect ratio fraction (numerator).	0/0 = unknown
+	uint32	mAspectRatioLo;				///< Pixel aspect ratio fraction (denominator).
+
+	sint64	mFrameNumber;				///< Current frame number (zero based).
+	sint64	mFrameTimestampStart;		///< Starting timestamp of frame, in 100ns units.
+	sint64	mFrameTimestampEnd;			///< Ending timestamp of frame, in 100ns units.
+	sint64	mCookie;					///< Cookie supplied when frame was requested.
 };
 
 // VDXFilterActivation: This is what is actually passed to filters at runtime.
@@ -256,6 +346,10 @@ public:
 	VDXFilterStateInfo	*pfsi;
 	IVDXFilterPreview	*ifp;
 	IVDXFilterPreview2	*ifp2;			// (V11+)
+
+	uint32		mSourceFrameCount;		// (V14+)
+	VDXFBitmap *const *mpSourceFrames;	// (V14+)
+	VDXFBitmap *const *mpOutputFrames;	// (V14+)
 };
 
 // These flags must match those in cpuaccel.h!

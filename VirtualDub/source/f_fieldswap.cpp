@@ -18,107 +18,103 @@
 #include "stdafx.h"
 
 #include <vd2/system/memory.h>
+#include <vd2/VDXFrame/VideoFilter.h>
 
 #include "resource.h"
 #include "filter.h"
 
-extern HINSTANCE g_hInst;
+class VDVideoFilterFieldSwap : public VDXVideoFilter {
+public:
+	uint32 GetParams();
+	void Run();
 
-///////////////////////////////////
+protected:
+	static void SwapPlaneScanlines(void *p, ptrdiff_t pitch, uint32 vecw, uint32 h);
+};
 
-#ifdef _M_IX86
-static void __declspec(naked) asm_fieldswap(void *data, int bytes4, int bytes1, int height, long pitch) {
-	__asm {
-		push	ebp
-		push	edi
-		push	esi
-		push	ebx
+uint32 VDVideoFilterFieldSwap::GetParams() {
+	const VDXPixmapLayout& pxldst = *fa->dst.mpPixmapLayout;
 
-		mov		esi,[esp+4+16]
-		mov		edx,[esp+16+16]
-		mov		edi,esi
-		mov		ecx,[esp+12+16]
-		mov		eax,[esp+20+16]
-		sar		eax,1
-		add		edi,eax
-yloop:
-		mov		ebp,[esp+8+16]
-xloop:
-		mov		eax,[esi+ebp]
-		mov		ebx,[edi+ebp]
-		mov		[esi+ebp],ebx
-		mov		[edi+ebp],eax
-		add		ebp,4
-		jne		xloop
+	fa->dst.offset = fa->src.offset;
 
-		or		ecx,ecx
-		jz		no_extra
-xloop_bytes:
-		mov		al,[esi+ebp]
-		mov		bl,[edi+ebp]
-		mov		[esi+ebp],bl
-		mov		[edi+ebp],al
-		inc		ebp
-		cmp		ebp,ecx
-		jne		xloop_bytes
+	switch(pxldst.format) {
+		case nsVDXPixmap::kPixFormat_XRGB8888:
+		case nsVDXPixmap::kPixFormat_Y8:
+		case nsVDXPixmap::kPixFormat_YUV422_UYVY:
+		case nsVDXPixmap::kPixFormat_YUV422_YUYV:
+		case nsVDXPixmap::kPixFormat_YUV444_Planar:
+		case nsVDXPixmap::kPixFormat_YUV422_Planar:
+		case nsVDXPixmap::kPixFormat_YUV411_Planar:
+		case nsVDXPixmap::kPixFormat_YUV410_Planar:
+			return FILTERPARAM_ALIGN_SCANLINES | FILTERPARAM_SUPPORTS_ALTFORMATS;
 
-no_extra:
-		add		esi,[esp+20+16]
-		add		edi,[esp+20+16]
-		dec		edx
-		jne		yloop
-
-		pop		ebx
-		pop		esi
-		pop		edi
-		pop		ebp
-		ret
+		default:
+			return FILTERPARAM_NOT_SUPPORTED;
 	}
 }
-#endif
 
-///////////////////////////////////
+void VDVideoFilterFieldSwap::Run() {
+	const VDXPixmap& pxdst = *fa->dst.mpPixmap;
 
-int fieldswap_run(const FilterActivation *fa, const FilterFunctions *ff) {	
-#ifdef _M_IX86
-	asm_fieldswap(
-			fa->src.data + fa->src.w,
-			-fa->src.w*4,
-			0,
-			fa->src.h/2,
-			fa->src.pitch*2
-			);
-#else
-	char *dst1 = (char *)fa->dst.data;
-	char *dst2 = dst1 + fa->dst.pitch;
-	ptrdiff_t step = fa->dst.pitch * 2;
-	uint32 rowbytes = fa->dst.w * 4;
-	uint32 rowpairs = fa->src.h >> 1;
+	switch(pxdst.format) {
+		case nsVDXPixmap::kPixFormat_XRGB8888:
+			SwapPlaneScanlines(pxdst.data, pxdst.pitch, (pxdst.w + 3) >> 2, pxdst.h);
+			break;
+
+		case nsVDXPixmap::kPixFormat_Y8:
+			SwapPlaneScanlines(pxdst.data, pxdst.pitch, (pxdst.w + 15) >> 4, pxdst.h);
+			break;
+
+		case nsVDXPixmap::kPixFormat_YUV422_UYVY:
+		case nsVDXPixmap::kPixFormat_YUV422_YUYV:
+			SwapPlaneScanlines(pxdst.data, pxdst.pitch, (pxdst.w + 7) >> 3, pxdst.h);
+			break;
+
+		case nsVDXPixmap::kPixFormat_YUV444_Planar:
+			SwapPlaneScanlines(pxdst.data, pxdst.pitch, (pxdst.w + 15) >> 4, pxdst.h);
+			SwapPlaneScanlines(pxdst.data2, pxdst.pitch2, (pxdst.w + 15) >> 4, pxdst.h);
+			SwapPlaneScanlines(pxdst.data3, pxdst.pitch3, (pxdst.w + 15) >> 4, pxdst.h);
+			break;
+
+		case nsVDXPixmap::kPixFormat_YUV422_Planar:
+			SwapPlaneScanlines(pxdst.data, pxdst.pitch, (pxdst.w + 15) >> 4, pxdst.h);
+			SwapPlaneScanlines(pxdst.data2, pxdst.pitch2, (pxdst.w + 31) >> 5, pxdst.h >> 1);
+			SwapPlaneScanlines(pxdst.data3, pxdst.pitch3, (pxdst.w + 31) >> 5, pxdst.h >> 1);
+			break;
+
+		case nsVDXPixmap::kPixFormat_YUV411_Planar:
+			SwapPlaneScanlines(pxdst.data, pxdst.pitch, (pxdst.w + 15) >> 4, pxdst.h);
+			SwapPlaneScanlines(pxdst.data2, pxdst.pitch2, (pxdst.w + 63) >> 6, pxdst.h);
+			SwapPlaneScanlines(pxdst.data3, pxdst.pitch3, (pxdst.w + 63) >> 6, pxdst.h);
+			break;
+
+		case nsVDXPixmap::kPixFormat_YUV410_Planar:
+			SwapPlaneScanlines(pxdst.data, pxdst.pitch, (pxdst.w + 15) >> 4, pxdst.h);
+			SwapPlaneScanlines(pxdst.data2, pxdst.pitch2, (pxdst.w + 63) >> 6, pxdst.h >> 2);
+			SwapPlaneScanlines(pxdst.data3, pxdst.pitch3, (pxdst.w + 63) >> 6, pxdst.h >> 2);
+			break;
+	}
+}
+
+void VDVideoFilterFieldSwap::SwapPlaneScanlines(void *p, ptrdiff_t pitch, uint32 vecw, uint32 h) {
+	char *dst1 = (char *)p;
+	char *dst2 = dst1 + pitch;
+	ptrdiff_t step = pitch + pitch;
+	size_t rowbytes = vecw << 4;
+	uint32 rowpairs = h >> 1;
 
 	for(uint32 y=0; y<rowpairs; ++y) {
 		VDSwapMemory(dst1, dst2, rowbytes);
 		dst1 += step;
 		dst2 += step;
 	}
-#endif
-
-	return 0;
 }
 
-long fieldswap_param(FilterActivation *fa, const FilterFunctions *ff) {
-	fa->dst.offset = fa->src.offset;
-	return 0;
-}
-
-FilterDefinition filterDef_fieldswap={
-	0,0,NULL,
+extern const VDXFilterDefinition filterDef_fieldswap = VDXVideoFilterDefinition<VDVideoFilterFieldSwap>(
+	NULL,
 	"field swap",
-	"Swaps interlaced fields in the image.\n\n[Assembly optimized]",
-	NULL,NULL,
-	0,
-	NULL,NULL,
-	fieldswap_run,
-	fieldswap_param,
-	NULL,
-	NULL,
-};
+	"Swaps interlaced fields in the image.");
+
+#ifdef _MSC_VER
+	#pragma warning(disable: 4505)	// warning C4505: 'VDXVideoFilter::[thunk]: __thiscall VDXVideoFilter::`vcall'{48,{flat}}' }'' : unreferenced local function has been removed
+#endif

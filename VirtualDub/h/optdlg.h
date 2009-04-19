@@ -26,7 +26,6 @@ void ActivateDubDialog(HINSTANCE hInst, LPCTSTR lpResource, HWND hDlg, DLGPROC d
 INT_PTR CALLBACK AudioConversionDlgProc	( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK AudioInterleaveDlgProc	( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK VideoDepthDlgProc			( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-INT_PTR CALLBACK PerformanceOptionsDlgProc	( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK DynamicCompileOptionsDlgProc( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK VideoDecimationDlgProc	( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK VideoClippingDlgProc		( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);

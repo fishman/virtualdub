@@ -358,7 +358,7 @@ AC_do_long:
 
 	lea	ebx,[ebx+eax*8+8]
 	cmp	ebx,[esp + l_quantlimit]
-	jae	AC_exit_clamp
+	ja	AC_exit_clamp
 
 	cmp	ebp,80000000h
 	sbb	eax,eax
@@ -478,6 +478,8 @@ sucks2:
 	ALIGN16
 AC_skip16:
 	add	ebx,16*8
+	cmp	ebx,[esp + l_quantlimit]
+	jae AC_exit_clamp
 	jmp	AC_loop
 
 	end

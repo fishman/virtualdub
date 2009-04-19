@@ -408,6 +408,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\decode_huffyuv.cpp"
+				>
+			</File>
+			<File
 				RelativePath="source\decode_png.cpp"
 				>
 				<FileConfiguration
@@ -761,6 +765,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\h\vd2\Meia\decode_huffyuv.h"
+				>
+			</File>
+			<File
 				RelativePath="..\h\vd2\Meia\decode_png.h"
 				>
 			</File>
@@ -797,22 +805,8 @@
 				RelativePath="source\a_predict_isse.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -831,22 +825,8 @@
 				RelativePath="source\a_predict_mmx.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -865,22 +845,8 @@
 				RelativePath="source\a_predict_scalar.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -899,22 +865,8 @@
 				RelativePath="source\a_predict_sse2.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -933,22 +885,8 @@
 				RelativePath="source\a_yuv2rgb.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -967,22 +905,8 @@
 				RelativePath="source\a_yuvtable.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -1001,22 +925,8 @@
 				RelativePath="source\mpeg_idct_mmx.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -1035,22 +945,8 @@
 				RelativePath="source\mpeg_idct_sse2.asm"
 				>
 				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|x64"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
 					>
 					<Tool
 						Name="YASM"
@@ -1301,22 +1197,8 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Release|Win32"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
 					>
 					<Tool
 						Name="YASM"
@@ -1335,22 +1217,8 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Release|Win32"
 					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="YASM"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
 					>
 					<Tool
 						Name="YASM"

@@ -20,6 +20,6 @@
 
 #include <windows.h>
 
-void ActivateFrameServerDialog(HWND hwnd);
+void ActivateFrameServerDialog(HWND hwnd, const char *serverName);
 
 #endif

@@ -126,6 +126,7 @@ stringset 9 {		// kVDST_Project
 	message 7, "paste";
 	message 8, "scan for errors";
 	message 9, "reset timeline";
+	message 10, "crop to selection";
 }
 
 stringset 10 {		// kVDST_VideoSequenceCompressor
@@ -193,6 +194,7 @@ dialog 1000, "Preferences" : minw=350, maxw=350, aspect=140, valign=top+expand {
 				listitem "Disk I/O";
 				listitem "Images";
 				listitem "Threading";
+				listitem "Playback";
 			}
 
 			pageset 101 : value={@100} {
@@ -206,6 +208,7 @@ dialog 1000, "Preferences" : minw=350, maxw=350, aspect=140, valign=top+expand {
 				page 1017;
 				page 1018;
 				page 1019;
+				page 1020;
 			}
 		}
 
@@ -303,6 +306,8 @@ dialog 1011, "" : fill, child {
 				set 200: spacing=3, marginl=40, enable={@103}, vertical, align=fill {
 					now valign=center, marginl=0;
 
+					checkbox 109, "Use high precision conversion";
+					
 					set 0 : align=fill {
 						checkbox 105, "Use effect file:";
 						textedit 300, "" : minw=60, sunken, align=fill, enable={@105};
@@ -313,6 +318,7 @@ dialog 1011, "" : fill, child {
 				checkbox 104, "Use OpenGL" : enable={@101 && !@103};
 				checkbox 106, "Avoid tearing (enable vsync)";
 			}
+			checkbox 110, "Disable accelerated display when inactive";
 			checkbox 108, "Show debug information";
 		}
 	}
@@ -413,6 +419,7 @@ dialog 1015, "" : fill, child {
 							"\n"
 							"%B, %L: byte position and length of source frame\n"
 							"%D: distance from last key frame\n"
+							"%[>]...: use end instead of current position\n"
 							: minh=100, readonly;
 			}
 		}
@@ -469,6 +476,14 @@ dialog 1019, "" : fill, child {
 			textarea 0, "Zero disables video compressor multithreading; '1' causes the compressor to run in a separate thread for better performance on dual-core and SMP systems. Values greater than 1 are not yet supported." : margint=5, colspan=2, fill, readonly, minh=40;
 			
 		}
+	}
+}
+
+dialog 1020, "" : fill, child {
+	now align=fill;
+	set 0: vertical {
+		label 0, "&Preferred audio playback device";
+		combobox 100, "";			
 	}
 }
 

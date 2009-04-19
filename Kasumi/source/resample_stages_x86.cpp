@@ -1134,18 +1134,20 @@ void VDResamplerSeparableTableColStage8SSE41::Process(void *dst0, const void *co
 
 	int w4 = w & ~3;
 
-	switch(ksize) {
-		case 2:
-			vdasm_resize_table_col_8_k2_SSE41(dst, (const void *const *)src, w4, filter);
-			break;
+	if (w4) {
+		switch(ksize) {
+			case 2:
+				vdasm_resize_table_col_8_k2_SSE41(dst, (const void *const *)src, w4, filter);
+				break;
 
-		case 4:
-			vdasm_resize_table_col_8_k4_SSE41(dst, (const void *const *)src, w4, filter);
-			break;
+			case 4:
+				vdasm_resize_table_col_8_k4_SSE41(dst, (const void *const *)src, w4, filter);
+				break;
 
-		default:
-			vdasm_resize_table_col_8_MMX(dst, (const void *const *)src, w4, filter, ksize);
-			break;
+			default:
+				vdasm_resize_table_col_8_MMX(dst, (const void *const *)src, w4, filter, ksize);
+				break;
+		}
 	}
 
 	for(uint32 i=w4; i<w; ++i) {

@@ -9,11 +9,13 @@
 
 struct VDPixmapFormatInfo {
 	const char *name;		// debugging name
+	bool qchunky;			// quantums are chunky (not 1x1 pixels)
 	int qw, qh;				// width, height of a quantum
 	int	qwbits, qhbits;		// width and height of a quantum as shifts
 	int qsize;				// size of a pixel in bytes
 	int auxbufs;			// number of auxiliary buffers (0 for chunky formats, usually 2 for planar)
 	int	auxwbits, auxhbits;	// subsampling factors for auxiliary buffers in shifts
+	int auxsize;			// size of an aux sample in bytes
 	int palsize;			// entries in palette
 	int subformats;			// number of subformats for this format
 };
@@ -22,7 +24,7 @@ extern VDPixmapFormatInfo g_vdPixmapFormats[];
 
 inline const VDPixmapFormatInfo& VDPixmapGetInfo(sint32 format) {
 	VDASSERT((uint32)format < nsVDPixmap::kPixFormat_Max_Standard);
-	return g_vdPixmapFormats[format];
+	return g_vdPixmapFormats[(uint32)format < nsVDPixmap::kPixFormat_Max_Standard ? format : 0];
 }
 
 #ifdef _DEBUG
@@ -93,13 +95,13 @@ VDPixmap VDPixmapExtractField(const VDPixmap& src, bool field2);
 
 #ifndef VDPTRSTEP_DECLARED
 	template<class T>
-	void vdptrstep(T *&p, ptrdiff_t offset) {
+	inline void vdptrstep(T *&p, ptrdiff_t offset) {
 		p = (T *)((char *)p + offset);
 	}
 #endif
 #ifndef VDPTROFFSET_DECLARED
 	template<class T>
-	T *vdptroffset(T *p, ptrdiff_t offset) {
+	inline T *vdptroffset(T *p, ptrdiff_t offset) {
 		return (T *)((char *)p + offset);
 	}
 #endif
@@ -110,7 +112,8 @@ VDPixmap VDPixmapExtractField(const VDPixmap& src, bool field2);
 #endif
 
 
-typedef void *(*tpVDPixBltTable)[nsVDPixmap::kPixFormat_Max_Standard];
+typedef void (*VDPixmapBlitterFn)(const VDPixmap& dst, const VDPixmap& src, vdpixsize w, vdpixsize h);
+typedef VDPixmapBlitterFn (*tpVDPixBltTable)[nsVDPixmap::kPixFormat_Max_Standard];
 
 tpVDPixBltTable VDGetPixBltTableReference();
 tpVDPixBltTable VDGetPixBltTableX86Scalar();

@@ -137,15 +137,12 @@ void guiOpenDebug() {
 
 ////////////////////////////////////////////////////////////////////////////
 
-bool guiDlgMessageLoop(HWND hDlg, int *errorCode) {
+bool guiDlgMessageLoop(HWND hDlg) {
 	MSG msg;
 
 	while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-		if (msg.message == WM_QUIT) {
-			if (errorCode)
-				*errorCode = msg.wParam;
+		if (msg.message == WM_QUIT)
 			return false;
-		}
 
 		if (!hDlg || !IsWindow(hDlg) || !IsDialogMessage(hDlg, &msg)) {
 			TranslateMessage(&msg);

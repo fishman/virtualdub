@@ -152,6 +152,8 @@ public:
 
 	const vdint128 operator*(const vdint128& x) const;
 
+	const vdint128 operator/(int x) const;
+
 	const vdint128 operator-() const {
 		vdint128 t(0);
 		vdasm_uint128_sub((uint64 *)t.q, (const uint64 *)t.q, (const uint64 *)q);

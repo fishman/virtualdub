@@ -56,6 +56,11 @@ public:
 	virtual void GetScriptString(char *buf, int maxlen);
 	virtual int Serialize(char *buf, int maxbuf);
 	virtual int Deserialize(const char *buf, int maxbuf);
+	virtual sint64 Prefetch(sint64 frame);
+	virtual bool Prefetch2(sint64 frame, IVDXVideoPrefetcher *prefetcher);
+
+	virtual bool OnEvent(uint32 event, const void *eventData);
+	virtual bool OnInvalidateCaches();
 
 	static void __cdecl FilterDeinit   (VDXFilterActivation *fa, const VDXFilterFunctions *ff);
 	static int  __cdecl FilterRun      (const VDXFilterActivation *fa, const VDXFilterFunctions *ff);
@@ -68,6 +73,9 @@ public:
 	static void __cdecl FilterString2  (const VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int maxlen);
 	static int  __cdecl FilterSerialize    (VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int maxbuf);
 	static void __cdecl FilterDeserialize  (VDXFilterActivation *fa, const VDXFilterFunctions *ff, const char *buf, int maxbuf);
+	static sint64 __cdecl FilterPrefetch(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, sint64 frame);
+	static bool __cdecl FilterPrefetch2(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, sint64 frame, IVDXVideoPrefetcher *prefetcher);
+	static bool __cdecl FilterEvent(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, uint32 event, const void *eventData);
 
 	// member variables
 	VDXFilterActivation *fa;
@@ -105,6 +113,10 @@ protected:
 
 extern char VDXVideoFilterConfigureOverloadTest(bool (VDXVideoFilter::*)(VDXHWND));
 extern double VDXVideoFilterConfigureOverloadTest(...);
+extern char VDXVideoFilterPrefetchOverloadTest(sint64 (VDXVideoFilter::*)(sint64));
+extern double VDXVideoFilterPrefetchOverloadTest(...);
+extern char VDXVideoFilterPrefetch2OverloadTest(bool (VDXVideoFilter::*)(sint64, IVDXVideoPrefetcher *));
+extern double VDXVideoFilterPrefetch2OverloadTest(...);
 
 template<class T, void (T::*T_Method)(IVDXScriptInterpreter *, const VDXScriptValue *, int)>
 class VDXVideoFilterScriptAdapter
@@ -164,8 +176,12 @@ public:
 		serializeProc	= T::FilterSerialize;
 		deserializeProc	= T::FilterDeserialize;
 		copyProc		= FilterCopy;
+		copyProc2		= FilterCopy2;
 
-		prefetchProc	= NULL;
+		prefetchProc	= sizeof(VDXVideoFilterPrefetchOverloadTest(&T::Prefetch)) > 1 ? T::FilterPrefetch : NULL;
+		prefetchProc2	= sizeof(VDXVideoFilterPrefetch2OverloadTest(&T::Prefetch2)) > 1 || sizeof(VDXVideoFilterPrefetchOverloadTest(&T::Prefetch)) > 1 ? T::FilterPrefetch2 : NULL;
+
+		eventProc		= T::FilterEvent;
 	}
 
 private:
@@ -191,6 +207,13 @@ private:
 	static void __cdecl FilterCopy         (VDXFilterActivation *fa, const VDXFilterFunctions *ff, void *dst) {
 		T *p = new((char *)dst + sizeof(VDXVideoFilter *)) T(*static_cast<T *>(*reinterpret_cast<VDXVideoFilter **>(fa->filter_data)));
 		p->ff = ff;
+		*(VDXVideoFilter **)dst = p;
+	}
+
+	static void __cdecl FilterCopy2        (VDXFilterActivation *fa, const VDXFilterFunctions *ff, void *dst, VDXFilterActivation *fanew, const VDXFilterFunctions *ffnew) {
+		T *p = new((char *)dst + sizeof(VDXVideoFilter *)) T(*static_cast<T *>(*reinterpret_cast<VDXVideoFilter **>(fa->filter_data)));
+		p->ff = ffnew;
+		p->fa = fanew;
 		*(VDXVideoFilter **)dst = p;
 	}
 };

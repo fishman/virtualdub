@@ -492,6 +492,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\source\TestHalfFloat.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\TestMath.cpp"
 				>
 			</File>
